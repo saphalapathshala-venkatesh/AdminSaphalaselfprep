@@ -1,0 +1,79 @@
+FINAL HARDENING PATCH (NO REDESIGN). Apply minimal, safe production hardening:
+
+GOALS (ONLY these):
+1) Enforce tenantId="default" for ALL UserEntitlement writes (fix nullable-unique risk)
+2) Add lightweight rate limiting for POST /api/auth/login (anti-bruteforce)
+3) Add /api/health endpoint for deployment checks
+4) Ensure cookies are secure in production and auth is unchanged otherwise
+
+------------------------------------
+1) ENTITLEMENTS: tenantId="default" everywhere
+------------------------------------
+Search for ALL code paths that create/update/upsert UserEntitlement, including:
+- app/api/products/[id]/simulate-purchase/route.ts
+- app/api/learners/[id]/entitlements/route.ts
+- any other places touching UserEntitlement
+
+Patch rules:
+- When creating/upserting entitlement rows, ALWAYS set:
+  tenantId: "default"
+- When querying/upserting entitlement for a user+product, ALWAYS include tenantId:"default"
+- Ensure you do not create duplicates:
+  Use findFirst({ where: { userId, productCode, tenantId:"default" }}) then update/create
+  OR use upsert if a stable unique selector exists in code.
+
+Also ensure entitlement grant/revoke keeps purchaseId unchanged unless explicitly set.
+
+------------------------------------
+2) LOGIN RATE LIMITING (lightweight, in-memory)
+------------------------------------
+Implement a simple in-memory rate limiter ONLY for POST /api/auth/login:
+
+- Create file: lib/rateLimit.ts
+  - Maintain a Map<string, {count:number, resetAt:number}>
+  - Key by IP address (from x-forwarded-for first, fallback req.ip or "unknown")
+  - Limit: 5 attempts per 60 seconds
+  - On exceed: return { allowed:false, retryAfterSec }.
+
+- In app/api/auth/login/route.ts:
+  - Before validating credentials, call limiter.check(ip)
+  - If not allowed:
+     return 429 JSON: { error: "Too many login attempts. Try again later.", retryAfterSec }
+     also set header: Retry-After: <retryAfterSec>
+
+NOTE:
+This limiter resets on server restart (acceptable for now, minimal deps).
+Do NOT add external libraries.
+
+------------------------------------
+3) HEALTH CHECK ENDPOINT
+------------------------------------
+Create: app/api/health/route.ts
+- GET returns JSON:
+  { ok: true, timestamp: <iso>, db: "ok" }
+- Also do a quick DB ping using Prisma:
+  await prisma.user.count({ take: 1 }) OR prisma.$queryRaw`SELECT 1`
+- If DB fails, return:
+  status 500 { ok:false, db:"error" }
+
+------------------------------------
+4) COOKIE SECURITY CONFIRMATION
+------------------------------------
+In login route where admin_session cookie is set:
+- Ensure:
+  httpOnly: true
+  sameSite: "lax"
+  secure: process.env.NODE_ENV === "production"
+  path: "/"
+- Do not change cookie name.
+
+------------------------------------
+OUTPUT REQUIRED
+------------------------------------
+After implementing, print a short summary:
+- Files changed
+- Rate limit behavior
+- Confirmation that tenantId="default" is enforced in simulate purchase + entitlement grant/revoke
+- Health endpoint URL: /api/health
+
+Do NOT change UI. Do NOT change Prisma schema. Keep changes minimal.

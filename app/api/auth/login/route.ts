@@ -4,9 +4,19 @@ import crypto from "crypto";
 import prisma from "@/lib/prisma";
 import { loginSchema } from "@/lib/validators/auth";
 import { writeAuditLog } from "@/lib/audit";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = getClientIp(req);
+    const limit = checkRateLimit(ip);
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: "Too many login attempts. Try again later.", retryAfterSec: limit.retryAfterSec },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } }
+      );
+    }
+
     const body = await req.json();
     const parsed = loginSchema.safeParse(body);
     if (!parsed.success) {

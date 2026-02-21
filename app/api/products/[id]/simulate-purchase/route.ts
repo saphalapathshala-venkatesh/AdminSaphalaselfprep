@@ -85,13 +85,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const entitlements = [];
     for (const code of pkg.entitlementCodes) {
       const ent = await prisma.userEntitlement.upsert({
-        where: { userId_productCode_tenantId: { userId: userId.trim(), productCode: code, tenantId: "" } },
+        where: { userId_productCode_tenantId: { userId: userId.trim(), productCode: code, tenantId: "default" } },
         create: {
           userId: userId.trim(),
           productCode: code,
           status: "ACTIVE",
           purchaseId: purchase.id,
-          tenantId: "",
+          tenantId: "default",
         },
         update: {
           status: "ACTIVE",
