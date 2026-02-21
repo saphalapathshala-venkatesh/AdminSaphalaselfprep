@@ -135,3 +135,4 @@ styles/                      - Stylesheets
 - 2026-02-21: Implemented full Product Builder + Coupons module (Product CRUD, Coupon CRUD with usage analytics, simulate purchase with coupon validation, two-tab UI, 7 audit actions)
 - 2026-02-21: Implemented full XP Rule Engine + Learners module (XP rules CRUD with auto-seed defaults, rule history, learner list with XP/activity/entitlements, profile panel with 4 tabs, entitlement grant/revoke, status toggle, 4 audit actions)
 - 2026-02-21: Implemented full Dashboard + Analytics module (dashboard with KPIs/charts/tables/quick-actions, analytics with 4 report types + CSV export, date/learner/stream filters)
+- 2026-02-21: Production hardening: tenantId="default" enforced on all entitlement writes, login rate limiting (5/60s), /api/health endpoint, cookie security confirmed
