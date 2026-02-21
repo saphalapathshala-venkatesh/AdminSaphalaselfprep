@@ -1,0 +1,133 @@
+PHASE 2H — Implement XP RULE ENGINE + LEARNERS module fully as per locked PRD v1.3.
+Do not redesign other modules. Keep dependencies minimal.
+
+CONTEXT:
+- Prisma has: XpRule, XpEvent, XpLedgerEntry, User, UserEntitlement, Purchase, Attempt
+- Auth + middleware + audit logs exist
+- Admin pages exist: /admin/xp-rules and /admin/learners placeholders
+
+SCOPE:
+A) /admin/xp-rules + /api/xp-rules
+B) /admin/learners + /api/learners
+C) Audit logs for all admin changes
+
+LOCKED PRD REQUIREMENTS:
+
+XP RULE ENGINE:
+- Admin configurable:
+  login XP
+  test XP
+  improvement bonus
+  flashcard XP
+  RR XP
+- Controls:
+  XP values
+  daily cap
+  multipliers
+  audit history
+
+LEARNERS MODULE:
+- List shows:
+  activity, XP, entitlements
+- Profile shows:
+  attempts, XP history, access rights
+- SUPER_ADMIN can grant/revoke entitlements
+
+IMPLEMENTATION DETAILS:
+
+A) XP Rules API: /api/xp-rules
+1) GET /api/xp-rules
+   - Return all XpRule entries (for all keys)
+   - If missing keys in DB, auto-create defaults on first load (safe defaults, e.g., 1 or 5)
+2) PUT /api/xp-rules
+   - Body: { key, value, isEnabled, dailyCap, multiplier }
+   - Validate:
+     value >= 0
+     dailyCap null or >=0
+     multiplier > 0
+   - Save updatedById = current admin user
+   - Audit: XP_RULE_UPDATE with before/after
+
+3) GET /api/xp-rules/history?key=
+   - Return last 50 XpRule updates via AuditLog filter (entityType "XpRule" OR action "XP_RULE_UPDATE")
+   - If no structured history exists, provide fallback from audit logs.
+
+XP Rules UI: /admin/xp-rules
+- Table listing all rules:
+  key, value, enabled, dailyCap, multiplier, lastUpdatedAt
+- Edit modal per rule
+- History drawer/modal per key pulling /history
+- Clean validation + inline errors
+
+B) Learners API: /api/learners
+1) GET /api/learners
+   - Query: page,pageSize,search (name/email/mobile), filter paid/free/all
+   - Paid/free:
+     paid = users who have any ACTIVE entitlement (UserEntitlement.status=ACTIVE)
+     free = no active entitlements
+   - Return list with:
+     user id, name, email, mobile, role, isActive
+     totalXp (computed from XpLedgerEntry sum OR cached if available)
+     lastActiveAt (use latest Attempt.startedAt OR Session.createdAt as fallback)
+     activeEntitlements count
+2) GET /api/learners/[id]
+   - Return profile:
+     user basics
+     entitlements list (productCode, status, validUntil)
+     last 20 attempts (testId, scorePct, startedAt)
+     XP history:
+       last 50 XpLedgerEntry rows (delta, reason, createdAt)
+     purchases summary (last 10 purchases)
+3) PUT /api/learners/[id]/entitlements
+   - SUPER_ADMIN only
+   - Body: { action: "GRANT"|"REVOKE", productCode, validUntil? }
+   - GRANT:
+     upsert entitlement for (userId, productCode, tenantId="default"):
+       status ACTIVE, validUntil, purchaseId null
+   - REVOKE:
+     find entitlement and set status REVOKED (do not delete)
+   - Audit: LEARNER_ENTITLEMENT_GRANT / LEARNER_ENTITLEMENT_REVOKE with before/after
+
+4) PUT /api/learners/[id]/status
+   - ADMIN/SUPER_ADMIN
+   - Body: { isActive }
+   - Audit: LEARNER_STATUS_UPDATE
+
+Learners UI: /admin/learners
+- List page:
+  search box
+  filters: All / Free / Paid
+  table with: name, email/mobile, totalXp, lastActiveAt, activeEntitlements count, actions "View"
+- Profile page section (same route /admin/learners can show right panel):
+  tabs:
+   - Overview (user + entitlements)
+   - Attempts
+   - XP History
+   - Purchases
+- SUPER_ADMIN entitlement controls:
+  - dropdown for productCode (fixed list)
+  - grant with optional validUntil date
+  - revoke button per entitlement
+  - show status badges
+
+SECURITY:
+- All endpoints require ADMIN or SUPER_ADMIN
+- Entitlement grant/revoke restricted to SUPER_ADMIN only
+- Ensure tenantId="default" for entitlements created/updated in learners tools
+
+AUDIT ACTION NAMES (exact):
+XP_RULE_UPDATE
+LEARNER_ENTITLEMENT_GRANT
+LEARNER_ENTITLEMENT_REVOKE
+LEARNER_STATUS_UPDATE
+
+DO NOT TOUCH:
+- Other modules
+- Prisma schema
+
+FINISH:
+- Build passes
+- /admin/xp-rules works
+- /admin/learners works
+- Audit logs written
+Return summary.
