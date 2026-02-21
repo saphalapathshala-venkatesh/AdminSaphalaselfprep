@@ -1,0 +1,57 @@
+FINAL VERCEL DEPLOYMENT FIX (NO REDESIGN). Goal: eliminate “Failed to collect page data for /api/auth/login” and ensure clean Vercel deploy.
+
+DO NOT change features. Only make deployment-safety fixes.
+
+A) GUARANTEE runtime flags are the FIRST lines (before any imports)
+1) For EVERY file under app/api/**/route.ts:
+   - Ensure these EXACT TWO lines are at the absolute top of the file (line 1 and 2), with no blank lines or imports above them:
+
+     export const dynamic = "force-dynamic";
+     export const runtime = "nodejs";
+
+   - If the file already has them but imports come before, move the exports ABOVE imports.
+   - If the file already has a different runtime/dynamic export, standardize to the above two lines.
+   - Do not alter any route logic.
+
+B) AUTH ROUTES MUST BE POST-ONLY WHERE APPLICABLE
+2) Specifically check:
+   app/api/auth/login/route.ts
+   - If it has any GET handler, remove it (login should be POST-only).
+   - Ensure it exports only POST (and any helper functions).
+   - Keep rate limiting + cookie behavior unchanged.
+
+C) PREVENT BUILD-TIME EVALUATION OF DB-BOUND PAGES
+3) Add to the top of these SERVER pages (before imports) to prevent any static generation issues:
+   app/admin/dashboard/page.tsx
+   app/admin/analytics/page.tsx
+   app/login/page.tsx
+   Add:
+     export const dynamic = "force-dynamic";
+   (Do NOT add runtime here, only dynamic.)
+   This ensures Next doesn’t try to statically optimize these pages in a way that triggers server-only behavior.
+
+D) ENSURE PRISMA GENERATE RUNS ON VERCEL
+4) In package.json confirm:
+   - "postinstall": "prisma generate"
+   - Build script must include prisma generate before next build if not already:
+     "build": "prisma generate && next build"
+   If build already does prisma generate, keep as-is. Do not duplicate excessively.
+
+E) OPTIONAL BUT SAFE: TURN OFF NEXT “STATIC COLLECTION” FOR API
+5) Add/verify in next.config.js (or next.config.mjs) ONLY if it exists already:
+   - Do NOT create a new config file if none exists.
+   - If it exists, ensure there is nothing custom forcing static output.
+   - No experimental changes.
+
+F) VERIFY LOCALLY
+6) Run:
+   - npm run build
+   - npm run lint (if configured; if it fails due to existing lint rules, do NOT change lint rules—just report)
+7) Print a short summary:
+   - Count of app/api route files updated to have runtime flags at top
+   - Confirm login is POST-only
+   - Confirm 3 pages set to force-dynamic
+   - Confirm package.json scripts
+
+NOTE:
+Do not change Prisma schema. Do not change any business logic. Only rearrange exports and remove accidental GET in login if present.
