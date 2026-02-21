@@ -100,11 +100,13 @@ styles/                      - Stylesheets
 - Login accepts email or mobile + password
 
 ## Seed Credentials
-- Email: admin@saphala.com
-- Password: admin123 (set via ADMIN_SEED_EMAIL / ADMIN_SEED_PASSWORD env vars)
+- Set via environment variables: ADMIN_SEED_EMAIL and ADMIN_SEED_PASSWORD
+- Both must be set before running seed; no hardcoded fallbacks
+- Seed is idempotent: if user exists, it does nothing (no overwrite)
 
 ## Recent Changes
 - 2026-02-21: Initial project setup with full auth, middleware, admin layout, and placeholder pages
 - 2026-02-21: Updated to full PRD schema (28 models), added API route stubs for all entities, updated audit log to match new schema fields
 - 2026-02-21: Implemented full Taxonomy module (CRUD + tree view UI + audit logging + force delete for SUPER_ADMIN), updated middleware role check
 - 2026-02-21: Implemented full Question Bank module (CRUD + pagination + filters + duplicate detection + near-duplicate warning + bulk edit + MCQ options + audit logging)
+- 2026-02-21: Locked SUPER_ADMIN seed to env vars only (no hardcoded credentials), updated .env.example

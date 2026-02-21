@@ -4,12 +4,18 @@ import bcrypt from "bcrypt";
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = process.env.ADMIN_SEED_EMAIL || "admin@saphala.com";
-  const password = process.env.ADMIN_SEED_PASSWORD || "admin123";
+  const email = process.env.ADMIN_SEED_EMAIL;
+  const password = process.env.ADMIN_SEED_PASSWORD;
+
+  if (!email || !password) {
+    throw new Error(
+      "Missing required env vars: ADMIN_SEED_EMAIL and ADMIN_SEED_PASSWORD must be set."
+    );
+  }
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    console.log(`Admin user ${email} already exists, skipping seed.`);
+    console.log(`SUPER_ADMIN ready: ${email} (already exists, no changes made)`);
     return;
   }
 
@@ -25,7 +31,7 @@ async function main() {
     },
   });
 
-  console.log(`Created SUPER_ADMIN user: ${email}`);
+  console.log(`SUPER_ADMIN ready: ${email}`);
 }
 
 main()
