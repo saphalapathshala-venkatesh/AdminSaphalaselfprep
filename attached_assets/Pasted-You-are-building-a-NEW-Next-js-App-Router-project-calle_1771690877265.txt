@@ -1,0 +1,106 @@
+You are building a NEW Next.js (App Router) project called “Saphala Self Prep Admin Console”.
+This is an ADMIN-ONLY app. Do not build student app features. Do not redesign anything.
+
+GOALS (do only these in this prompt):
+1) Create the full folder structure for the admin console (pages + api routes scaffolding).
+2) Setup Prisma (Postgres) with the provided schema.
+3) Implement admin authentication skeleton:
+   - /login page UI (simple form)
+   - POST /api/auth/login route: validates credentials, creates Session(type=ADMIN), sets httpOnly cookie "admin_session"
+   - POST /api/auth/logout route: revokes session and clears cookie
+   - GET /api/auth/me route: returns current admin user if logged in
+4) Add middleware protection:
+   - Block all /admin/* routes unless valid admin_session exists AND user role is ADMIN or SUPER_ADMIN
+   - Redirect to /login if not allowed
+5) Add shared helpers:
+   - lib/prisma.ts (singleton Prisma client)
+   - lib/auth.ts (getSessionUser, requireAdmin, requireRole)
+   - lib/audit.ts (writeAuditLog stub)
+   - lib/validators (Zod schemas for login only)
+6) Add a minimal Admin UI layout:
+   - /admin/layout.tsx with sidebar containing the locked navigation items:
+     Dashboard, Taxonomy, Question Bank, Imports, Test Series, Tests, Flashcards, Content Library, Coupons, XP Rules, Learners, Analytics, Settings
+   - Each route should have a placeholder page with a heading only (no feature building yet)
+
+IMPORTANT CONSTRAINTS:
+- Use Next.js App Router (app/ directory).
+- Use TypeScript.
+- Use Prisma with PostgreSQL.
+- Use bcrypt for password hashing checks.
+- Use a simple sessions table (as per schema) and store token in DB.
+- Cookie name MUST be "admin_session". httpOnly, secure in production, sameSite=lax.
+- Keep UI minimal (Tailwind optional; if Tailwind is not already installed, do NOT spend time adding it—use basic CSS).
+- NO extra libraries beyond what is necessary (next, react, prisma, @prisma/client, bcrypt, zod).
+- Do not implement modules (taxonomy/questions/tests/etc.) beyond placeholders + route files.
+
+ENV:
+- Add .env.example with DATABASE_URL and ADMIN_SEED_EMAIL / ADMIN_SEED_PASSWORD.
+- Add prisma/seed.ts that creates the first SUPER_ADMIN user using ADMIN_SEED_EMAIL + ADMIN_SEED_PASSWORD (hash password with bcrypt). If already exists, do nothing.
+
+BUILD ORDER (follow exactly):
+A) Create Next.js project structure + app routes
+B) Add Prisma schema + prisma generate + migrate dev
+C) Add seed script + package.json scripts
+D) Implement auth routes and middleware
+E) Add minimal admin pages + sidebar layout
+
+FOLDER STRUCTURE TO CREATE:
+- app/(public)/login/page.tsx
+- app/admin/layout.tsx
+- app/admin/dashboard/page.tsx
+- app/admin/taxonomy/page.tsx
+- app/admin/question-bank/page.tsx
+- app/admin/imports/page.tsx
+- app/admin/test-series/page.tsx
+- app/admin/tests/page.tsx
+- app/admin/flashcards/page.tsx
+- app/admin/content-library/page.tsx
+- app/admin/coupons/page.tsx
+- app/admin/xp-rules/page.tsx
+- app/admin/learners/page.tsx
+- app/admin/analytics/page.tsx
+- app/admin/settings/page.tsx
+
+- app/api/auth/login/route.ts
+- app/api/auth/logout/route.ts
+- app/api/auth/me/route.ts
+
+- lib/prisma.ts
+- lib/auth.ts
+- lib/audit.ts
+- lib/validators/auth.ts
+
+- prisma/schema.prisma
+- prisma/seed.ts
+- middleware.ts
+- .env.example
+
+PRISMA SCHEMA:
+Paste the following EXACT schema content into prisma/schema.prisma (do not modify):
+[PASTE THE FULL PRISMA SCHEMA FROM OUR LAST MESSAGE HERE EXACTLY]
+
+AUTH DETAILS:
+- User table has passwordHash.
+- Login accepts "identifier" (email or mobile) + password.
+- Find user by email OR mobile.
+- Verify bcrypt.compare(password, passwordHash).
+- Ensure user.role is ADMIN or SUPER_ADMIN, else reject.
+- Create Session row: type=ADMIN, token=random 32+ chars, expiresAt=now+7 days.
+- Set cookie admin_session=token.
+
+MIDDLEWARE DETAILS:
+- Match only /admin/:path*
+- Read cookie admin_session
+- If missing -> redirect /login
+- If present -> call a lightweight DB check using Prisma in middleware-friendly way:
+  If middleware cannot use Prisma directly in Edge runtime, then middleware should:
+   - call internal endpoint /api/auth/me OR a dedicated /api/auth/verify route to validate session
+   - OR force middleware runtime to "nodejs" if needed.
+Do the simplest working approach on Replit.
+
+Finally:
+- Ensure `npm run dev` starts successfully.
+- Ensure visiting /admin/dashboard redirects to /login when not logged in.
+- Ensure after login with seeded SUPER_ADMIN credentials, /admin/dashboard loads.
+
+Return a short summary of what you changed + any commands to run (migrate/seed).
