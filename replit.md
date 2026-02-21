@@ -22,7 +22,7 @@ Admin-only console for Saphala Self Prep platform. Built with Next.js 14 (App Ro
 app/
   (public)/login/page.tsx    - Login page
   admin/layout.tsx           - Admin layout with sidebar
-  admin/dashboard/page.tsx   - Dashboard (placeholder)
+  admin/dashboard/page.tsx   - Dashboard (full: KPIs, charts, tables, quick actions, filters)
   admin/taxonomy/page.tsx    - Taxonomy (full CRUD with tree view)
   admin/question-bank/       - Question Bank (full CRUD with filters, bulk edit, duplicate detection)
   admin/imports/             - Imports (placeholder)
@@ -33,7 +33,7 @@ app/
   admin/coupons/             - Coupons & Product Builder (full CRUD, two-tab UI, simulate purchase)
   admin/xp-rules/            - XP Rules (full: rule table, edit modal, history modal)
   admin/learners/            - Learners (full: list with filters, profile panel with tabs, entitlement controls)
-  admin/analytics/           - Analytics (placeholder)
+  admin/analytics/           - Analytics (full: reports with tabs, CSV export, date filters)
   admin/settings/            - Settings (placeholder)
   api/auth/login/route.ts    - POST login
   api/auth/logout/route.ts   - POST logout
@@ -68,7 +68,9 @@ app/
   api/learners/[id]/route.ts - Learner Profile API (GET full profile)
   api/learners/[id]/entitlements/route.ts - Entitlement Grant/Revoke API (PUT, SUPER_ADMIN only)
   api/learners/[id]/status/route.ts      - Learner Status API (PUT active/inactive)
-  api/analytics/route.ts     - Analytics API (stub)
+  api/analytics/dashboard/route.ts - Dashboard API (KPIs, charts, tables with filters)
+  api/analytics/report/route.ts   - Report API (attempts, xp, revenue, category-performance)
+  api/analytics/export/route.ts   - CSV Export API (download reports as CSV)
   api/audit/route.ts         - Audit API (stub)
 components/
   ui/                        - Reusable UI atoms (tables, modal, inputs)
@@ -132,3 +134,4 @@ styles/                      - Stylesheets
 - 2026-02-21: Implemented full Content Library module (HTML pages CRUD with body editor/preview, PDF upload/manage with file storage, two-tab UI, cascading taxonomy, publish toggle, audit logging)
 - 2026-02-21: Implemented full Product Builder + Coupons module (Product CRUD, Coupon CRUD with usage analytics, simulate purchase with coupon validation, two-tab UI, 7 audit actions)
 - 2026-02-21: Implemented full XP Rule Engine + Learners module (XP rules CRUD with auto-seed defaults, rule history, learner list with XP/activity/entitlements, profile panel with 4 tabs, entitlement grant/revoke, status toggle, 4 audit actions)
+- 2026-02-21: Implemented full Dashboard + Analytics module (dashboard with KPIs/charts/tables/quick-actions, analytics with 4 report types + CSV export, date/learner/stream filters)

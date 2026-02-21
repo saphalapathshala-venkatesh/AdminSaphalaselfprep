@@ -1,0 +1,139 @@
+PHASE 2I — Implement DASHBOARD + ANALYTICS modules fully as per locked PRD v1.3.
+Do not redesign existing modules. Keep dependencies minimal.
+
+CONTEXT:
+- Prisma has: User, Session, UserEntitlement, Purchase, Attempt, XpEvent, XpLedgerEntry, Test, TestSeries, ContentPage, PdfAsset
+- Admin modules already exist and write data
+- Admin pages: /admin/dashboard and /admin/analytics exist as placeholders
+- Auth + middleware + audit exists
+
+SCOPE:
+A) /admin/dashboard + /api/analytics/dashboard
+B) /admin/analytics + /api/analytics (reports + CSV export)
+C) Compute all metrics from DB (no new tables)
+
+LOCKED DASHBOARD REQUIREMENTS:
+
+Dashboard KPIs:
+- Total Registered Users with filters: Day / Week / Month / Year / Custom Range
+- Revenue Earned with same filters:
+   display Gross Revenue and Net Revenue (after 3% fee)
+- Additional filters:
+   All Learners / Free Learners / Paid Learners
+- Revenue by Product Stream dropdown:
+   TestHub, SelfPrep HTML, Flashcards, PDF Access, Smart Practice, AI Add-on
+
+Charts:
+- Attempts/day
+- Active users/day (definition: distinct users with Attempt OR Session in range)
+- XP/day (use XpEvent sum/day OR XpLedgerEntry sum/day; pick one consistently; prefer XpEvent)
+- Revenue trend (gross + net per day)
+
+Tables:
+- Top XP earners (range-based) : top 10 users by XP in range
+- Most attempted tests (range-based): top 10 tests by attempt count
+- Recently published content: last 10 items from ContentPage and PdfAsset where isPublished=true ordered by publishedAt
+
+Quick Actions (buttons):
+- Upload HTML Page -> route to /admin/content-library with HTML tab active
+- Upload PDF -> route to /admin/content-library with PDF tab active
+- Create Flashcards -> /admin/flashcards
+- Create Test Series -> /admin/test-series
+
+Analytics Module (/admin/analytics):
+Reports:
+- Attempts/day (range)
+- XP/day (range)
+- Revenue/day (range)
+- Category performance (range): group attempts by Category (via question taxonomy or test series category; choose simplest available)
+- CSV export: each report can be exported as CSV
+
+FILTERS (shared):
+- Date range picker (preset + custom)
+- Learner filter: All/Free/Paid
+- Revenue stream filter (optional per report)
+
+API DESIGN:
+
+1) GET /api/analytics/dashboard
+Query:
+  start=YYYY-MM-DD
+  end=YYYY-MM-DD
+  learnerFilter=all|free|paid
+  stream=TESTHUB|SELFPREP_HTML|FLASHCARDS|PDF_ACCESS|SMART_PRACTICE|AI_ADDON|all
+Return JSON:
+{
+  kpis: {
+    totalUsers,
+    grossRevenuePaise,
+    netRevenuePaise,
+    paidUsers,
+    freeUsers
+  },
+  charts: {
+    attemptsByDay: [{date,count}],
+    activeUsersByDay: [{date,count}],
+    xpByDay: [{date,points}],
+    revenueByDay: [{date,grossPaise,netPaise}]
+  },
+  tables: {
+    topXpEarners: [{userId,name,email,totalXp}],
+    mostAttemptedTests: [{testId,title,attempts}],
+    recentlyPublishedContent: [{type:"HTML"|"PDF", id, title, publishedAt}]
+  }
+}
+
+2) GET /api/analytics/report
+Query:
+  type=attempts|xp|revenue|category-performance
+  start,end, learnerFilter, stream
+Return report rows.
+
+3) GET /api/analytics/export
+Query same as report
+Return CSV download (set correct headers)
+
+IMPLEMENTATION NOTES:
+- Use start/end inclusive range; treat end as end-of-day (23:59:59)
+- LearnerFilter:
+   paid = users with any ACTIVE entitlement
+   free = users with zero ACTIVE entitlements
+- Stream filter affects Purchase.stream for revenue charts and KPIs.
+- Revenue net should use Purchase.netPaise already stored.
+- Active users/day:
+   count distinct userId from Attempt.startedAt within day
+   plus optionally from Session.createdAt within day (ADMIN sessions should not count; only STUDENT sessions). If you track Session.type, count only STUDENT.
+- Top XP earners:
+   sum XpEvent.points by user in range, order desc
+- Recently published content:
+   union of ContentPage and PdfAsset where isPublished=true, order by publishedAt desc, take 10
+
+UI IMPLEMENTATION:
+
+/admin/dashboard:
+- Top: filter bar with:
+   date preset dropdown + custom range
+   learner filter dropdown
+   revenue stream dropdown
+- KPI cards:
+   total users, paid/free breakdown
+   gross revenue, net revenue
+- Charts:
+   simple line/bar charts using plain HTML/SVG or minimal chart library already available; if none, use basic table-like charts (no new heavy deps)
+- Tables as per requirement
+- Quick actions buttons
+
+/admin/analytics:
+- Same filter bar
+- Tabs: Attempts, XP, Revenue, Category Performance
+- Each tab shows table of daily rows and an Export CSV button
+
+NO NEW DEPENDENCIES if possible. If charts are too heavy, render as tables + small sparkline (optional).
+
+DO NOT touch other modules.
+
+FINISH:
+- Build passes
+- Dashboard loads and shows real data (even if empty state)
+- Analytics loads and exports CSV
+Return summary of endpoints + pages built.
