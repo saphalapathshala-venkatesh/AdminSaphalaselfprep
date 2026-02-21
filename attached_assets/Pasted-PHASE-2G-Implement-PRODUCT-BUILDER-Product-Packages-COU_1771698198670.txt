@@ -1,0 +1,111 @@
+PHASE 2G — Implement PRODUCT BUILDER (Product Packages) + COUPONS module fully as per locked PRD v1.3.
+Do not redesign other modules. Keep dependencies minimal.
+
+CONTEXT:
+- Prisma schema includes ProductPackage, Coupon, Purchase, UserEntitlement
+- Admin auth + middleware + audit log helper exists
+- Admin pages exist: /admin/coupons placeholder already
+- We will implement /admin/coupons and also add /admin/products (or use /admin/settings/products if you already created route stubs). Prefer: /admin/coupons for coupons and /admin/settings for product packages is NOT allowed; create /admin/settings is separate. Use /admin/coupons for coupons and /admin/settings should remain settings. Create /admin/settings only if already present.
+IMPORTANT: Sidebar in PRD includes "Coupons" but not "Products". However PRD includes "Product Builder". Implement Product Builder under /admin/coupons as a second tab OR under /admin/settings with a "Product Builder" section. Choose the simplest without changing sidebar items: implement "Product Builder" as a tab inside /admin/coupons page: Tabs = Coupons | Product Builder.
+
+LOCKED REQUIREMENTS:
+A) Product Builder (Packages)
+- Admin creates packages via checkboxes of entitlements
+- Fields:
+  code (unique), name, description, entitlementCodes[], pricePaise, currency (INR), isActive
+- Example entitlements (product codes):
+  SELFPREP_HTML, TESTHUB, FLASHCARDS, PDF_ACCESS, SMART_PRACTICE, AI_ADDON
+- Purchase → entitlements auto-created (we implement a "Simulate Purchase" admin action for now to create Purchase + UserEntitlement rows; real payment later)
+
+B) Coupons
+- Fields:
+  code, discount type (PERCENT/FLAT), discountValue, validity (from/until), usage limits (usageLimit, perUserLimit), applicableEntitlements[]
+- Analytics included:
+  For now, show usage count computed from Purchase table where couponId matches
+  (no extra table needed)
+
+SECURITY:
+- ADMIN and SUPER_ADMIN can CRUD packages and coupons
+- Only SUPER_ADMIN can delete an active package or an active coupon (optional safeguard)
+- Audit log all actions with before/after JSON
+
+API ROUTES TO IMPLEMENT:
+
+1) /api/products (ProductPackage)
+- GET /api/products?search=&active=&page=&pageSize=
+- POST /api/products
+- PUT /api/products/[id]
+- DELETE /api/products/[id]
+- POST /api/products/[id]/simulate-purchase
+   Body: { userId, couponCode? }
+   Action:
+    - Load package
+    - Optionally apply coupon if valid:
+       * check date validity
+       * check usage limits (global and per user)
+       * check applicableEntitlements intersects package.entitlementCodes (if empty list => allow all)
+    - Compute grossPaise, feePaise = round(gross*0.03), netPaise = gross-fee
+    - Create Purchase row with stream based on package contents:
+       if includes TESTHUB => stream TESTHUB else if includes SELFPREP_HTML => SELFPREP_HTML else etc (pick first matching in priority order)
+    - Create/Upsert UserEntitlement rows for each entitlementCodes:
+       ACTIVE, validUntil null, purchaseId = Purchase.id, tenantId null
+    - Return purchase + entitlements created
+   This is purely for admin testing and dashboard data; do not build payment gateway.
+
+Audit actions:
+PRODUCT_CREATE, PRODUCT_UPDATE, PRODUCT_DELETE, PRODUCT_SIMULATE_PURCHASE
+
+2) /api/coupons
+- GET /api/coupons?search=&active=&page=&pageSize=
+- POST /api/coupons
+- PUT /api/coupons/[id]
+- DELETE /api/coupons/[id]
+- GET /api/coupons/[id]/usage
+   Return:
+     totalUses = count(Purchase where couponId=id)
+     uniqueUsers = count distinct userId
+   (Optional: last 20 purchases)
+
+Audit actions:
+COUPON_CREATE, COUPON_UPDATE, COUPON_DELETE
+
+UI: /admin/coupons
+Two tabs: "Coupons" and "Product Builder"
+
+Coupons tab:
+- Table with pagination + search
+- Create/Edit modal with all fields
+- Show computed usage summary (from /usage endpoint)
+- Delete with confirm
+- Filters: Active/Inactive
+
+Product Builder tab:
+- Table list of packages (code, name, price, active, entitlementCodes count)
+- Create/Edit modal:
+   code, name, description, pricePaise (input rupees -> store paise), currency=INR, isActive
+   entitlementCodes multi-select checkboxes (use fixed list)
+- Simulate Purchase panel:
+   - Select package
+   - Input userId (or select from Learners list if already available; otherwise plain input)
+   - Optional coupon code
+   - Button "Simulate Purchase"
+   - Show result: Purchase created + entitlements created
+- Delete package with confirm
+
+VALIDATION:
+- code uppercase snake recommended; enforce non-empty
+- discountValue rules:
+   PERCENT: 1-100
+   FLAT: >= 1
+- date validity: validFrom <= validUntil if both set
+- usageLimit/perUserLimit: >=1 when set
+
+KEEP DEPENDENCIES MINIMAL.
+Do not touch other modules.
+
+FINISH:
+- Ensure /admin/coupons loads with both tabs
+- All CRUD works
+- Simulate purchase creates Purchase + UserEntitlement rows
+- Audit logs written
+Return a short summary of endpoints + files changed.
