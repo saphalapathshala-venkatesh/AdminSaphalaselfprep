@@ -24,7 +24,7 @@ app/
   admin/layout.tsx           - Admin layout with sidebar
   admin/dashboard/page.tsx   - Dashboard (placeholder)
   admin/taxonomy/page.tsx    - Taxonomy (full CRUD with tree view)
-  admin/question-bank/       - Question Bank (placeholder)
+  admin/question-bank/       - Question Bank (full CRUD with filters, bulk edit, duplicate detection)
   admin/imports/             - Imports (placeholder)
   admin/test-series/         - Test Series (placeholder)
   admin/tests/               - Tests (placeholder)
@@ -39,7 +39,9 @@ app/
   api/auth/logout/route.ts   - POST logout
   api/auth/me/route.ts       - GET current user
   api/taxonomy/route.ts      - Taxonomy API (full CRUD: GET/POST/PUT/DELETE)
-  api/questions/route.ts     - Questions API (stub)
+  api/questions/route.ts     - Questions API (GET paginated+filtered, POST with duplicate detection)
+  api/questions/[id]/route.ts - Questions API (PUT update, DELETE)
+  api/questions/bulk/route.ts - Questions API (PUT bulk edit)
   api/imports/route.ts       - Imports API (stub)
   api/test-series/route.ts   - Test Series API (stub)
   api/tests/route.ts         - Tests API (stub)
@@ -59,6 +61,7 @@ lib/
   prisma.ts                  - Prisma singleton
   auth.ts                    - Auth helpers (getSessionUser, getSessionUserFromRequest, requireAdmin, requireRole)
   audit.ts                   - Audit log writer
+  questionHash.ts            - Content hash + similarity scoring for duplicate detection
   validators/auth.ts         - Zod login schema
 prisma/
   schema.prisma              - Full PRD database schema (28 models)
@@ -104,3 +107,4 @@ styles/                      - Stylesheets
 - 2026-02-21: Initial project setup with full auth, middleware, admin layout, and placeholder pages
 - 2026-02-21: Updated to full PRD schema (28 models), added API route stubs for all entities, updated audit log to match new schema fields
 - 2026-02-21: Implemented full Taxonomy module (CRUD + tree view UI + audit logging + force delete for SUPER_ADMIN), updated middleware role check
+- 2026-02-21: Implemented full Question Bank module (CRUD + pagination + filters + duplicate detection + near-duplicate warning + bulk edit + MCQ options + audit logging)

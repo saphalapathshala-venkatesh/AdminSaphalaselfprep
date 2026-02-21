@@ -1,0 +1,78 @@
+Implement the full QUESTION BANK module as per locked PRD (no redesign).
+
+SCOPE (ONLY Question Bank in this prompt):
+A) Admin UI at /admin/question-bank
+B) API at /api/questions
+C) Duplicate control:
+   - exact duplicates blocked (by contentHash unique)
+   - near duplicates warned (basic similarity check in API; warn but allow if admin confirms)
+D) Bulk edit:
+   - taxonomy move (category/subject/topic/subtopic)
+   - difficulty
+   - tags
+   - status (Draft/Approved)
+
+LOCKED REQUIREMENTS:
+1) Question Types:
+   Exam + Practice: MCQ_SINGLE, MCQ_MULTIPLE
+   Practice only: DRAG_REORDER, DRAG_DROP, FILL_BLANKS, TRUE_FALSE
+2) Fields:
+   - Taxonomy linkage (Category/Subject/Topic/Subtopic via dropdown selection)
+   - Difficulty: FOUNDATIONAL / PROFICIENT / MASTERY
+   - Options: 2–8 (for MCQ types; others can store stem + explanation only for now)
+   - Explanation: rich text (store as string; plain textarea is fine for now)
+   - Tags: string list
+   - Status: DRAFT / APPROVED
+3) Editing:
+   - Create new question
+   - Edit single question
+   - List view with filters (type, status, difficulty, taxonomy)
+4) Duplicate Control (LOCKED):
+   - Before create/update, compute contentHash = sha256(normalized stem + normalized options + type)
+   - If contentHash already exists for another question -> BLOCK save with clear error
+   - Near-duplicate warning:
+     compute a lightweight similarity score between normalized stem and existing stems in same subtopic
+     If similarity > threshold (e.g. 0.85), return a warning payload {warning:true, matches:[...]} but still allow save if request includes ?confirmNearDuplicate=true
+
+API DESIGN:
+- GET /api/questions (supports pagination + filters)
+- POST /api/questions (create)
+- PUT /api/questions/:id (update)
+- DELETE /api/questions/:id (delete)
+- PUT /api/questions/bulk (bulk edit)
+
+SECURITY:
+- All routes require admin session
+- APPROVE action allowed for ADMIN + SUPER_ADMIN
+- Write AuditLog entries for create/update/delete/bulk update:
+  action like QUESTION_CREATE / QUESTION_UPDATE / QUESTION_DELETE / QUESTION_BULK_UPDATE
+  include before/after JSON
+
+UI:
+- Left: table list with search + filters + pagination
+- Right or modal: create/edit form
+- Bulk select checkboxes + bulk edit modal
+- For MCQ:
+   - allow adding/removing options (2–8)
+   - mark correct options (single for MCQ_SINGLE, multiple for MCQ_MULTIPLE)
+- For other practice types:
+   - allow stem + explanation + tags + taxonomy + difficulty + status
+   - do not require options
+
+ERRORS:
+- Show validation errors cleanly
+- If duplicate blocked, show "Exact duplicate blocked. Modify question/options before saving."
+- Near duplicate warning should show matches and require confirm checkbox to proceed.
+
+Keep dependencies minimal:
+- Use Node crypto for hashing
+- No heavy UI libs
+
+Do NOT touch other modules.
+
+After implementation:
+- Ensure /admin/question-bank loads and works
+- Create/edit/delete works
+- Exact duplicate save is blocked
+- Bulk edit works
+- Audit logs created
