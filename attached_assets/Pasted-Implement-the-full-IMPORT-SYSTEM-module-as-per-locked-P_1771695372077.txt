@@ -1,0 +1,127 @@
+Implement the full IMPORT SYSTEM module as per locked PRD. Do not redesign other modules.
+
+SCOPE:
+1) Admin UI: /admin/imports
+2) API: /api/imports
+3) CSV + DOCX Upload Flow (locked):
+   1. Preview
+   2. Validation
+   3. Error display (row-level)
+   4. Inline edit (edit invalid fields directly)
+   5. Re-validate
+   6. Import valid rows
+4) Error handling (locked):
+   - Each rejected row must show:
+     * clear error message
+     * field causing error
+     * edit option
+   - Downloadable error report (CSV) for rejected rows.
+
+DATA MODELS (already in Prisma):
+- ImportJob (status, totals, reportUrl)
+- ImportRow (rawData, editedData, isValid, errorField, errorMsg)
+
+QUESTION IMPORT TARGET:
+- Create Question + QuestionOption records from valid rows.
+- Must compute contentHash and enforce exact duplicate blocking (same as Question Bank).
+- If duplicate blocked during import: mark row invalid with errorMsg, continue importing other rows.
+
+SUPPORTED IMPORT FORMATS:
+A) CSV:
+   Required columns for MCQ types:
+   - type (MCQ_SINGLE|MCQ_MULTIPLE|DRAG_REORDER|DRAG_DROP|FILL_BLANKS|TRUE_FALSE)
+   - stem
+   - option1..option8 (optional depending on count)
+   - correct (e.g., "1" for single, "1,3" for multi)
+   - explanation (optional)
+   - difficulty (FOUNDATIONAL|PROFICIENT|MASTERY)
+   - status (DRAFT|APPROVED)
+   - tags (comma separated)
+   - category, subject, topic, subtopic (names; must map/create taxonomy)
+   Validation rules:
+   - stem required
+   - type required
+   - difficulty required
+   - status required
+   - For MCQ_*: at least 2 options, max 8; correct must be valid indexes
+   - For non-MCQ: options/correct optional
+   - Taxonomy mapping:
+     * Category/Subject/Topic/Subtopic must resolve by name (case-insensitive)
+     * If missing, create them (but only if ADMIN/SUPER_ADMIN; allowed)
+     * Maintain hierarchy integrity
+
+B) DOCX:
+   - Minimal reliable parser: accept DOCX where each question is separated by blank line
+   - Pattern:
+     Q: ...
+     A) ...
+     B) ...
+     C) ...
+     D) ...
+     Correct: B   (or "Correct: B,D")
+     Explanation: ...
+     Taxonomy: Category > Subject > Topic > Subtopic
+     Difficulty: ...
+     Status: ...
+     Tags: ...
+   - If parsing fails for a block, store it as invalid ImportRow with errorMsg.
+
+API ENDPOINTS:
+- POST /api/imports/preview
+   Input: file (csv/docx)
+   Output: ImportJob + first N rows preview (rawData), with initial validation results
+
+- POST /api/imports/validate
+   Input: importJobId
+   Action: validate all rows using rawData/editedData; update ImportRow isValid/errorField/errorMsg; update ImportJob counts/status
+
+- PUT /api/imports/rows/:id
+   Input: editedData patch
+   Action: save editedData for that row (do not import yet)
+
+- POST /api/imports/revalidate
+   Input: importJobId
+   Action: re-run validation using editedData when present
+
+- POST /api/imports/commit
+   Input: importJobId
+   Action:
+     * import all valid rows into Question/QuestionOption (+ taxonomy create if needed)
+     * update ImportJob status PARTIAL_IMPORTED or IMPORTED
+     * generate error report CSV for invalid rows (store locally in /public/reports or similar) and set reportUrl
+
+- GET /api/imports/:id
+   Returns job + rows (paginated) with errors for UI
+
+SECURITY + AUDIT:
+- All endpoints require admin session
+- Audit log actions:
+  IMPORT_PREVIEW, IMPORT_VALIDATE, IMPORT_ROW_EDIT, IMPORT_COMMIT
+- Store before/after for row edits and commit summary.
+
+UI REQUIREMENTS:
+- Upload box (CSV/DOCX)
+- After preview:
+  - Show ImportJob summary cards: total/valid/invalid
+  - Table of rows with:
+     rowNumber, type, stem (truncate), isValid badge, errorField, errorMsg
+     Edit button -> inline editor modal for that row (JSON form or structured form for common fields)
+  - Buttons:
+     Validate, Re-validate, Import Valid Rows
+  - If reportUrl exists: show "Download Error Report" link
+- Must support paging rows (do not render 1000 rows at once)
+
+IMPLEMENTATION NOTES (credit-optimized):
+- Use one shared validator function that returns {isValid, errorField, errorMsg, normalizedRow}
+- Use Node crypto SHA-256 hashing for contentHash
+- Use Prisma transactions in commit for each row or small batches (avoid huge single tx)
+- Keep dependencies minimal. For DOCX parsing, use a lightweight library if already installed; otherwise implement simple docx text extraction with a minimal package.
+
+DO NOT touch Question Bank UI except reusing helper functions if needed.
+
+After implementation:
+- /admin/imports loads
+- Upload preview works for CSV
+- Validate + edit + revalidate works
+- Commit imports valid rows and creates questions
+- Error report link appears for invalid rows

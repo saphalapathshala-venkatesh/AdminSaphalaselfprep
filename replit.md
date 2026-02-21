@@ -110,3 +110,4 @@ styles/                      - Stylesheets
 - 2026-02-21: Implemented full Taxonomy module (CRUD + tree view UI + audit logging + force delete for SUPER_ADMIN), updated middleware role check
 - 2026-02-21: Implemented full Question Bank module (CRUD + pagination + filters + duplicate detection + near-duplicate warning + bulk edit + MCQ options + audit logging)
 - 2026-02-21: Locked SUPER_ADMIN seed to env vars only (no hardcoded credentials), updated .env.example
+- 2026-02-21: Implemented full Import System module (CSV + DOCX upload, preview/validate/edit/revalidate/commit workflow, inline row editing, error report CSV download, taxonomy auto-creation, duplicate blocking, audit logging)
