@@ -1,0 +1,135 @@
+PHASE 2F — Implement CONTENT LIBRARY module fully (Admin + APIs) as per locked PRD v1.3.
+
+CONTEXT:
+- Next.js App Router admin console exists with auth + middleware
+- Prisma schema includes ContentPage and PdfAsset
+- Taxonomy API exists (Category/Subject/Topic/Subtopic)
+- Audit logging helper exists
+Do NOT redesign other modules. Keep dependencies minimal.
+
+SCOPE (ONLY Content Library in this prompt):
+A) Admin UI: /admin/content-library
+B) APIs:
+   - /api/content-pages (HTML learning pages)
+   - /api/pdf-assets (PDF assets)
+C) Audit logging for all create/update/delete/publish actions
+D) PDF upload handling (simple & Replit-friendly):
+   - store file under /public/uploads/pdfs/<generatedName>.pdf
+   - save fileUrl pointing to that public path
+   - capture fileSize + mimeType
+
+LOCKED PRD BEHAVIOR:
+1) Layer 1 — HTML Learning Pages (primary)
+   - Fields: title, body (HTML/string), taxonomy linkage (subtopicId optional)
+   - Features in content: colored blocks/hyperlinks/story layout are content-level; admin can edit as HTML or simple editor.
+   - Non-downloadable (student side later)
+   - XP: Light XP (student side later)
+2) Layer 2 — PDF Library (downloadable version)
+   - Fields: title, fileUrl, taxonomy optional, isPublished
+   - Requires entitlement (student side later)
+   - XP: No XP
+3) Both support:
+   - Publish toggle
+   - Search/filter
+   - Recently published should be queryable (dashboard later)
+
+SECURITY:
+- Require ADMIN or SUPER_ADMIN session for all endpoints.
+- Only SUPER_ADMIN can delete a published ContentPage/PdfAsset (ADMIN can delete only drafts).
+
+API ROUTES TO IMPLEMENT:
+
+CONTENT PAGES (HTML)
+1) GET /api/content-pages
+   - Query: page,pageSize,search,title, isPublished, categoryId/subjectId/topicId/subtopicId (filter)
+   - Return: {items,total,page,pageSize}
+2) POST /api/content-pages
+   - Body: {title, body, subtopicId?}
+   - If subtopicId set, also store derived topicId/subjectId/categoryId fields in the record? (Note: schema for ContentPage only has subtopicId; so only store subtopicId. Filtering by parents can be done via joins.)
+   - Set createdById from session
+   - Audit: CONTENTPAGE_CREATE
+3) PUT /api/content-pages/[id]
+   - Body: {title?, body?, subtopicId?, isPublished?}
+   - When isPublished flips true: set publishedAt=now
+   - When isPublished flips false: publishedAt=null (or keep last publishedAt; choose deterministic: set null)
+   - Audit: CONTENTPAGE_UPDATE and CONTENTPAGE_PUBLISH/CONTENTPAGE_UNPUBLISH when publish changes
+4) DELETE /api/content-pages/[id]
+   - If published and role != SUPER_ADMIN => 403
+   - Audit: CONTENTPAGE_DELETE
+
+PDF ASSETS
+5) GET /api/pdf-assets
+   - Query: page,pageSize,search,isPublished,taxonomy filters similar to above
+6) POST /api/pdf-assets
+   - Accept multipart/form-data with:
+     - title
+     - file (pdf)
+     - optional taxonomy ids: categoryId, subjectId, topicId, subtopicId
+   - Validate mimeType pdf, size limit (e.g., 20MB)
+   - Save file under /public/uploads/pdfs
+   - Save PdfAsset row with fileUrl, fileSize, mimeType, createdById
+   - Audit: PDFASSET_CREATE
+7) PUT /api/pdf-assets/[id]
+   - Accept JSON for metadata updates: {title?, taxonomy ids?, isPublished?}
+   - Optionally support replacing file via multipart endpoint /api/pdf-assets/[id]/replace (optional only if easy)
+   - Publish sets publishedAt=now, unpublish clears publishedAt
+   - Audit: PDFASSET_UPDATE and PDFASSET_PUBLISH/PDFASSET_UNPUBLISH
+8) DELETE /api/pdf-assets/[id]
+   - If published and role != SUPER_ADMIN => 403
+   - Delete DB row; optionally delete file from disk if exists
+   - Audit: PDFASSET_DELETE
+
+ADMIN UI: /admin/content-library
+Build a two-tab interface:
+- Tabs: "HTML Pages" and "PDF Library"
+
+HTML Pages tab:
+- Left/top: search + filters (Published/Draft, taxonomy cascading)
+- Table: title, subtopic, published badge, updatedAt, actions (Edit/Delete)
+- Buttons: "+ New HTML Page"
+- Editor modal/page:
+   - Title input
+   - Body editor: use a simple textarea for HTML/string; show preview toggle (render dangerouslySetInnerHTML)
+   - Taxonomy cascading dropdowns (Category>Subject>Topic>Subtopic) saving subtopicId
+   - Publish toggle
+   - Save
+
+PDF Library tab:
+- Upload form:
+   - Title
+   - File picker (pdf)
+   - Taxonomy cascading dropdowns (optional)
+   - Upload button
+- Table: title, file link (open in new tab), published badge, size, updatedAt, actions
+- Edit modal: title + taxonomy + publish toggle
+- Delete confirmation modal
+
+ERRORS:
+- Clear inline errors, including file validation errors.
+- If deleting published item forbidden: show “Only SUPER_ADMIN can delete published content.”
+
+AUDIT ACTION NAMES (exact):
+CONTENTPAGE_CREATE
+CONTENTPAGE_UPDATE
+CONTENTPAGE_PUBLISH
+CONTENTPAGE_UNPUBLISH
+CONTENTPAGE_DELETE
+PDFASSET_CREATE
+PDFASSET_UPDATE
+PDFASSET_PUBLISH
+PDFASSET_UNPUBLISH
+PDFASSET_DELETE
+
+DO NOT TOUCH:
+- Flashcards module
+- Tests module
+- Question bank/imports
+- Prisma schema (no changes)
+
+FINISH:
+- Ensure build passes
+- /admin/content-library loads
+- Both tabs work
+- PDF uploads land in /public/uploads/pdfs and open via fileUrl
+- Audit logs written
+Return short summary of new endpoints and files changed.
