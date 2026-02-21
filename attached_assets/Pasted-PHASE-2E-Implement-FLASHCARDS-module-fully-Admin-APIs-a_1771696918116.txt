@@ -1,0 +1,164 @@
+PHASE 2E — Implement FLASHCARDS module fully (Admin + APIs) as per locked PRD v1.3.
+
+CONTEXT:
+We already have:
+- Next.js App Router admin console with /login + middleware protection
+- Prisma schema includes FlashcardDeck and FlashcardCard models
+- Admin layout + sidebar exists
+- Audit logging helper exists
+Do NOT redesign any existing modules. Do NOT add heavy UI libraries.
+
+SCOPE (ONLY FLASHCARDS IN THIS PROMPT):
+A) API implementation under app/api/flashcards/*
+B) Admin UI implementation at /admin/flashcards
+C) Audit logs for all flashcard actions
+D) Basic image URL support (no upload system now; just URL field)
+
+LOCKED PRD REQUIREMENTS:
+1) Structure: Deck → Cards
+2) Card fields:
+   - Front (question)
+   - Back (explanation)
+   - Images optional
+3) Taxonomy linkage:
+   - subtopicId optional on card
+   - UI must allow Category > Subject > Topic > Subtopic cascading selection
+4) Publish control:
+   - Deck publish toggle (isPublished boolean)
+5) “Revision Tests (Flashcard Mode)” is STUDENT side later. Admin only needs to create decks/cards.
+
+SECURITY:
+- All endpoints require admin session (ADMIN or SUPER_ADMIN).
+- Only SUPER_ADMIN can delete a published deck (ADMIN can delete only if not published).
+
+API ROUTES TO CREATE (App Router route handlers):
+1) GET  /api/flashcards/decks
+   - Query: page, pageSize, search (title), isPublished, categoryId/subjectId/topicId/subtopicId (filter decks by their cards’ subtopic taxonomy if provided)
+   - Returns: {items, total, page, pageSize}
+
+2) POST /api/flashcards/decks
+   - Body: {title, description?, categoryId?, subjectId?, topicId?}
+   - Creates deck with createdById from session
+   - Audit: FLASHCARD_DECK_CREATE
+
+3) PUT /api/flashcards/decks/[id]
+   - Body: {title?, description?, categoryId?, subjectId?, topicId?, isPublished?}
+   - Toggle publish via isPublished (set true/false)
+   - Audit: FLASHCARD_DECK_UPDATE and additionally FLASHCARD_DECK_PUBLISH or FLASHCARD_DECK_UNPUBLISH when isPublished changes
+
+4) DELETE /api/flashcards/decks/[id]
+   - If deck.isPublished and role != SUPER_ADMIN => 403
+   - Otherwise delete deck (cascade should delete cards via relation)
+   - Audit: FLASHCARD_DECK_DELETE
+
+5) GET  /api/flashcards/decks/[id]/cards
+   - Query: page, pageSize, search (front/back), subtopicId
+   - Order by "order" ascending
+   - Returns list + total
+
+6) POST /api/flashcards/decks/[id]/cards
+   - Body: {front, back, imageUrl?, subtopicId?}
+   - Auto assign order = (max order in deck + 1)
+   - Audit: FLASHCARD_CARD_CREATE
+
+7) PUT /api/flashcards/cards/[id]
+   - Body: {front?, back?, imageUrl?, subtopicId?}
+   - Audit: FLASHCARD_CARD_UPDATE
+
+8) DELETE /api/flashcards/cards/[id]
+   - Audit: FLASHCARD_CARD_DELETE
+
+9) PUT /api/flashcards/decks/[id]/reorder
+   - Body: {orderedCardIds: string[]}
+   - Update all cards’ order fields in a Prisma transaction
+   - Validate: orderedCardIds must match all existing card ids for that deck (same count)
+   - Audit: FLASHCARD_CARD_REORDER
+
+AUDIT LOGGING:
+Use existing audit helper. Store before/after JSON.
+Entity types:
+- entityType = "FlashcardDeck" or "FlashcardCard"
+Actions exactly:
+FLASHCARD_DECK_CREATE
+FLASHCARD_DECK_UPDATE
+FLASHCARD_DECK_PUBLISH
+FLASHCARD_DECK_UNPUBLISH
+FLASHCARD_DECK_DELETE
+FLASHCARD_CARD_CREATE
+FLASHCARD_CARD_UPDATE
+FLASHCARD_CARD_DELETE
+FLASHCARD_CARD_REORDER
+
+ADMIN UI: /admin/flashcards
+Build a clean, minimal, highly usable interface:
+
+Layout:
+- Left panel: Deck list
+  - Search box (title)
+  - Filter: Published (All/Published/Draft)
+  - Button: “+ New Deck”
+  - Each deck row shows title + published badge
+- Right panel: Deck details (when a deck selected)
+  - Title + description edit
+  - Publish toggle
+  - Optional taxonomy fields on deck (categoryId/subjectId/topicId) as dropdowns
+  - Delete deck button (with confirmation; show message if forbidden)
+
+Cards section inside deck details:
+- Cards table listing:
+  - Order number
+  - Front (truncate)
+  - Back (truncate)
+  - Subtopic (show name if set)
+  - Actions: Edit, Delete
+- Button: “+ Add Card”
+- Reorder:
+  - Provide simple Up/Down buttons per card (no DnD libs)
+  - “Save Order” button which calls reorder API
+- Card editor modal:
+  - Front textarea
+  - Back textarea
+  - Image URL input (optional) + small preview if present
+  - Cascading taxonomy dropdowns (Category → Subject → Topic → Subtopic)
+    - On select subtopic, save subtopicId on card.
+  - Save/Cancel
+
+Taxonomy dropdown data:
+- Reuse existing taxonomy API endpoints to load categories/subjects/topics/subtopics.
+- Implement cascading behavior:
+  - selecting category loads subjects
+  - selecting subject loads topics
+  - selecting topic loads subtopics
+
+Error handling:
+- Show inline errors for API failures
+- If delete published deck forbidden: show “Only SUPER_ADMIN can delete a published deck.”
+
+Performance:
+- Cards list paginated (pageSize default 25)
+- Deck list paginated (pageSize default 20)
+- Do not load all decks/cards at once.
+
+FILES / ROUTES TO ADD:
+- app/api/flashcards/decks/route.ts
+- app/api/flashcards/decks/[id]/route.ts
+- app/api/flashcards/decks/[id]/cards/route.ts
+- app/api/flashcards/decks/[id]/reorder/route.ts
+- app/api/flashcards/cards/[id]/route.ts
+- app/admin/flashcards/page.tsx
+- Any small components inside components/admin/flashcards/* if needed
+
+DO NOT TOUCH:
+- Question Bank module
+- Imports module
+- Tests module
+- Existing auth logic (except using helpers)
+- Prisma schema (no schema changes)
+
+FINISHING:
+- Ensure build passes and server starts
+- Ensure /admin/flashcards loads after login
+- Ensure CRUD works through UI
+- Ensure audit logs are written for all operations
+
+Output a short summary of files changed and new endpoints.
