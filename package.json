@@ -8,7 +8,9 @@
     "start": "next start -p 5000 -H 0.0.0.0",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "npx tsx prisma/seed.ts",
+    "seed": "prisma db seed"
+  },
+  "prisma": {
     "seed": "npx tsx prisma/seed.ts"
   },
   "dependencies": {

@@ -20,8 +20,9 @@ export async function POST(req: NextRequest) {
       });
 
       await writeAuditLog({
-        userId: session.userId,
+        actorId: session.userId,
         action: "ADMIN_LOGOUT",
+        entityType: "Session",
       });
     }
 

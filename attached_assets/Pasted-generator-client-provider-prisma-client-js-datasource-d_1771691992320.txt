@@ -1,0 +1,693 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/**
+ * ENUMS (locked behavior)
+ */
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  STUDENT
+}
+
+enum SessionType {
+  ADMIN
+  STUDENT
+}
+
+enum EntitlementStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum DifficultyLevel {
+  FOUNDATIONAL  // 1★
+  PROFICIENT    // 2★
+  MASTERY       // 3★
+}
+
+enum QuestionStatus {
+  DRAFT
+  APPROVED
+}
+
+enum QuestionType {
+  MCQ_SINGLE
+  MCQ_MULTIPLE
+
+  // Practice only
+  DRAG_REORDER
+  DRAG_DROP
+  FILL_BLANKS
+  TRUE_FALSE
+}
+
+enum ImportStatus {
+  PREVIEWED
+  VALIDATED
+  PARTIAL_IMPORTED
+  IMPORTED
+  FAILED
+}
+
+enum TestMode {
+  TIMED
+  SECTIONAL
+  MULTI_SECTION
+}
+
+enum RevenueStream {
+  TESTHUB
+  SELFPREP_HTML
+  FLASHCARDS
+  PDF_ACCESS
+  SMART_PRACTICE
+  AI_ADDON
+}
+
+enum CouponDiscountType {
+  PERCENT
+  FLAT
+}
+
+enum XpRuleKey {
+  LOGIN_XP
+  TEST_XP
+  IMPROVEMENT_BONUS_XP
+  FLASHCARD_XP
+  RR_XP
+}
+
+/**
+ * CORE IDENTITY + SESSIONS (LOCKED)
+ */
+model User {
+  id           String    @id @default(cuid())
+  email        String?   @unique
+  mobile       String?   @unique
+  name         String?
+  passwordHash String
+  role         UserRole  @default(STUDENT)
+
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions     Session[]
+  entitlements UserEntitlement[]
+
+  attempts     Attempt[]
+  xpEvents     XpEvent[]
+  xpLedger     XpLedgerEntry[]
+  auditLogs    AuditLog[] @relation("AuditActor")
+
+  @@index([role])
+}
+
+model Session {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type       SessionType @default(ADMIN)
+  token      String      @unique
+  expiresAt  DateTime
+  ip         String?
+  userAgent  String?
+
+  createdAt  DateTime @default(now())
+  revokedAt  DateTime?
+
+  @@index([userId, type])
+  @@index([expiresAt])
+}
+
+/**
+ * ENTITLEMENTS (LOCKED TABLE + FIELDS)
+ */
+model UserEntitlement {
+  id           String            @id @default(cuid())
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  productCode  String
+  status       EntitlementStatus @default(ACTIVE)
+  validUntil   DateTime?
+  purchaseId   String?
+  tenantId     String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, productCode, tenantId])
+  @@index([productCode, status])
+}
+
+/**
+ * TAXONOMY (Category → Subject → Topic → Subtopic)
+ */
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subjects  Subject[]
+}
+
+model Subject {
+  id         String   @id @default(cuid())
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  name       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  topics     Topic[]
+
+  @@unique([categoryId, name])
+  @@index([categoryId])
+}
+
+model Topic {
+  id        String   @id @default(cuid())
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subtopics Subtopic[]
+
+  @@unique([subjectId, name])
+  @@index([subjectId])
+}
+
+model Subtopic {
+  id      String @id @default(cuid())
+  topicId String
+  topic   Topic  @relation(fields: [topicId], references: [id], onDelete: Restrict)
+
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  questions Question[]
+  flashcardCards FlashcardCard[]
+  contentPages ContentPage[]
+
+  @@unique([topicId, name])
+  @@index([topicId])
+}
+
+/**
+ * QUESTION BANK
+ * - exact duplicates blocked (via contentHash unique)
+ * - near duplicates warned (handled in app layer via similarity checks)
+ */
+model Question {
+  id           String         @id @default(cuid())
+
+  categoryId   String?
+  subjectId    String?
+  topicId      String?
+  subtopicId   String?
+  subtopic     Subtopic?      @relation(fields: [subtopicId], references: [id], onDelete: SetNull)
+
+  type         QuestionType
+  difficulty   DifficultyLevel
+  status       QuestionStatus @default(DRAFT)
+
+  stem         String
+  explanation  String?        // rich text serialized (html/markdown/json) - decided in UI layer
+  tags         String[]       @default([])
+
+  // Duplicate control
+  contentHash  String         @unique // hash(stem + options + type)
+
+  options      QuestionOption[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([type, status])
+  @@index([difficulty])
+  @@index([subtopicId])
+}
+
+model QuestionOption {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  text       String
+  isCorrect  Boolean  @default(false)
+  order      Int
+
+  @@index([questionId])
+}
+
+/**
+ * IMPORT SYSTEM (CSV & DOCX)
+ * - store upload + row-level errors + inline edits snapshot
+ */
+model ImportJob {
+  id            String       @id @default(cuid())
+  createdById   String
+  createdBy     User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  fileName      String
+  fileType      String       // "csv" | "docx"
+  storageUrl    String?      // optional if using object storage; can be local for now
+
+  status        ImportStatus @default(PREVIEWED)
+  totalRows     Int          @default(0)
+  validRows     Int          @default(0)
+  invalidRows   Int          @default(0)
+
+  reportUrl     String?      // downloadable error report
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  rows          ImportRow[]
+  @@index([createdById, status])
+}
+
+model ImportRow {
+  id          String    @id @default(cuid())
+  importJobId String
+  importJob   ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+
+  rowNumber   Int
+  rawData     Json      // original parsed row
+  editedData  Json?     // inline edits snapshot
+  isValid     Boolean   @default(false)
+
+  // Error display requirements
+  errorField  String?
+  errorMsg    String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([importJobId, rowNumber])
+  @@index([importJobId, isValid])
+}
+
+/**
+ * TEST SERIES + TESTS + SECTIONS
+ */
+model TestSeries {
+  id           String   @id @default(cuid())
+  title        String
+  description  String?
+
+  categoryId   String?
+  subjectIds   String[] @default([]) // quick filter; detailed linkage handled by taxonomy IDs in UI
+
+  pricePaise   Int      @default(0)
+  discountPaise Int     @default(0)
+  currency     String   @default("INR")
+
+  scheduleJson Json?    // schedule upload
+
+  isPublished  Boolean  @default(false)
+
+  createdById  String
+  createdBy    User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tests        Test[]
+
+  @@index([isPublished])
+}
+
+model Test {
+  id             String   @id @default(cuid())
+  seriesId        String?
+  series          TestSeries? @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+
+  title          String
+  instructions   String?
+
+  mode           TestMode
+  isTimed        Boolean  @default(true)
+
+  // Universal Timer (seconds)
+  durationSec    Int?
+
+  // Admin toggles
+  allowPause     Boolean  @default(false)
+  strictSectionMode Boolean @default(false)
+
+  // publish validation support
+  isPublished    Boolean  @default(false)
+  publishedAt    DateTime?
+
+  createdById    String
+  createdBy      User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  sections       TestSection[]
+  attempts       Attempt[]
+
+  @@index([isPublished])
+  @@index([seriesId])
+}
+
+model TestSection {
+  id           String @id @default(cuid())
+  testId       String
+  test         Test   @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  title        String
+  order        Int
+
+  // Section Timer (seconds) - “smaller timer beside universal timer”
+  durationSec  Int?
+
+  questions    TestQuestion[]
+
+  @@index([testId, order])
+}
+
+model TestQuestion {
+  id         String   @id @default(cuid())
+  testId     String
+  sectionId  String?
+
+  test       Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  section    TestSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  order      Int
+
+  @@unique([testId, questionId])
+  @@index([testId, order])
+  @@index([sectionId, order])
+}
+
+/**
+ * ATTEMPTS + RAPID REINFORCEMENT
+ */
+model Attempt {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  testId      String
+  test        Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  startedAt   DateTime @default(now())
+  submittedAt DateTime?
+
+  scorePct    Float    @default(0)
+  correctCount Int     @default(0)
+  wrongCount   Int     @default(0)
+  unansweredCount Int  @default(0)
+
+  // RR trigger: score < 75 AND wrong >= 3 (enforced in app layer)
+  rrGenerated Boolean  @default(false)
+
+  answers     AttemptAnswer[]
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId, startedAt])
+  @@index([testId, startedAt])
+}
+
+model AttemptAnswer {
+  id         String   @id @default(cuid())
+  attemptId  String
+  attempt    Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  // store selected option ids, supports multi-correct
+  selectedOptionIds String[] @default([])
+  isCorrect  Boolean  @default(false)
+
+  createdAt  DateTime @default(now())
+
+  @@index([attemptId])
+  @@index([questionId])
+}
+
+/**
+ * FLASHCARDS (Deck → Cards)
+ */
+model FlashcardDeck {
+  id          String @id @default(cuid())
+  title       String
+  description String?
+
+  categoryId  String?
+  subjectId   String?
+  topicId     String?
+
+  isPublished Boolean @default(false)
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cards       FlashcardCard[]
+}
+
+model FlashcardCard {
+  id          String @id @default(cuid())
+  deckId      String
+  deck        FlashcardDeck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+
+  subtopicId  String?
+  subtopic    Subtopic? @relation(fields: [subtopicId], references: [id], onDelete: SetNull)
+
+  front       String
+  back        String
+  imageUrl    String?
+
+  order       Int
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([deckId, order])
+}
+
+/**
+ * CONTENT LIBRARY
+ * Layer 1: HTML learning pages (non-downloadable, light XP)
+ * Layer 2: PDF library (downloadable, requires entitlement, no XP)
+ */
+model ContentPage {
+  id          String @id @default(cuid())
+  title       String
+
+  subtopicId  String?
+  subtopic    Subtopic? @relation(fields: [subtopicId], references: [id], onDelete: SetNull)
+
+  // stored html (or editor json) - decided by UI editor
+  body        String
+  isPublished Boolean @default(false)
+  publishedAt DateTime?
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished])
+  @@index([subtopicId])
+}
+
+model PdfAsset {
+  id          String @id @default(cuid())
+  title       String
+  fileUrl     String
+  fileSize    Int?
+  mimeType    String? @default("application/pdf")
+
+  // taxonomy linkage optional
+  categoryId  String?
+  subjectId   String?
+  topicId     String?
+  subtopicId  String?
+
+  isPublished Boolean @default(false)
+  publishedAt DateTime?
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished])
+}
+
+/**
+ * PRODUCT BUILDER (packages → entitlements)
+ */
+model ProductPackage {
+  id          String @id @default(cuid())
+  code        String @unique
+  name        String
+  description String?
+
+  // checkboxes map to entitlements created on purchase
+  entitlementCodes String[] @default([])
+
+  pricePaise  Int    @default(0)
+  currency    String @default("INR")
+  isActive    Boolean @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/**
+ * COUPONS
+ */
+model Coupon {
+  id           String @id @default(cuid())
+  code         String @unique
+  discountType CouponDiscountType
+  discountValue Int   // percent (1-100) or flat paise depending on type
+
+  validFrom    DateTime?
+  validUntil   DateTime?
+  usageLimit   Int?     // total usage cap
+  perUserLimit Int?     // per user cap
+
+  // entitlements impacted (or packages)
+  applicableEntitlements String[] @default([])
+
+  isActive     Boolean @default(true)
+
+  createdById  String
+  createdBy    User   @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+/**
+ * XP RULE ENGINE + LEDGER
+ */
+model XpRule {
+  id          String   @id @default(cuid())
+  key         XpRuleKey @unique
+  value       Int      // XP points
+  isEnabled   Boolean  @default(true)
+
+  // controls
+  dailyCap    Int?     // optional daily cap per rule
+  multiplier  Float    @default(1)
+
+  updatedById String?
+  updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+}
+
+model XpEvent {
+  id          String @id @default(cuid())
+  userId      String
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  ruleKey     XpRuleKey
+  points      Int
+  meta        Json?
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([ruleKey, createdAt])
+}
+
+model XpLedgerEntry {
+  id          String @id @default(cuid())
+  userId      String
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  delta       Int
+  reason      String
+  refType     String? // e.g., "attempt", "flashcard", "login", "rr"
+  refId       String?
+  meta        Json?
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+/**
+ * REVENUE + ANALYTICS (minimal storage; charts computed)
+ */
+model Purchase {
+  id           String @id @default(cuid())
+  userId       String
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  packageId    String?
+  package      ProductPackage? @relation(fields: [packageId], references: [id], onDelete: SetNull)
+
+  couponId     String?
+  coupon       Coupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
+
+  stream       RevenueStream
+  currency     String @default("INR")
+
+  grossPaise   Int
+  feePaise     Int    @default(0) // for “Net after 3% fee”
+  netPaise     Int
+
+  createdAt    DateTime @default(now())
+
+  @@index([stream, createdAt])
+  @@index([userId, createdAt])
+}
+
+/**
+ * AUDIT LOGGING (LOCKED requirement)
+ */
+model AuditLog {
+  id          String   @id @default(cuid())
+
+  actorId     String?
+  actor       User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  action      String   // e.g., "TAXONOMY_CREATE", "QUESTION_APPROVE"
+  entityType  String   // e.g., "Question", "Test"
+  entityId    String?
+  before      Json?
+  after       Json?
+  ip          String?
+  userAgent   String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+}

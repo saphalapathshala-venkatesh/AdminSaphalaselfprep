@@ -1,19 +1,34 @@
 import prisma from "./prisma";
 
 export async function writeAuditLog({
-  userId,
+  actorId,
   action,
-  entity,
+  entityType,
   entityId,
-  meta,
+  before,
+  after,
+  ip,
+  userAgent,
 }: {
-  userId: string;
+  actorId?: string;
   action: string;
-  entity?: string;
+  entityType: string;
   entityId?: string;
-  meta?: Record<string, unknown>;
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
+  ip?: string;
+  userAgent?: string;
 }) {
   await prisma.auditLog.create({
-    data: { userId, action, entity, entityId, meta: meta as any ?? undefined },
+    data: {
+      actorId,
+      action,
+      entityType,
+      entityId,
+      before: before as any ?? undefined,
+      after: after as any ?? undefined,
+      ip,
+      userAgent,
+    },
   });
 }

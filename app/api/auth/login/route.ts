@@ -70,8 +70,9 @@ export async function POST(req: NextRequest) {
     });
 
     await writeAuditLog({
-      userId: user.id,
+      actorId: user.id,
       action: "ADMIN_LOGIN",
+      entityType: "Session",
     });
 
     const response = NextResponse.json({

@@ -8,6 +8,7 @@ Admin-only console for Saphala Self Prep platform. Built with Next.js 14 (App Ro
 - Middleware protection on all /admin/* routes
 - 13 admin section placeholder pages with sidebar navigation
 - Seeded SUPER_ADMIN user
+- Full PRD database schema with 28 tables migrated and active
 
 ## Architecture
 - **Framework**: Next.js 14 App Router
@@ -37,21 +38,57 @@ app/
   api/auth/login/route.ts    - POST login
   api/auth/logout/route.ts   - POST logout
   api/auth/me/route.ts       - GET current user
+  api/taxonomy/route.ts      - Taxonomy API (stub)
+  api/questions/route.ts     - Questions API (stub)
+  api/imports/route.ts       - Imports API (stub)
+  api/test-series/route.ts   - Test Series API (stub)
+  api/tests/route.ts         - Tests API (stub)
+  api/flashcards/route.ts    - Flashcards API (stub)
+  api/content-pages/route.ts - Content Pages API (stub)
+  api/pdf-assets/route.ts    - PDF Assets API (stub)
+  api/products/route.ts      - Products API (stub)
+  api/coupons/route.ts       - Coupons API (stub)
+  api/xp-rules/route.ts      - XP Rules API (stub)
+  api/learners/route.ts      - Learners API (stub)
+  api/analytics/route.ts     - Analytics API (stub)
+  api/audit/route.ts         - Audit API (stub)
+components/
+  ui/                        - Reusable UI atoms (tables, modal, inputs)
+  admin/                     - Sidebar, header, KPI cards, chart wrappers
 lib/
   prisma.ts                  - Prisma singleton
   auth.ts                    - Auth helpers (getSessionUser, requireAdmin, requireRole)
   audit.ts                   - Audit log writer
   validators/auth.ts         - Zod login schema
 prisma/
-  schema.prisma              - Database schema
+  schema.prisma              - Full PRD database schema (28 models)
   seed.ts                    - Seed script for SUPER_ADMIN
+  migrations/                - Database migration files
 middleware.ts                - Route protection for /admin/*
+styles/                      - Stylesheets
 ```
+
+## Database Models (28 tables)
+- **Identity**: User, Session
+- **Entitlements**: UserEntitlement
+- **Taxonomy**: Category, Subject, Topic, Subtopic
+- **Question Bank**: Question, QuestionOption
+- **Imports**: ImportJob, ImportRow
+- **Tests**: TestSeries, Test, TestSection, TestQuestion
+- **Attempts**: Attempt, AttemptAnswer
+- **Flashcards**: FlashcardDeck, FlashcardCard
+- **Content**: ContentPage, PdfAsset
+- **Products**: ProductPackage
+- **Coupons**: Coupon
+- **XP System**: XpRule, XpEvent, XpLedgerEntry
+- **Revenue**: Purchase
+- **Audit**: AuditLog
 
 ## Key Commands
 - `npm run dev` - Start dev server on port 5000
-- `npx prisma migrate dev` - Run migrations
-- `npx tsx prisma/seed.ts` - Seed admin user
+- `npm run prisma:generate` - Generate Prisma client
+- `npm run prisma:migrate` - Run migrations
+- `npm run seed` - Seed admin user (prisma db seed)
 
 ## Auth Details
 - Cookie: `admin_session` (httpOnly, secure in prod, sameSite=lax)
@@ -65,3 +102,4 @@ middleware.ts                - Route protection for /admin/*
 
 ## Recent Changes
 - 2026-02-21: Initial project setup with full auth, middleware, admin layout, and placeholder pages
+- 2026-02-21: Updated to full PRD schema (28 models), added API route stubs for all entities, updated audit log to match new schema fields
