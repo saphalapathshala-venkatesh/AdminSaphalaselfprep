@@ -23,7 +23,7 @@ app/
   (public)/login/page.tsx    - Login page
   admin/layout.tsx           - Admin layout with sidebar
   admin/dashboard/page.tsx   - Dashboard (placeholder)
-  admin/taxonomy/page.tsx    - Taxonomy (placeholder)
+  admin/taxonomy/page.tsx    - Taxonomy (full CRUD with tree view)
   admin/question-bank/       - Question Bank (placeholder)
   admin/imports/             - Imports (placeholder)
   admin/test-series/         - Test Series (placeholder)
@@ -38,7 +38,7 @@ app/
   api/auth/login/route.ts    - POST login
   api/auth/logout/route.ts   - POST logout
   api/auth/me/route.ts       - GET current user
-  api/taxonomy/route.ts      - Taxonomy API (stub)
+  api/taxonomy/route.ts      - Taxonomy API (full CRUD: GET/POST/PUT/DELETE)
   api/questions/route.ts     - Questions API (stub)
   api/imports/route.ts       - Imports API (stub)
   api/test-series/route.ts   - Test Series API (stub)
@@ -57,7 +57,7 @@ components/
   admin/                     - Sidebar, header, KPI cards, chart wrappers
 lib/
   prisma.ts                  - Prisma singleton
-  auth.ts                    - Auth helpers (getSessionUser, requireAdmin, requireRole)
+  auth.ts                    - Auth helpers (getSessionUser, getSessionUserFromRequest, requireAdmin, requireRole)
   audit.ts                   - Audit log writer
   validators/auth.ts         - Zod login schema
 prisma/
@@ -103,3 +103,4 @@ styles/                      - Stylesheets
 ## Recent Changes
 - 2026-02-21: Initial project setup with full auth, middleware, admin layout, and placeholder pages
 - 2026-02-21: Updated to full PRD schema (28 models), added API route stubs for all entities, updated audit log to match new schema fields
+- 2026-02-21: Implemented full Taxonomy module (CRUD + tree view UI + audit logging + force delete for SUPER_ADMIN), updated middleware role check

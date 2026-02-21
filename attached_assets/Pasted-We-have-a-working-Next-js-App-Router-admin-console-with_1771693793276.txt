@@ -1,0 +1,50 @@
+We have a working Next.js App Router admin console with Prisma, login, middleware protection.
+Now implement the TAXONOMY module exactly as per locked PRD.
+
+SCOPE (ONLY Taxonomy in this prompt):
+1) Implement CRUD for:
+   - Category
+   - Subject
+   - Topic
+   - Subtopic
+2) Must follow hierarchy: Category → Subject → Topic → Subtopic
+3) Rules:
+   - All selections are dropdown controlled (UI uses selects, not free typing for parent linkage)
+   - Cannot delete if used (default behavior enforced by DB Restrict + code handling)
+   - SUPER_ADMIN can “force delete” (only by explicit query param ?force=true and role check)
+4) Provide a clean UI in /admin/taxonomy:
+   - Left side: tree view (Category > Subject > Topic > Subtopic) expandable
+   - Right side: details panel (create/edit form for the selected node)
+   - Top: “Add Category”, “Add Subject”, “Add Topic”, “Add Subtopic” buttons (enabled only when valid parent selected)
+   - Simple search input to filter by name
+   - Delete button with confirmation modal
+5) Implement APIs:
+   - GET /api/taxonomy?level=category|subject|topic|subtopic&parentId=...
+   - POST /api/taxonomy (create)
+   - PUT /api/taxonomy (update)
+   - DELETE /api/taxonomy?level=...&id=...&force=true|false
+6) Security:
+   - All taxonomy APIs require admin session
+   - Only SUPER_ADMIN can force delete
+   - Write audit logs for create/update/delete (action, entityType, entityId, before/after)
+7) Error handling:
+   - If delete fails due to FK restriction, return a clear error:
+     "Cannot delete: taxonomy is in use."
+   - UI must show the error message inline (toast or alert)
+8) Keep dependencies minimal (no UI libraries). Use basic CSS or existing styling in project.
+9) Do NOT touch other modules.
+
+Also fix middleware role check:
+- Ensure middleware validates user.role is ADMIN or SUPER_ADMIN after calling /api/auth/me.
+
+Deliverables:
+- Updated middleware.ts
+- Updated lib/auth.ts helpers (requireAdmin/requireRole if missing)
+- Full /api/taxonomy implementation
+- /admin/taxonomy page with tree + forms
+- Audit log writes for taxonomy operations
+
+After changes, ensure:
+- Logged out user -> /admin/* redirects to /login
+- Logged in ADMIN can CRUD taxonomy but cannot force delete
+- Logged in SUPER_ADMIN can force delete with ?force=true

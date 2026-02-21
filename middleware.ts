@@ -26,6 +26,11 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL("/login", req.url));
     }
 
+    const role = data.user.role;
+    if (role !== "ADMIN" && role !== "SUPER_ADMIN") {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
+
     return NextResponse.next();
   } catch {
     return NextResponse.redirect(new URL("/login", req.url));
