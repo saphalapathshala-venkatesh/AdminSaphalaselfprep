@@ -34,9 +34,9 @@ export function computeSimilarity(a: string, b: string): number {
   const setB = new Set(wordsB);
 
   let intersection = 0;
-  for (const w of setA) {
+  setA.forEach((w) => {
     if (setB.has(w)) intersection++;
-  }
-  const union = new Set([...wordsA, ...wordsB]).size;
+  });
+  const union = new Set(wordsA.concat(wordsB)).size;
   return union === 0 ? 0 : intersection / union;
 }
