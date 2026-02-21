@@ -1,0 +1,93 @@
+Implement the full Test Series + Tests Builder module as per locked PRD. Do not redesign other modules.
+
+SCOPE:
+1) Admin UI:
+   - /admin/test-series (CRUD for series)
+   - /admin/tests (create/edit tests, add sections, add questions, publish validation)
+2) API:
+   - /api/test-series
+   - /api/tests
+3) Publish validation rules (LOCKED):
+   Block publish if:
+   - timer mismatch (if sectional timers exceed universal timer OR missing required duration values depending on mode)
+   - missing questions
+   - unapproved questions present (status != APPROVED)
+   - practice-only question types used in exam tests: DRAG_REORDER, DRAG_DROP, FILL_BLANKS, TRUE_FALSE
+4) Timers (LOCKED):
+   - Universal Timer: Test.durationSec
+   - Section Timer: TestSection.durationSec
+   - Countdown behavior and “turn RED last 10%” is student-side, but admin must store durations.
+5) Admin toggles (LOCKED):
+   - allowPause (Yes/No)
+   - strictSectionMode (Yes/No)
+     If strict: learner cannot move between sections (student-side behavior later)
+     Admin only stores this flag.
+
+DATA MODEL (already exists):
+- TestSeries, Test, TestSection, TestQuestion, Question
+
+SERIES MODULE REQUIREMENTS:
+- Create series:
+  - category first
+  - subjects auto-filter based on category (UI filter)
+  - pricing (pricePaise, discountPaise, currency)
+  - schedule upload (store JSON)
+  - publish toggle
+- Series list with search + publish status
+
+TEST BUILDER REQUIREMENTS:
+- Create/edit test:
+  - title, instructions
+  - mode: TIMED / SECTIONAL / MULTI_SECTION
+  - isTimed, durationSec
+  - allowPause, strictSectionMode
+  - sections editor (for SECTIONAL and MULTI_SECTION):
+     add section, rename, reorder, set durationSec, delete section
+  - question picker:
+     - searchable list of questions with filters (taxonomy, difficulty, type)
+     - add to test or to a specific section
+     - reorder questions within section/test
+  - show a "Validation status" panel with errors blocking publish
+
+PUBLISH FLOW:
+- "Validate" button runs server-side validation and returns list of errors/warnings
+- "Publish" button calls publish endpoint:
+   - if errors exist -> block publish and show errors
+   - if ok -> set isPublished=true, publishedAt=now
+- Audit logs:
+   TESTSERIES_CREATE/UPDATE/DELETE/PUBLISH
+   TEST_CREATE/UPDATE/DELETE/VALIDATE/PUBLISH
+   include before/after
+
+API DESIGN:
+- /api/test-series:
+   GET (list)
+   POST (create)
+   PUT (update)
+   DELETE (delete)
+- /api/tests:
+   GET (list + filters)
+   POST (create)
+   PUT (update)
+   DELETE (delete)
+   POST /api/tests/:id/validate
+   POST /api/tests/:id/publish
+   POST /api/tests/:id/unpublish (optional)
+   Endpoints must enforce ADMIN auth and log audit.
+
+SECURITY:
+- Require ADMIN/SUPER_ADMIN for all actions
+- Only SUPER_ADMIN can delete published tests (optional safeguard; if not implemented, at least confirm before delete in UI)
+
+CONSISTENCY FIX (IMPORTANT):
+- Whenever a question is selected for a test, ensure question.subtopicId is not null.
+- If subtopicId is present but question.categoryId/subjectId/topicId are null, auto-fill them from taxonomy parents on update (use a shared helper). Do not redesign schema.
+
+UI MINIMAL:
+- Use simple layout, no heavy libs.
+- Reuse existing admin layout.
+- Keep performance: do not load all questions at once; use paginated query.
+
+After implementation, ensure app builds cleanly.
+
+Do NOT implement student attempt runtime logic now.
