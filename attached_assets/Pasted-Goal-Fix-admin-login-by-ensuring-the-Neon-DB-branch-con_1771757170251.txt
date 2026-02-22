@@ -1,0 +1,72 @@
+Goal: Fix admin login by ensuring the Neon DB branch connected to Vercel/Replit matches prisma/schema.prisma exactly (UserRole enum, passwordHash, isActive), and remove any Replit DB usage completely.
+
+Context: Current Neon branch has old schema (User.password, no isActive, enum might be Role without SUPER_ADMIN). This causes migration/seed/login failures. We want the DB schema to be exactly as prisma/schema.prisma, then seed admin@saphala.com / admin123.
+
+Do the following:
+
+A) Remove Replit DB completely (verify only, should already be done)
+- Confirm there is NO @replit/database dependency.
+- Confirm there is NO REPLIT_DB_URL usage anywhere.
+- Confirm there are no references to “replit db” in code.
+- If any exist, remove them, update README/.env.example accordingly.
+
+B) Ensure prisma schema expects only DATABASE_URL
+- In prisma/schema.prisma, datasource db must be ONLY:
+  datasource db { provider="postgresql" url=env("DATABASE_URL") }
+- Ensure there is NO directUrl and NO DIRECT_URL env reference.
+- If directUrl exists anywhere, remove it.
+
+C) Add a safe “prod branch reset” script (for Neon branch only)
+Create a new script at scripts/reset-db.ts that:
+- Connects using PrismaClient (DATABASE_URL)
+- Executes: DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;
+- Then disconnects.
+This is required because the current DB schema is incompatible with current Prisma migrations; wiping the branch is the cleanest fix.
+
+Add package.json scripts:
+- "db:reset": "tsx scripts/reset-db.ts"
+- "db:setup": "prisma generate && prisma migrate deploy && prisma db seed"
+(keep existing scripts if already present; just ensure these exist)
+
+D) Make seed deterministic for admin login
+In prisma/seed.ts:
+- Upsert admin user by email using env vars:
+  ADMIN_SEED_EMAIL (default admin@saphala.com)
+  ADMIN_SEED_PASSWORD (default admin123)
+- Store hashed password into User.passwordHash
+- Set role = SUPER_ADMIN
+- Set isActive = true
+- If user exists, update passwordHash/role/isActive.
+Print a clear console log: “SUPER_ADMIN ready: <email>”
+
+E) Add a debug endpoint to confirm env + DB schema version
+Create GET /api/debug/login that returns:
+- hasDatabaseUrl (boolean)
+- hasAdminEmail (boolean)
+- hasAdminPassword (boolean)
+- userTableColumns: list of columns from information_schema for "User" (or at least booleans hasPasswordHash/hasIsActive)
+Do NOT return secrets.
+
+F) Update .env.example
+Include:
+DATABASE_URL=
+ADMIN_SEED_EMAIL=admin@saphala.com
+ADMIN_SEED_PASSWORD=admin123
+
+G) After code changes, run locally in Replit Shell (as final verification)
+1) Ensure Replit Secrets contain DATABASE_URL pointing to the ACTIVE Neon branch (pooled URL), and ADMIN_SEED_EMAIL/PASSWORD.
+2) Run:
+   npm run db:reset
+   npm run db:setup
+   npm run build
+3) Start dev server and confirm /api/health returns ok and /api/debug/login shows hasPasswordHash=true and hasIsActive=true.
+4) Confirm admin login works at /login with admin@saphala.com / admin123.
+
+H) Vercel note (no code changes required)
+- Vercel must be updated to use the SAME Neon branch DATABASE_URL.
+- After deploying, login must work.
+
+Deliverables:
+- Implement the code changes above.
+- Provide a short checklist for me to do on Vercel env vars (DATABASE_URL + ADMIN_SEED_EMAIL + ADMIN_SEED_PASSWORD) and redeploy.
+- Do not change any UI/styling. Only DB/login reliability changes.
