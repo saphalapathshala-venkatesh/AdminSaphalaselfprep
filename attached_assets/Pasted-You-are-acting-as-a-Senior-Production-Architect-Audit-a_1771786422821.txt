@@ -1,0 +1,161 @@
+You are acting as a Senior Production Architect.
+
+Audit and automatically fix the Saphala Self Prep project to prevent ALL future authentication, Prisma, and deployment breakages.
+
+Perform the following steps carefully and apply fixes where needed.
+
+-----------------------------------
+STEP 1 — Prisma Source of Truth
+-----------------------------------
+
+1. Treat prisma/schema.prisma as the ONLY source of truth.
+2. Verify:
+   - generator client uses default output (no custom output path)
+   - imports must come ONLY from "@prisma/client"
+3. Search entire repo for:
+   ./generated/prisma
+   lib/generated
+   prisma/generated
+   Role enum imports
+
+Replace ALL with:
+
+    import { PrismaClient, UserRole } from "@prisma/client"
+
+Remove obsolete generated folders safely.
+
+-----------------------------------
+STEP 2 — Password Safety Validation
+-----------------------------------
+
+Check all auth files:
+
+- web/app/api/auth/register/route.ts
+- web/app/api/auth/login/route.ts
+- web/lib/apiAuth.ts
+- web/lib/sessionStore.ts
+
+Enforce rules:
+
+REGISTER:
+- password must NEVER be stored directly
+- must use bcrypt.hash(password, 10)
+- DB field MUST be `passwordHash`
+
+LOGIN:
+- must use:
+    bcrypt.compare(inputPassword, user.passwordHash)
+
+Add guard:
+
+if (!user.passwordHash) {
+  throw new Error("User password hash missing");
+}
+
+-----------------------------------
+STEP 3 — Enum Safety (CRITICAL)
+-----------------------------------
+
+Schema enum = UserRole
+
+Verify NO file references:
+- Role
+- FACULTY
+- custom role strings outside enum
+
+Allowed roles ONLY:
+
+SUPER_ADMIN
+ADMIN
+STUDENT
+
+Replace incorrect usages safely.
+
+-----------------------------------
+STEP 4 — Session Integrity Check
+-----------------------------------
+
+Ensure Session creation ALWAYS includes:
+
+{
+  token: crypto.randomUUID(),
+  type: "ADMIN" | "STUDENT",
+  expiresAt
+}
+
+Add runtime validation:
+
+if (!session.token) throw Error("Session token missing");
+
+-----------------------------------
+STEP 5 — Prisma Client Singleton
+-----------------------------------
+
+Verify web/lib/db.ts:
+
+- uses global singleton pattern
+- reads DATABASE_URL
+- throws error if missing
+- uses PrismaPg adapter correctly
+
+Ensure NO multiple Prisma clients can be created.
+
+-----------------------------------
+STEP 6 — Build Stability (Vercel Safe)
+-----------------------------------
+
+Update web/package.json scripts:
+
+"build": "prisma generate && next build",
+"postinstall": "prisma generate"
+
+Verify:
+- next exists in dependencies
+- prisma generate runs before build
+
+-----------------------------------
+STEP 7 — TypeScript Protection Layer
+-----------------------------------
+
+Add new file:
+
+web/lib/safetyChecks.ts
+
+with runtime assertions:
+
+- DATABASE_URL exists
+- Prisma client loads
+- UserRole enum accessible
+
+Export:
+
+verifySystemIntegrity()
+
+Call this once inside root layout or server startup.
+
+-----------------------------------
+STEP 8 — Automated Repo Scan
+-----------------------------------
+
+Run a full repo scan and confirm:
+
+✓ zero imports from generated/prisma
+✓ zero Role enum usage
+✓ zero password field usage
+✓ all auth routes compile
+✓ prisma generate succeeds
+
+-----------------------------------
+STEP 9 — Output
+-----------------------------------
+
+Provide:
+
+1. List of files modified
+2. Safety issues found
+3. Fixes applied
+4. Confirmation:
+   "AUTH + PRISMA SYSTEM VERIFIED SAFE"
+
+Do NOT change business logic.
+Only apply structural safety fixes.
