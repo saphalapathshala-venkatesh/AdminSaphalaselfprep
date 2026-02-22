@@ -19,8 +19,8 @@ expertMode = true
 [userenv]
 
 [userenv.development]
-ADMIN_SEED_EMAIL = "admin@saphala.com"
-ADMIN_SEED_PASSWORD = "admin123"
+ADMIN_SEED_EMAIL = "admin@saphalaselfprep.in"
+ADMIN_SEED_PASSWORD = "Saphala@555"
 
 [workflows]
 runButton = "Project"
