@@ -1,0 +1,103 @@
+We are getting Prisma error P3009 on Vercel:
+
+"migrate found failed migrations in the target database… 20260221_prd_schema_init failed"
+
+We must stop running prisma migrate during Vercel build, and provide a safe manual migration workflow. Also remove any Replit DB usage (REPLIT_DB_URL / @replit/database) and ensure only Neon Postgres is used.
+
+Do the following changes:
+
+========================================
+1) STOP RUNNING MIGRATIONS DURING BUILD
+========================================
+
+Open package.json and update scripts:
+
+- Ensure build does NOT run migrations.
+
+Set:
+"build": "prisma generate && next build"
+
+Keep:
+"postinstall": "prisma generate"
+
+Add new scripts for manual DB ops:
+"db:migrate:deploy": "prisma migrate deploy"
+"db:migrate:status": "prisma migrate status"
+"db:seed": "prisma db seed"
+
+========================================
+2) ENSURE PRISMA DATASOURCE IS ONLY NEON
+========================================
+
+Open prisma/schema.prisma and ensure:
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+No REPLIT_DB_URL anywhere.
+
+========================================
+3) REMOVE REPLIT DB INTEGRATION (IF PRESENT)
+========================================
+
+Search and remove:
+- @replit/database dependency
+- any import from "@replit/database"
+- any usage of REPLIT_DB_URL or process.env.REPLIT_DB_URL
+
+If found in package.json dependencies, remove it.
+
+========================================
+4) ADD A CLEAR README SECTION FOR P3009 FIX
+========================================
+
+Update replit.md (or README) with a section:
+
+"Fix Prisma P3009 / Failed Migration (One-time)"
+
+Include exact instructions:
+
+Option A (recommended): Use prisma migrate resolve:
+
+- To mark the migration as rolled back:
+  npx prisma migrate resolve --rolled-back 20260221_prd_schema_init
+
+OR if you know the schema is already correctly applied:
+  npx prisma migrate resolve --applied 20260221_prd_schema_init
+
+Then run:
+  npx prisma migrate deploy
+  npx prisma db seed
+
+Option B: Fresh Neon branch:
+- Create a NEW Neon branch (schema-only) and update DATABASE_URL/DIRECT_URL on Vercel.
+- Deploy again. Then run migrate deploy + seed once.
+
+========================================
+5) GUARANTEE SEED ADMIN CREDS ARE ENV-DRIVEN
+========================================
+
+In prisma/seed.ts (or prisma/seed.tsx), ensure it reads:
+
+ADMIN_SEED_EMAIL
+ADMIN_SEED_PASSWORD
+
+If not set, seed should throw a clear error telling user to set them.
+
+Example behavior:
+- If env vars exist -> upsert SUPER_ADMIN
+- If missing -> console.error and exit 1
+
+========================================
+6) VERIFY
+========================================
+
+Run:
+npm run build
+
+Confirm it passes locally.
+
+DO NOT change business logic or APIs other than removing build-time migrations and cleanup.

@@ -112,6 +112,35 @@ styles/                      - Stylesheets
 - `npm run prisma:migrate` - Run migrations (dev)
 - `npm run seed` - Seed admin user (prisma db seed)
 - `npm run db:setup` - Full DB setup: generate + migrate deploy + seed
+- `npm run db:migrate:deploy` - Deploy pending migrations (manual only)
+- `npm run db:migrate:status` - Check migration status
+- `npm run db:seed` - Seed admin user
+
+## Fix Prisma P3009 / Failed Migration (One-time)
+
+If you see error P3009 ("migrate found failed migrations"), use one of these options:
+
+**Option A (recommended):** Mark the failed migration as resolved:
+
+```bash
+# If the schema IS correctly applied in the DB already:
+npx prisma migrate resolve --applied 20260221_prd_schema_init
+
+# OR if you want to roll it back and re-apply:
+npx prisma migrate resolve --rolled-back 20260221_prd_schema_init
+```
+
+Then run:
+```bash
+npx prisma migrate deploy
+npx prisma db seed
+```
+
+**Option B:** Create a fresh Neon branch (schema-only), update `DATABASE_URL` and `DIRECT_URL` on Vercel, redeploy, then run:
+```bash
+npx prisma migrate deploy
+npx prisma db seed
+```
 
 ## Required Environment Variables
 - `DATABASE_URL` - PostgreSQL connection string (Neon in production)
