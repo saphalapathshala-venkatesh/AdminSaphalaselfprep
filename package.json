@@ -11,6 +11,7 @@
     "prisma:migrate": "prisma migrate dev",
     "seed": "prisma db seed",
     "db:setup": "prisma generate && prisma migrate deploy && prisma db seed",
+    "db:deploy": "prisma migrate deploy",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:status": "prisma migrate status",
     "db:seed": "prisma db seed"

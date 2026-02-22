@@ -8,21 +8,22 @@ async function main() {
   const password = process.env.ADMIN_SEED_PASSWORD;
 
   if (!email || !password) {
-    throw new Error(
-      "Missing required env vars: ADMIN_SEED_EMAIL and ADMIN_SEED_PASSWORD must be set."
+    console.error(
+      "ERROR: ADMIN_SEED_EMAIL and ADMIN_SEED_PASSWORD must be set."
     );
-  }
-
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    console.log(`SUPER_ADMIN ready: ${email} (already exists, no changes made)`);
-    return;
+    process.exit(1);
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
 
-  await prisma.user.create({
-    data: {
+  await prisma.user.upsert({
+    where: { email },
+    update: {
+      passwordHash,
+      role: "SUPER_ADMIN",
+      isActive: true,
+    },
+    create: {
       email,
       name: "Super Admin",
       passwordHash,

@@ -1,0 +1,93 @@
+You are working on a Next.js 14 + Prisma + Neon Postgres admin console.
+
+Goal:
+1) Fix production login by ensuring the database schema matches Prisma schema.
+2) Fix DB branch connection issues and stop relying on any Replit DB.
+3) Make Prisma work even if DIRECT_URL is missing locally.
+4) Ensure an admin user is ALWAYS created/updated using ADMIN_SEED_EMAIL + ADMIN_SEED_PASSWORD.
+5) Do not change any UI/feature logic except what’s needed for login + DB stability.
+
+Do the following:
+
+A) Remove Replit DB completely
+- Search the codebase for any of:
+  - @replit/database
+  - REPLIT_DB_URL
+  - REPLIT_DB
+  - new Database()
+- Remove any dependency and all references.
+- Ensure package.json has no @replit/database.
+- If none exist, confirm in output that nothing is present.
+
+B) Prisma datasource: make DIRECT_URL optional
+- Open prisma/schema.prisma
+- If datasource has:
+    directUrl = env("DIRECT_URL")
+  change it so Prisma does NOT require DIRECT_URL.
+  Best option: remove directUrl line completely (keep only url = env("DATABASE_URL")).
+- This must stop the P1012 “DIRECT_URL not found” error in Replit.
+
+C) Add a “compat” migration to align DB schema with Prisma expectations
+Problem observed: DB "User" table exists but missing "isActive"; Role enum missing "SUPER_ADMIN".
+We will create a new Prisma migration that:
+1) Adds Role enum value SUPER_ADMIN if the enum exists and the value is missing.
+2) Adds "isActive" boolean column to "User" with default true if missing.
+3) Keeps safe idempotent SQL (IF NOT EXISTS) where possible.
+
+Steps:
+- Create a new migration folder under prisma/migrations named like:
+  20260222_admin_schema_compat
+- In its migration.sql, write Postgres SQL that:
+  - Adds enum value if missing:
+      DO $$ BEGIN
+        IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'Role') THEN
+          IF NOT EXISTS (
+            SELECT 1
+            FROM pg_enum e
+            JOIN pg_type t ON t.oid = e.enumtypid
+            WHERE t.typname = 'Role' AND e.enumlabel = 'SUPER_ADMIN'
+          ) THEN
+            ALTER TYPE "Role" ADD VALUE 'SUPER_ADMIN';
+          END IF;
+        END IF;
+      END $$;
+  - Adds column if missing:
+      ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "isActive" BOOLEAN NOT NULL DEFAULT true;
+
+If your Prisma schema uses different casing/names for Role or User table/enum, adapt accordingly.
+
+D) Make seed robust and environment-driven
+- Open prisma/seed.ts (or prisma/seed.ts used by "prisma.seed": "npx tsx prisma/seed.ts")
+- Implement:
+  - Read ADMIN_SEED_EMAIL and ADMIN_SEED_PASSWORD (required for production seeding).
+  - Hash password with bcrypt.
+  - Upsert the user by email.
+  - Set role to SUPER_ADMIN if available in Prisma enum, otherwise fallback to the first available role (e.g., ADMIN) without crashing.
+  - Ensure isActive = true if the column exists in Prisma schema.
+- Output a clear console line like:
+  "SUPER_ADMIN ready: <email>"
+
+E) Add two scripts that we can run safely
+In package.json scripts, ensure:
+- "db:deploy": "prisma migrate deploy"
+- "db:seed": "prisma db seed"
+- "db:setup": "prisma generate && prisma migrate deploy && prisma db seed"
+(Do not run migrate dev in production)
+
+F) Add a minimal login debug endpoint (safe)
+- Create app/api/debug/login/route.ts (nodejs runtime, force-dynamic)
+- It should:
+  - Return ok:true, and show which env vars are present (only booleans, not values):
+    { hasDatabaseUrl: true/false, hasAdminSeedEmail: true/false, hasAdminSeedPassword: true/false }
+  - NEVER return secrets.
+This helps confirm Vercel env is set.
+
+G) Final checks
+- Run:
+  npm run build
+- Then run:
+  npm run db:setup
+- Ensure no Prisma schema validation errors.
+- Ensure seed completes.
+
+Finally, summarize exactly what you changed file-by-file.
