@@ -1,0 +1,139 @@
+We need to stabilize production database deployment for a Next.js + Prisma + Neon setup.
+
+GOAL:
+1. Fix Prisma migration conflict (P3018 / relation already exists)
+2. Ensure Vercel builds NEVER fail due to migrations
+3. Remove all Replit DB usage
+4. Use Neon DB only
+5. Allow login to work reliably
+
+Make the following SAFE production changes:
+
+--------------------------------------------------
+STEP 1 — REMOVE BUILD-TIME MIGRATIONS
+--------------------------------------------------
+
+Open package.json
+
+CHANGE build script:
+
+FROM:
+"build": "prisma generate && prisma migrate deploy && next build"
+
+TO:
+"build": "prisma generate && next build"
+
+Reason:
+Migrations must NOT run during Vercel build.
+
+--------------------------------------------------
+STEP 2 — CREATE RUNTIME SAFE DB INITIALIZER
+--------------------------------------------------
+
+Create file:
+
+lib/db-init.ts
+
+Add:
+
+import { prisma } from "./prisma";
+
+let initialized = false;
+
+export async function ensureDbReady() {
+  if (initialized) return;
+
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    initialized = true;
+  } catch (e) {
+    console.error("DB init failed", e);
+  }
+}
+
+--------------------------------------------------
+STEP 3 — CALL DB INIT INSIDE AUTH LOGIN
+--------------------------------------------------
+
+Open:
+
+app/api/auth/login/route.ts
+
+ADD at top:
+
+import { ensureDbReady } from "@/lib/db-init";
+
+Inside POST handler FIRST LINE:
+
+await ensureDbReady();
+
+--------------------------------------------------
+STEP 4 — REMOVE ALL REPLIT DATABASE REFERENCES
+--------------------------------------------------
+
+Search entire repo and REMOVE:
+
+process.env.REPLIT_DB_URL
+REPLIT_DB_URL
+replit database imports
+@replit/database
+
+Ensure prisma/schema.prisma datasource is ONLY:
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+--------------------------------------------------
+STEP 5 — PREVENT PRISMA MIGRATION CRASHES
+--------------------------------------------------
+
+DO NOT auto-run migrations anywhere in code.
+
+Ensure NO files contain:
+
+prisma migrate deploy
+prisma db push
+
+except manual scripts.
+
+--------------------------------------------------
+STEP 6 — SAFE PRISMA CLIENT (if not already)
+--------------------------------------------------
+
+Ensure lib/prisma.ts uses global singleton:
+
+import { PrismaClient } from "@prisma/client";
+
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient;
+};
+
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient();
+
+if (process.env.NODE_ENV !== "production")
+  globalForPrisma.prisma = prisma;
+
+--------------------------------------------------
+STEP 7 — VERIFY API ROUTES RUNTIME FLAGS
+--------------------------------------------------
+
+Ensure every app/api/**/route.ts contains:
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+--------------------------------------------------
+STEP 8 — DO NOT MODIFY BUSINESS LOGIC
+--------------------------------------------------
+
+Only infrastructure stabilization.
+
+After changes:
+- run npm install
+- run npm run build
+and confirm build passes.

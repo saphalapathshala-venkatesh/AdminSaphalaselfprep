@@ -107,7 +107,7 @@ styles/                      - Stylesheets
 
 ## Key Commands
 - `npm run dev` - Start dev server on port 5000
-- `npm run build` - Prisma generate + migrate deploy + Next.js build
+- `npm run build` - Prisma generate + Next.js build (no migrations at build time)
 - `npm run prisma:generate` - Generate Prisma client
 - `npm run prisma:migrate` - Run migrations (dev)
 - `npm run seed` - Seed admin user (prisma db seed)
@@ -157,4 +157,5 @@ curl -X POST https://<domain>/api/admin/bootstrap -H "x-bootstrap-key: <BOOTSTRA
 - 2026-02-21: Implemented full XP Rule Engine + Learners module (XP rules CRUD with auto-seed defaults, rule history, learner list with XP/activity/entitlements, profile panel with 4 tabs, entitlement grant/revoke, status toggle, 4 audit actions)
 - 2026-02-21: Implemented full Dashboard + Analytics module (dashboard with KPIs/charts/tables/quick-actions, analytics with 4 report types + CSV export, date/learner/stream filters)
 - 2026-02-21: Production hardening: tenantId="default" enforced on all entitlement writes, login rate limiting (5/60s), /api/health endpoint, cookie security confirmed
-- 2026-02-22: Neon-only DB enforcement (guards in lib/prisma.ts + lib/env.ts, active on Vercel/ENFORCE_NEON_ONLY), bootstrap endpoint, health endpoint with dbHost/dbName, build script includes prisma migrate deploy
+- 2026-02-22: Neon-only DB enforcement (guards in lib/prisma.ts + lib/env.ts, active on Vercel/ENFORCE_NEON_ONLY), bootstrap endpoint, health endpoint with dbHost/dbName
+- 2026-02-22: Production stabilization: removed build-time migrations (P3018 fix), added directUrl to schema, added db-init runtime guard, migrations now manual-only via db:setup

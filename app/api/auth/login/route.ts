@@ -7,9 +7,11 @@ import prisma from "@/lib/prisma";
 import { loginSchema } from "@/lib/validators/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { ensureDbReady } from "@/lib/db-init";
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureDbReady();
     const ip = getClientIp(req);
     const limit = checkRateLimit(ip);
     if (!limit.allowed) {
