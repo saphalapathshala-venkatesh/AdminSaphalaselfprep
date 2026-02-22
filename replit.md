@@ -143,12 +143,19 @@ npx prisma db seed
 ```
 
 ## Required Environment Variables
-- `DATABASE_URL` - PostgreSQL connection string (Neon in production)
-- `DIRECT_URL` - Optional Neon direct connection URL
+- `DATABASE_URL` - PostgreSQL connection string (required always; Neon pooled URL is fine for runtime)
+- `DIRECT_URL` - Neon direct (non-pooled) connection URL; required **only** for migrations (`prisma migrate deploy`), not needed for dev/build/runtime
 - `ADMIN_SEED_EMAIL` - Email for SUPER_ADMIN seed user
 - `ADMIN_SEED_PASSWORD` - Password for SUPER_ADMIN seed user
 - `BOOTSTRAP_KEY` - Secret key for /api/admin/bootstrap endpoint
 - `ENFORCE_NEON_ONLY` - Set to "true" to block non-Neon DB URLs (auto-enabled on Vercel)
+
+### Migration Commands (require DIRECT_URL for Neon)
+```bash
+npx prisma migrate resolve --applied 20260221_prd_schema_init
+npx prisma migrate deploy
+npx prisma db seed
+```
 
 ## Production Bootstrap
 To seed the SUPER_ADMIN user in a fresh Neon DB when deploying to Vercel:
