@@ -1,0 +1,82 @@
+You are working in a Next.js (App Router) + Prisma + PostgreSQL project. 
+Goal: Fix production login by ensuring the app connects ONLY to Neon DB (branch), never to Replit DB/Helium, and ensure SUPER_ADMIN exists in the Neon database.
+
+Implement the following, with minimal change, no redesign.
+
+A) HARD ENFORCE NEON DB ONLY
+1) Create a new file: lib/env.ts
+   - Export function requireEnv(name: string): string
+     - Reads process.env[name]
+     - If missing/empty, throw Error(`[ENV] Missing ${name}`)
+   - Export function getDatabaseUrl(): string
+     - Return requireEnv("DATABASE_URL")
+   - Export function getDirectUrl(): string | undefined
+     - Return process.env.DIRECT_URL if present (trimmed), else undefined
+
+2) Update prisma client initialization file (likely lib/prisma.ts):
+   - Ensure PrismaClient always uses process.env.DATABASE_URL only.
+   - Add a startup guard:
+     - If DATABASE_URL contains "replit" OR "helium" OR "localhost" OR "127.0.0.1", throw error: 
+       `[DB] Refusing non-Neon DATABASE_URL. Use Neon connection string only.`
+   - If DIRECT_URL exists, set it via Prisma datasource override if supported by this repo setup (Prisma 7 config or schema datasource). 
+     If not supported, just validate it does not contain replit/helium/local and leave it unused.
+
+B) ENSURE MIGRATIONS + SEED RUN IN DEPLOYMENTS
+3) Update package.json scripts:
+   - "build": "prisma generate && prisma migrate deploy && next build"
+   - Keep/ensure: "postinstall": "prisma generate"
+   - Ensure prisma seed is configured (already uses tsx prisma/seed.ts). Keep it.
+   - Add a script "db:setup": "prisma generate && prisma migrate deploy && prisma db seed"
+
+C) FIX: PRODUCTION LOGIN FAILS BECAUSE ADMIN USER NOT IN NEON DB
+4) Update prisma/seed.ts to be fully idempotent and Neon-safe:
+   - It MUST require ADMIN_SEED_EMAIL and ADMIN_SEED_PASSWORD.
+   - It MUST create user if not exists, with role SUPER_ADMIN and isActive=true.
+   - If user exists, do NOT overwrite password, but print: "SUPER_ADMIN ready: <email> (already exists)".
+   - Ensure password hashing matches login route hashing logic.
+
+D) ADD A SAFE ONE-TIME BOOTSTRAP ENDPOINT (Protected)
+5) Create app/api/admin/bootstrap/route.ts
+   - export const runtime = "nodejs"
+   - export const dynamic = "force-dynamic"
+   - POST only
+   - Requires a header: x-bootstrap-key === process.env.BOOTSTRAP_KEY
+     - If missing/wrong: 401
+   - If correct: runs the same logic as seed for SUPER_ADMIN creation (idempotent).
+   - Returns JSON: { ok:true, email, created: boolean }
+   - This is to seed Neon DB when Vercel environment variables are set but seed didn’t run.
+
+E) VERIFY CONNECTION VISIBLY
+6) Update app/api/health/route.ts
+   - Keep db ping, but also return:
+     - dbHost: parsed hostname from DATABASE_URL (no secrets)
+     - dbName: parsed database name
+     - env: process.env.VERCEL_ENV || "local"
+   - Never print password/username.
+
+F) REMOVE ANY REPLIT DB DEPENDENCE / FALLBACKS
+7) Search the repo for:
+   - "helium", "replit", "DATABASE_URL=" fallback, any hardcoded DB url
+   - Remove any fallback datasource logic or hardcoded connection strings.
+   - Ensure .env.example contains blanks only.
+
+G) IMPORTANT: VERCEL STATIC COLLECTION FAIL SAFETY (already done in many files)
+8) Ensure ALL route handlers under app/api/** include:
+   - export const runtime = "nodejs"
+   - export const dynamic = "force-dynamic"
+   (If already present, keep unchanged.)
+
+H) QUICK SELF-CHECK
+9) Add a short doc section in replit.md:
+   - Required env vars: DATABASE_URL, ADMIN_SEED_EMAIL, ADMIN_SEED_PASSWORD, BOOTSTRAP_KEY
+   - How to bootstrap once:
+     - curl -X POST https://<domain>/api/admin/bootstrap -H "x-bootstrap-key: <BOOTSTRAP_KEY>"
+   - Health check endpoint: /api/health
+
+After code changes:
+- Run: npm run db:setup
+- Confirm /api/health returns dbHost from Neon, not replit/helium/local
+- Confirm login works using ADMIN_SEED_EMAIL / ADMIN_SEED_PASSWORD
+
+Do not change UI. Only implement the above.
+Return a concise summary of changed files.

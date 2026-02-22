@@ -107,9 +107,30 @@ styles/                      - Stylesheets
 
 ## Key Commands
 - `npm run dev` - Start dev server on port 5000
+- `npm run build` - Prisma generate + migrate deploy + Next.js build
 - `npm run prisma:generate` - Generate Prisma client
-- `npm run prisma:migrate` - Run migrations
+- `npm run prisma:migrate` - Run migrations (dev)
 - `npm run seed` - Seed admin user (prisma db seed)
+- `npm run db:setup` - Full DB setup: generate + migrate deploy + seed
+
+## Required Environment Variables
+- `DATABASE_URL` - PostgreSQL connection string (Neon in production)
+- `DIRECT_URL` - Optional Neon direct connection URL
+- `ADMIN_SEED_EMAIL` - Email for SUPER_ADMIN seed user
+- `ADMIN_SEED_PASSWORD` - Password for SUPER_ADMIN seed user
+- `BOOTSTRAP_KEY` - Secret key for /api/admin/bootstrap endpoint
+- `ENFORCE_NEON_ONLY` - Set to "true" to block non-Neon DB URLs (auto-enabled on Vercel)
+
+## Production Bootstrap
+To seed the SUPER_ADMIN user in a fresh Neon DB when deploying to Vercel:
+```
+curl -X POST https://<domain>/api/admin/bootstrap -H "x-bootstrap-key: <BOOTSTRAP_KEY>"
+```
+
+## Health Check
+- Endpoint: `GET /api/health`
+- Returns: `{ ok, timestamp, db, dbHost, dbName, env }`
+- dbHost shows the database hostname (no secrets exposed)
 
 ## Auth Details
 - Cookie: `admin_session` (httpOnly, secure in prod, sameSite=lax)
@@ -136,3 +157,4 @@ styles/                      - Stylesheets
 - 2026-02-21: Implemented full XP Rule Engine + Learners module (XP rules CRUD with auto-seed defaults, rule history, learner list with XP/activity/entitlements, profile panel with 4 tabs, entitlement grant/revoke, status toggle, 4 audit actions)
 - 2026-02-21: Implemented full Dashboard + Analytics module (dashboard with KPIs/charts/tables/quick-actions, analytics with 4 report types + CSV export, date/learner/stream filters)
 - 2026-02-21: Production hardening: tenantId="default" enforced on all entitlement writes, login rate limiting (5/60s), /api/health endpoint, cookie security confirmed
+- 2026-02-22: Neon-only DB enforcement (guards in lib/prisma.ts + lib/env.ts, active on Vercel/ENFORCE_NEON_ONLY), bootstrap endpoint, health endpoint with dbHost/dbName, build script includes prisma migrate deploy
