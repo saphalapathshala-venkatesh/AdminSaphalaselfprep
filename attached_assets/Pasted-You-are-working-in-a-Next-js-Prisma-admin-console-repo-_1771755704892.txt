@@ -1,0 +1,138 @@
+You are working in a Next.js + Prisma admin console repo.
+
+GOAL:
+Fix prod login + Neon branch DB connection problems and remove any Replit DB usage completely.
+Make admin credentials always come from env vars and ensure seed upserts (updates) admin user.
+Make migrations resilient/idempotent for existing DBs (where tables may already exist and migrations may have partially failed).
+
+DO THIS EXACTLY:
+
+A) REMOVE DIRECT_URL REQUIREMENT (Prisma P1012)
+1. Open prisma/schema.prisma
+2. In datasource db, REMOVE the directUrl line entirely.
+   Keep only:
+     datasource db {
+       provider = "postgresql"
+       url      = env("DATABASE_URL")
+     }
+   (Do NOT reference DIRECT_URL anywhere in schema.prisma)
+
+B) ENSURE NO REPLIT DB IS USED (remove @replit/database / REPLIT_DB_URL)
+1. Search entire repo for:
+   - @replit/database
+   - REPLIT_DB_URL
+   - new Database()
+   - replit db
+2. Remove any dependency, imports, usage, or fallback logic.
+3. Ensure only Prisma/Postgres is used.
+4. Update package.json to remove @replit/database if present.
+
+C) FIX DB SCHEMA DRIFT SAFELY VIA A COMPAT MIGRATION (enum + isActive)
+We have evidence prod DB already has "User" table, but:
+- column "isActive" may be missing
+- enum type might be named "Role" or "UserRole"
+- value SUPER_ADMIN may be missing
+
+1. Create a NEW migration:
+   prisma/migrations/20260222_admin_schema_compat/migration.sql
+
+2. Put idempotent SQL that:
+   - Adds isActive boolean NOT NULL DEFAULT true to "User" if missing
+   - Adds SUPER_ADMIN to whichever enum type exists ("Role" or "UserRole") if missing
+
+Use THIS SQL (exactly):
+
+DO $$
+BEGIN
+  -- add isActive if missing
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema='public' AND table_name='User'
+  ) THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='User' AND column_name='isActive'
+    ) THEN
+      ALTER TABLE "User" ADD COLUMN "isActive" BOOLEAN NOT NULL DEFAULT true;
+    END IF;
+  END IF;
+
+  -- add SUPER_ADMIN to enum Role if Role exists
+  IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'Role') THEN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_enum e
+      JOIN pg_type t ON t.oid = e.enumtypid
+      WHERE t.typname = 'Role' AND e.enumlabel = 'SUPER_ADMIN'
+    ) THEN
+      ALTER TYPE "Role" ADD VALUE 'SUPER_ADMIN';
+    END IF;
+  END IF;
+
+  -- add SUPER_ADMIN to enum UserRole if UserRole exists
+  IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'UserRole') THEN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_enum e
+      JOIN pg_type t ON t.oid = e.enumtypid
+      WHERE t.typname = 'UserRole' AND e.enumlabel = 'SUPER_ADMIN'
+    ) THEN
+      ALTER TYPE "UserRole" ADD VALUE 'SUPER_ADMIN';
+    END IF;
+  END IF;
+END $$;
+
+D) MAKE SEED ALWAYS UPSERT/UPDATE ADMIN USER (so you control password from env)
+1. Open prisma/seed.ts
+2. Ensure it reads:
+   - ADMIN_SEED_EMAIL
+   - ADMIN_SEED_PASSWORD
+3. It must UPSERT by email (not “create if not exists”), and must always update:
+   - password (bcrypt hash)
+   - role = SUPER_ADMIN if enum supports it, else ADMIN
+   - isActive = true if field exists in Prisma model
+4. Seed should log: "SUPER_ADMIN ready: <email>"
+
+Implementation guidance:
+- Use bcrypt.hash(password, 10)
+- Use prisma.user.upsert({ where:{ email }, update:{...}, create:{...} })
+- If your Prisma enum is Role or UserRole, import from Prisma types accordingly.
+- If schema has no isActive, do not write it (but after compat migration it should exist; still keep code safe)
+
+E) ADD A SAFE DEBUG ENDPOINT TO CONFIRM ENV IS SET (no secrets leaked)
+1. Create: app/api/debug/login/route.ts
+2. It should return JSON booleans ONLY:
+   { hasDatabaseUrl: boolean, hasAdminSeedEmail: boolean, hasAdminSeedPassword: boolean }
+   Never return actual env values.
+
+F) SCRIPTS
+1. package.json:
+   - build should remain: "prisma generate && next build"
+   - keep postinstall: "prisma generate"
+   - add/keep:
+     "db:setup": "prisma generate && prisma migrate deploy && prisma db seed"
+     "db:migrate:deploy": "prisma migrate deploy"
+     "db:seed": "prisma db seed"
+
+G) AFTER CHANGES (verify in Replit)
+1. In Replit Secrets, set:
+   DATABASE_URL = your Neon pooled connection string (must start with postgresql://)
+   ADMIN_SEED_EMAIL = admin@saphala.com (or your choice)
+   ADMIN_SEED_PASSWORD = (set a new password you choose)
+2. Run:
+   npm run db:setup
+3. Run:
+   npm run dev
+4. Confirm:
+   - GET /api/debug/login returns all true
+   - Login works locally
+
+H) GIT COMMIT
+Commit with message: "Fix Neon DB compat migration, env-based admin seed, remove Replit DB"
+
+IMPORTANT:
+- Do NOT introduce any new libraries.
+- Do NOT hardcode admin password in code.
+- Do NOT require DIRECT_URL anywhere.
+- Keep changes minimal and targeted.
+Return a short summary of what files changed.
