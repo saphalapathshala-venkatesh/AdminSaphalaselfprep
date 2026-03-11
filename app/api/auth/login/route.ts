@@ -83,11 +83,15 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    await writeAuditLog({
-      actorId: user.id,
-      action: "ADMIN_LOGIN",
-      entityType: "Session",
-    });
+    try {
+      await writeAuditLog({
+        actorId: user.id,
+        action: "ADMIN_LOGIN",
+        entityType: "Session",
+      });
+    } catch (auditErr) {
+      console.error("AuditLog write failed (non-fatal):", auditErr);
+    }
 
     const response = NextResponse.json({
       ok: true,
