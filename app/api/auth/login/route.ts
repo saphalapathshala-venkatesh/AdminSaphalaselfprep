@@ -74,14 +74,19 @@ export async function POST(req: NextRequest) {
     const token = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    await prisma.session.create({
-      data: {
-        userId: user.id,
-        type: "ADMIN",
-        token,
-        expiresAt,
-      },
-    });
+    try {
+      await prisma.session.create({
+        data: {
+          userId: user.id,
+          type: "ADMIN",
+          token,
+          expiresAt,
+        },
+      });
+    } catch (sessionErr) {
+      console.error("Session create failed:", sessionErr);
+      return NextResponse.json({ error: "SESSION_CREATE_FAILED" }, { status: 500 });
+    }
 
     try {
       await writeAuditLog({
