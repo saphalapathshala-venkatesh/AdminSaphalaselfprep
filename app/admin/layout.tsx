@@ -12,6 +12,7 @@ const navItems = [
   { label: "Tests", href: "/admin/tests" },
   { label: "Flashcards", href: "/admin/flashcards" },
   { label: "Content Library", href: "/admin/content-library" },
+  { label: "Products", href: "/admin/products" },
   { label: "Coupons", href: "/admin/coupons" },
   { label: "XP Rules", href: "/admin/xp-rules" },
   { label: "Learners", href: "/admin/learners" },
