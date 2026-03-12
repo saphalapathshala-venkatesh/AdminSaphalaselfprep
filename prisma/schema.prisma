@@ -70,6 +70,12 @@ enum XpRuleKey {
   FLASHCARD_XP
   RR_XP
 }
+// CONTENT FLOW ENUM
+enum FlowContentType {
+  VIDEO
+  PDF
+  FLASHCARD
+}
 // VIDEO MODULE ENUMS
 enum VideoStatus {
   DRAFT
@@ -664,4 +670,26 @@ model LiveClass {
   @@index([sessionDate])
   @@index([courseId])
   @@index([tenantId])
+}
+
+// CONTENT FLOW
+// Unified ordered sequence of mixed content (Video, PDF, Flashcard) for a given context.
+// Context is defined by any combination of courseId/categoryId/subjectId/topicId/subtopicId.
+// Removing a flow item never deletes the underlying source content.
+model ContentFlowItem {
+  id            String          @id @default(cuid())
+  tenantId      String          @default("default")
+  courseId      String?
+  categoryId    String?
+  subjectId     String?
+  topicId       String?
+  subtopicId    String?
+  contentType   FlowContentType
+  contentId     String
+  titleSnapshot String?
+  displayOrder  Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  @@index([tenantId, courseId])
+  @@index([tenantId, categoryId, subjectId, topicId, subtopicId])
 }

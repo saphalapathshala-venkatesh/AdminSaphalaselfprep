@@ -28,6 +28,7 @@ const navSections = [
     items: [
       { label: "Videos", href: "/admin/videos" },
       { label: "Live Classes", href: "/admin/live-classes" },
+      { label: "Content Flow", href: "/admin/content-flow" },
     ],
   },
   {

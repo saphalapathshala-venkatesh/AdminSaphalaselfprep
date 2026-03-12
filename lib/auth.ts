@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import prisma from "./prisma";
 import type { User } from "@prisma/client";
 import { NextRequest } from "next/server";
-import { isAdminRole } from "./safetyChecks";
+import { isAdminRole, AdminRole } from "./safetyChecks";
 
 const COOKIE_NAME = "admin_session";
 
@@ -52,7 +52,7 @@ export async function requireAdmin(): Promise<User> {
   return user;
 }
 
-export async function requireRole(role: "ADMIN" | "SUPER_ADMIN"): Promise<User> {
+export async function requireRole(role: AdminRole): Promise<User> {
   const user = await requireAdmin();
   if (user.role !== role && user.role !== "SUPER_ADMIN") {
     throw new Error("Forbidden");

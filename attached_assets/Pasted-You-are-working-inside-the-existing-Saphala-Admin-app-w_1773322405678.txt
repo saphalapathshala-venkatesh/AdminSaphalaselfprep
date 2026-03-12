@@ -1,0 +1,405 @@
+You are working inside the existing Saphala Admin app, where Videos and LIVE Classes modules have already been implemented.
+
+This task is not about Bunny, Zoom, or student frontend.
+Do not integrate external providers in this prompt.
+Do not redesign existing modules unnecessarily.
+Do not perform broad schema rewrites.
+
+Goal
+
+Implement admin-controlled exact content flow ordering for learning content.
+
+Admin must be able to arrange content in the exact sequence they want for a learner, across mixed content types:
+
+Videos
+
+PDFs / content library materials
+
+Flashcard decks
+
+This ordering is for the teaching/learning flow, not just sorting by upload date.
+
+Product requirement to follow
+
+A course/topic/subtopic should support a unified sequence like:
+
+Video — Introduction
+
+PDF — Notes
+
+Flashcards — Key Terms
+
+Video — Deep Explanation
+
+PDF — Revision Sheet
+
+Flashcards — Final Recall
+
+Admin must be able to control this order manually.
+
+This is a locked requirement.
+
+Main architecture decision
+
+Do not build separate ordering systems for:
+
+videos
+
+PDFs
+
+flashcards
+
+Instead, build one unified ordered flow that can contain mixed content types.
+
+Expected admin behavior
+
+Inside an admin page for a selected context, admin should be able to:
+
+choose a parent context such as:
+
+category
+
+course
+
+subject
+
+topic
+
+subtopic
+
+view all linked content items across:
+
+videos
+
+PDFs/materials
+
+flashcard decks
+
+arrange them in exact order
+
+save the order
+
+later edit/rearrange it without re-uploading anything
+
+Implementation goal
+
+Create a new admin feature/page called something like:
+
+/admin/content-flow
+or
+
+/admin/course-flow
+
+Use the naming that best fits the current codebase.
+
+This page should become the central place to manage ordered learning flow.
+
+Required approach
+1. Add unified flow entity / mapping
+
+If schema support is needed, add a minimal safe model for ordered content flow entries.
+
+Recommended concept:
+
+one parent context
+
+one row per ordered item
+
+each row stores:
+
+tenantId
+
+categoryId / courseId / subjectId / topicId / subtopicId as applicable
+
+contentType (VIDEO, PDF, FLASHCARD)
+
+contentId
+
+displayOrder / sortOrder
+
+optional title snapshot for easier rendering if useful
+
+timestamps
+
+Do not overengineer with polymorphism that breaks Prisma ergonomics.
+Keep it simple and production-safe.
+
+If the existing schema already has a suitable content-mapping model, reuse or extend it instead of inventing duplicate systems.
+
+2. Parent context behavior
+
+Ordering should work within a selected context.
+
+Preferred behavior:
+
+admin selects:
+
+Category
+
+Course
+
+Subject
+
+Topic
+
+Subtopic
+
+system loads relevant flow items for that exact context
+
+admin reorders within that context only
+
+If the codebase already uses a course-first structure, adapt cleanly, but keep topic/subtopic filtering available wherever practical.
+
+3. Mixed content list UI
+
+Build a clean ordered list with mixed content items.
+
+Each row should show:
+
+drag handle if implemented
+
+content type icon/badge
+
+thumbnail if available
+
+title
+
+taxonomy summary if useful
+
+current order number
+
+actions:
+
+move up
+
+move down
+
+remove from flow
+
+open/edit source content
+
+Use a unified list, not separate tabs.
+
+4. Reordering UX
+
+Preferred:
+
+drag-and-drop reorder
+
+Fallback if needed:
+
+move up / move down buttons
+
+sequence number editing
+
+save order button
+
+Whichever approach you choose, it must be stable and easy for admins.
+
+Persist order safely.
+
+5. Add content into flow
+
+Admin should be able to add existing items into the selected flow.
+
+Support:
+
+Add Video
+
+Add PDF / Material
+
+Add Flashcard Deck
+
+This can be done through:
+
+modal selectors
+
+side panel
+
+searchable add dialogs
+
+Do not require new uploads just to place content into the flow.
+
+6. Remove from flow
+
+Admin should be able to remove an item from the ordered flow without deleting the underlying source content.
+
+Important rule:
+
+removing from flow must not delete the actual video, PDF, or flashcard deck
+
+it should only remove the mapping/order entry
+
+7. Display order persistence
+
+Store order explicitly with a numeric field like:
+
+displayOrder
+or
+
+sortOrder
+
+On reorder:
+
+renumber safely
+
+avoid duplicates
+
+keep stable ordering
+
+8. Content-type support
+
+For each item type:
+
+Video
+
+Show:
+
+thumbnail
+
+title
+
+duration if available
+
+PDF / Material
+
+Show:
+
+file/material icon
+
+title
+
+Flashcard deck
+
+Show:
+
+deck icon
+
+title
+
+optional card count if already available
+
+9. Default thumbnail behavior
+
+If a video has no uploaded thumbnail, use the existing default branded fallback thumbnail component.
+
+Reuse existing fallback logic.
+
+10. API requirements
+
+Add route handlers / APIs for:
+
+list flow items for selected context
+
+add item to flow
+
+reorder flow
+
+update order
+
+remove item from flow
+
+Use existing admin auth/role protections.
+
+Add validation and safe error handling.
+
+11. Integration with existing modules
+
+From existing pages:
+
+Video edit page
+
+PDF/material edit page
+
+Flashcard deck edit page
+
+add optional shortcuts like:
+
+“Add to Content Flow”
+
+“Open in Content Flow”
+
+Only if cleanly possible without clutter.
+
+12. Course Videos page update
+
+If /admin/videos/course-videos already exists, update it so that it does not remain video-only in concept.
+
+Either:
+
+keep it as a video-specific utility page, and add a new unified content-flow page
+or
+
+evolve it into a broader flow page
+
+Preferred:
+
+keep video pages focused on video management
+
+create a separate unified content-flow page
+
+That is cleaner.
+
+13. Do not touch these in this prompt
+
+Do not implement:
+
+Bunny Stream integration
+
+Zoom integration
+
+student frontend rendering
+
+watch tracking
+
+attendance webhooks
+
+replay automation
+
+This prompt is only for admin exact-flow ordering.
+
+14. UX expectations
+
+The page must feel production-ready:
+
+reuse existing admin shell
+
+same purple branding
+
+proper empty states
+
+strong spacing
+
+clear buttons
+
+usable on desktop
+
+no broken placeholders
+
+15. Deliverables expected
+
+At the end, return:
+
+files created/updated
+
+any schema changes made
+
+pages added
+
+APIs added
+
+assumptions taken
+
+limitations if any
+
+16. Important behavior rules
+
+Underlying content must remain reusable
+
+Ordering is manual and admin-controlled
+
+Mixed content types must appear in a single ordered flow
+
+This flow is meant to reflect the exact learner journey
+
+Build this like a senior admin systems team would: simple, stable, extensible.

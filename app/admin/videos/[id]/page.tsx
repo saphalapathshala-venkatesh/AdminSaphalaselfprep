@@ -129,6 +129,7 @@ export default function EditVideoPage() {
           <span style={{ color: "#e2e8f0" }}>/</span>
           <h1 style={{ margin: 0, fontSize: "1.375rem", fontWeight: 700, color: "#0f172a" }}>Edit Video</h1>
         </div>
+        <Link href="/admin/content-flow" style={{ padding: "0.4rem 1rem", borderRadius: "6px", border: "1px solid #c4b5fd", color: PURPLE, textDecoration: "none", fontSize: "0.8125rem", fontWeight: 600 }}>Content Flow ↗</Link>
         <button onClick={() => setConfirmDelete(true)} style={{ padding: "0.4rem 1rem", borderRadius: "6px", border: "1px solid #fca5a5", color: "#dc2626", background: "transparent", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 }}>Delete</button>
       </div>
 
