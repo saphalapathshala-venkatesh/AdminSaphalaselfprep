@@ -1,0 +1,426 @@
+You are working inside the existing Saphala Admin app.
+
+Current state:
+
+Courses already exist
+
+Course schema already supports product-type booleans:
+
+hasHtmlCourse
+
+hasVideoCourse
+
+hasPdfCourse
+
+hasTestSeries
+
+Videos and LIVE Classes modules already exist
+
+A folder-based course content builder is being added / planned
+
+Do not redesign unrelated modules
+
+Do not integrate Bunny or Zoom in this prompt
+
+Do not break current courses, videos, live classes, PDFs, or flashcards flows
+
+Goal
+
+Enhance the course system so admin can create a combo/package course by importing existing complete courses as reusable building blocks.
+
+Example:
+
+AP Police Combo
+
+imports AP Police Video Course
+
+imports AP Police Test Series
+
+imports AP Police PDF Course
+
+This must be implemented by reference, not by duplicating all underlying content.
+
+Locked product rules
+1. Add course mode/type
+
+Support two course modes:
+
+STANDARD
+
+PACKAGE
+
+Interpretation:
+
+STANDARD course = normal course with its own folders/content items
+
+PACKAGE course = combo/bundle that can import existing courses as components
+
+Use enum or equivalent clean schema structure, whichever fits current codebase best.
+
+2. Package courses import existing courses by reference
+
+When admin imports an existing course into a package:
+
+create a course-to-course mapping only
+
+do not duplicate folders/content/videos/PDFs/tests/flashcards
+
+base course remains source of truth
+
+This is mandatory.
+
+3. Package courses should import STANDARD courses only in v1
+
+For v1:
+
+PACKAGE courses may import STANDARD courses
+
+STANDARD courses should not import any courses
+
+PACKAGE courses should not import other PACKAGE courses
+
+This avoids recursion/circular complexity.
+
+4. Prevent invalid cases
+
+Must block:
+
+course importing itself
+
+circular nesting
+
+package importing package
+
+standard importing any course
+
+Return clean validation errors.
+
+5. Candidate course filtering
+
+When admin clicks Import Existing Course, selector should show only relevant existing courses.
+
+At minimum:
+
+same category as the current package course
+
+If possible, also allow optional narrowing by:
+
+subject
+
+topic
+
+product types
+
+active/published status
+
+Do not show irrelevant courses from unrelated categories by default.
+
+Main implementation areas
+A. Course schema / backend
+
+Add the minimal safe schema support needed for:
+
+Course mode/type
+
+Add a field like:
+
+courseType with values STANDARD / PACKAGE
+
+Default existing courses safely to STANDARD.
+
+Course-to-course mapping
+
+Add a model such as CoursePackageItem or similarly named mapping table.
+
+Recommended fields:
+
+id
+
+tenantId
+
+packageCourseId
+
+childCourseId
+
+sortOrder
+
+timestamps
+
+Indexes:
+
+packageCourseId
+
+childCourseId
+
+sortOrder
+
+Constraints/validation:
+
+no duplicate child mapping inside same package unless intentionally allowed
+
+no self-reference
+
+Do not overengineer.
+
+B. Course create/edit UI
+
+Update Course create/edit flow so admin can choose course mode/type:
+
+Standard Course
+
+Package / Combo Course
+
+Keep current product-type checkboxes:
+
+HTML Course
+
+Video Course
+
+PDF Course
+
+Test Series
+
+Rules:
+
+at least one product-type checkbox must remain selected
+
+existing course behavior should continue working
+
+PACKAGE course can still have product-type badges if useful commercially
+
+course mode should be editable carefully, but avoid unsafe conversion if the course already has content/mappings
+
+If conversion is risky:
+
+allow setting on create
+
+restrict unsafe mode switching later with clear messaging
+
+C. Package builder UI
+
+Enhance the course content builder or create a dedicated package section so that for PACKAGE courses admin gets an action:
+
+Import Existing Course
+
+This should be visible only for PACKAGE courses.
+
+Required admin actions for package courses
+
+import existing course
+
+remove imported course from package
+
+reorder imported courses
+
+view imported course metadata
+
+open imported course in its own edit/manage page
+
+Imported courses should appear as ordered nodes/blocks inside the package builder.
+
+D. UI behavior for package courses
+
+Inside a package course builder, show imported course blocks like:
+
+course title
+
+category
+
+product-type badges
+
+active/published status
+
+quick actions:
+
+move up
+
+move down
+
+remove
+
+open source course
+
+Preferred order behavior:
+
+drag and drop if feasible
+
+otherwise move up/down with persisted sortOrder
+
+E. Selector modal: Import Existing Course
+
+Create a selection modal/dialog for importing existing courses.
+
+Required fields in the list:
+
+title
+
+category
+
+product-type badges
+
+course mode/type
+
+status
+
+maybe counts if easy (videos/live/items)
+
+Required filtering:
+
+same category first
+
+exclude:
+
+current course itself
+
+package courses
+
+inactive/deleted records as appropriate
+
+already imported courses if practical
+
+Optional search:
+
+by course title
+
+F. Integration with existing course builder
+
+If the folder/content builder already exists or is being implemented:
+
+STANDARD course
+
+continues to support folders and direct content mapping
+
+PACKAGE course
+
+should support imported courses as primary building blocks
+
+Recommended v1:
+
+package course focuses on imported courses first
+
+direct bonus content support can be deferred unless already easy
+
+Do not overload v1 unnecessarily.
+
+If easy, you may leave package architecture future-ready for later bonus content, but do not fake unfinished mixed behavior.
+
+G. Validation rules
+
+Implement safe server-side validation for:
+
+package can import standard courses only
+
+standard cannot import courses
+
+no self import
+
+no circular nesting
+
+no package → package nesting
+
+only same-category candidates shown/allowed unless explicitly relaxed
+
+If current schema lacks enough data for deep circular checks, at least enforce the v1 rules strongly enough that cycles cannot occur.
+
+H. API routes / backend handlers
+
+Add the minimal required routes or server actions for:
+
+list package items for a course
+
+import existing course into package
+
+remove imported course from package
+
+reorder imported courses
+
+fetch candidate importable courses for a package
+
+Protect with existing admin auth/role patterns.
+
+Return clean errors.
+
+I. Courses page updates
+
+Update /admin/courses so it clearly shows:
+
+course mode/type badge (STANDARD / PACKAGE)
+
+existing product-type badges
+
+action like:
+
+Manage Content
+
+Manage Package (for package courses)
+or one unified action that opens the right builder
+
+The page should remain clean and production-ready.
+
+J. Important scope boundaries
+
+Do not implement in this prompt:
+
+Bunny Stream integration
+
+Zoom integration
+
+student frontend rendering of packages
+
+pricing logic changes beyond current course fields
+
+watch progress tracking
+
+attendance ingestion
+
+recursive multi-level package composition
+
+This prompt is only for:
+
+course mode/type
+
+package/combo course creation
+
+importing existing standard courses into packages by reference
+
+remove/reorder imported courses
+
+safe validation
+
+K. Deliverables expected
+
+At the end, return:
+
+files created/updated
+
+schema changes made
+
+API routes added
+
+pages/components updated
+
+whether package direct bonus content was deferred
+
+how invalid import cases are prevented
+
+any assumptions/limitations
+
+L. Quality bar
+
+Build this like a real commerce-ready admin system:
+
+no duplication of source course content
+
+package references are stable
+
+validation is safe
+
+UI is clear
+
+ordering works
+
+future-ready without overengineering
+
+Final architectural principle
+
+Package/combo courses must import existing standard courses by reference, not by copying their underlying content.

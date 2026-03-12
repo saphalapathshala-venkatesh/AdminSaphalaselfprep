@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
         where,
         orderBy: { name: "asc" },
         select: {
-          id: true, name: true, isActive: true,
+          id: true, name: true, isActive: true, courseType: true,
           hasHtmlCourse: true, hasVideoCourse: true, hasPdfCourse: true, hasTestSeries: true,
         },
       });
@@ -86,12 +86,15 @@ export async function POST(req: NextRequest) {
     const typeError = validateProductTypes(productTypes);
     if (typeError) return NextResponse.json({ error: typeError }, { status: 400 });
 
+    const courseType = body.courseType === "PACKAGE" ? "PACKAGE" : "STANDARD";
+
     const course = await prisma.course.create({
       data: {
         tenantId:    "default",
         name:        name.trim(),
         description: description?.trim() || null,
         categoryId:  categoryId || null,
+        courseType,
         isActive:    isActive !== undefined ? Boolean(isActive) : true,
         ...productTypes,
       },

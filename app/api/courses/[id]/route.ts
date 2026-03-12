@@ -41,12 +41,35 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     const typeError = validateProductTypes(body, existing);
     if (typeError) return NextResponse.json({ error: typeError }, { status: 400 });
 
+    // --- courseType change safety checks ---
+    let courseType: "STANDARD" | "PACKAGE" = existing.courseType as "STANDARD" | "PACKAGE";
+    if (body.courseType !== undefined && body.courseType !== existing.courseType) {
+      const newType = body.courseType === "PACKAGE" ? "PACKAGE" : "STANDARD";
+
+      if (newType === "STANDARD" && existing.courseType === "PACKAGE") {
+        // Downgrade: block if already has imported child courses
+        const childCount = await prisma.coursePackageItem.count({ where: { packageCourseId: params.id } });
+        if (childCount > 0)
+          return NextResponse.json({ error: `Cannot change to Standard: this course has ${childCount} imported course(s). Remove all imports first.` }, { status: 409 });
+      }
+
+      if (newType === "PACKAGE" && existing.courseType === "STANDARD") {
+        // Upgrade: block if this course is already a child inside another package
+        const parentCount = await prisma.coursePackageItem.count({ where: { childCourseId: params.id } });
+        if (parentCount > 0)
+          return NextResponse.json({ error: "Cannot change to Package: this course is already imported inside another package course." }, { status: 409 });
+      }
+
+      courseType = newType;
+    }
+
     const updated = await prisma.course.update({
       where: { id: params.id },
       data: {
         name:           body.name?.trim()  || existing.name,
         description:    body.description   !== undefined ? (body.description?.trim() || null) : existing.description,
         categoryId:     body.categoryId    !== undefined ? (body.categoryId  || null) : existing.categoryId,
+        courseType,
         isActive:       body.isActive      !== undefined ? Boolean(body.isActive)     : existing.isActive,
         hasHtmlCourse:  body.hasHtmlCourse  !== undefined ? Boolean(body.hasHtmlCourse)  : existing.hasHtmlCourse,
         hasVideoCourse: body.hasVideoCourse !== undefined ? Boolean(body.hasVideoCourse) : existing.hasVideoCourse,

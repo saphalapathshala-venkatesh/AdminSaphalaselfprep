@@ -13,14 +13,16 @@ type ProductTypes = {
   hasTestSeries:  boolean;
 };
 
+type CourseType = "STANDARD" | "PACKAGE";
+
 type Course = ProductTypes & {
   id: string; name: string; description: string | null;
-  isActive: boolean; createdAt: string;
+  courseType: CourseType; isActive: boolean; createdAt: string;
   _count?: { videos: number; liveClasses: number };
 };
 
 type FormData = {
-  name: string; description: string; isActive: boolean;
+  name: string; description: string; courseType: CourseType; isActive: boolean;
 } & ProductTypes;
 
 // ─── Product type config ──────────────────────────────────────────────────────
@@ -33,13 +35,13 @@ const TYPE_CONFIG = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const defaultForm = (): FormData => ({
-  name: "", description: "", isActive: true,
+  name: "", description: "", courseType: "STANDARD", isActive: true,
   hasHtmlCourse: false, hasVideoCourse: false, hasPdfCourse: false, hasTestSeries: false,
 });
 
 function courseToForm(c: Course): FormData {
   return {
-    name: c.name, description: c.description || "", isActive: c.isActive,
+    name: c.name, description: c.description || "", courseType: c.courseType || "STANDARD", isActive: c.isActive,
     hasHtmlCourse: c.hasHtmlCourse, hasVideoCourse: c.hasVideoCourse,
     hasPdfCourse: c.hasPdfCourse, hasTestSeries: c.hasTestSeries,
   };
@@ -68,10 +70,11 @@ const inputSt: React.CSSProperties = { width: "100%", padding: "0.4375rem 0.75re
 const labelSt: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "0.25rem" };
 
 // ─── Course form (shared for create + edit) ───────────────────────────────────
-function CourseForm({ form, onChange, error }: {
+function CourseForm({ form, onChange, error, isEdit }: {
   form: FormData;
   onChange: (f: FormData) => void;
   error: string | null;
+  isEdit?: boolean;
 }) {
   const set = (patch: Partial<FormData>) => onChange({ ...form, ...patch });
   return (
@@ -81,6 +84,33 @@ function CourseForm({ form, onChange, error }: {
           {error}
         </div>
       )}
+
+      {/* Course type selector */}
+      <div>
+        <label style={{ ...labelSt, marginBottom: "0.5rem" }}>Course Type <span style={{ color: "#dc2626" }}>*</span></label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+          {([
+            { value: "STANDARD" as const, label: "Standard Course", desc: "Own folders & content", icon: "📘", bg: "#f0f9ff", color: "#0369a1" },
+            { value: "PACKAGE"  as const, label: "Package / Combo",  desc: "Imports existing courses", icon: "📦", bg: "#fefce8", color: "#92400e" },
+          ]).map(opt => {
+            const active = form.courseType === opt.value;
+            return (
+              <label key={opt.value} style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem", padding: "0.75rem", borderRadius: "8px", border: `2px solid ${active ? opt.color : "#e2e8f0"}`, background: active ? opt.bg : "#f8fafc", cursor: "pointer", userSelect: "none", transition: "border-color 0.15s" }}>
+                <input type="radio" name="courseType" value={opt.value} checked={active} onChange={() => set({ courseType: opt.value })} style={{ accentColor: opt.color, marginTop: "2px" }} />
+                <div>
+                  <div style={{ fontSize: "0.875rem", fontWeight: active ? 700 : 500, color: active ? opt.color : "#374151" }}>{opt.icon} {opt.label}</div>
+                  <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.125rem" }}>{opt.desc}</div>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+        {isEdit && (
+          <div style={{ marginTop: "0.375rem", fontSize: "0.75rem", color: "#92400e", background: "#fefce8", borderRadius: "5px", padding: "0.375rem 0.625rem" }}>
+            ⚠️ Changing course type on an existing course is blocked if it already has content or package mappings.
+          </div>
+        )}
+      </div>
 
       <div>
         <label style={labelSt}>Course Name <span style={{ color: "#dc2626" }}>*</span></label>
@@ -242,7 +272,7 @@ export default function CoursesPage() {
               <button onClick={() => setModalMode(null)} style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", fontSize: "1.125rem", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>×</button>
             </div>
             <div style={{ padding: "1.5rem" }}>
-              <CourseForm form={form} onChange={setForm} error={formError} />
+              <CourseForm form={form} onChange={setForm} error={formError} isEdit={modalMode === "edit"} />
             </div>
             <div style={{ padding: "1rem 1.5rem", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "flex-end", gap: "0.625rem" }}>
               <button onClick={() => setModalMode(null)} style={{ padding: "0.5rem 1.25rem", borderRadius: "7px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: "0.875rem", color: "#374151", fontWeight: 600 }}>Cancel</button>
@@ -316,7 +346,7 @@ export default function CoursesPage() {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#f8fafc" }}>
-              {["Course Name", "Product Types", "Videos", "Live Classes", "Status", "Actions"].map(h => (
+              {["Course Name", "Type", "Product Types", "Videos", "Live Classes", "Status", "Actions"].map(h => (
                 <th key={h} style={{ padding: "0.625rem 1rem", textAlign: "left", fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "2px solid #e2e8f0", whiteSpace: "nowrap" }}>{h}</th>
               ))}
             </tr>
@@ -334,7 +364,7 @@ export default function CoursesPage() {
               ))
             ) : courses.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: "4rem", textAlign: "center", color: "#94a3b8" }}>
+                <td colSpan={7} style={{ padding: "4rem", textAlign: "center", color: "#94a3b8" }}>
                   {search ? `No courses matching "${search}"` : "No courses yet. Create the first one."}
                 </td>
               </tr>
@@ -344,7 +374,14 @@ export default function CoursesPage() {
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
                 <td style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
                   <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a" }}>{course.name}</div>
-                  {course.description && <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.125rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 260 }}>{course.description}</div>}
+                  {course.description && <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.125rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 240 }}>{course.description}</div>}
+                </td>
+                <td style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
+                  {course.courseType === "PACKAGE" ? (
+                    <span style={{ padding: "2px 9px", borderRadius: "10px", fontSize: "0.7rem", fontWeight: 700, background: "#fefce8", color: "#92400e", whiteSpace: "nowrap" }}>📦 Package</span>
+                  ) : (
+                    <span style={{ padding: "2px 9px", borderRadius: "10px", fontSize: "0.7rem", fontWeight: 700, background: "#f0f9ff", color: "#0369a1", whiteSpace: "nowrap" }}>📘 Standard</span>
+                  )}
                 </td>
                 <td style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
                   <TypeBadges course={course} />
@@ -364,7 +401,11 @@ export default function CoursesPage() {
                 </td>
                 <td style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
                   <div style={{ display: "flex", gap: "0.375rem", flexWrap: "wrap" }}>
-                    <Link href={`/admin/courses/${course.id}/content`} style={{ padding: "0.25rem 0.75rem", borderRadius: "5px", border: "1px solid #6d28d9", color: "#6d28d9", background: "#f3e8ff", textDecoration: "none", fontSize: "0.8125rem", fontWeight: 700 }}>📂 Content</Link>
+                    {course.courseType === "PACKAGE" ? (
+                      <Link href={`/admin/courses/${course.id}/package`} style={{ padding: "0.25rem 0.75rem", borderRadius: "5px", border: "1px solid #92400e", color: "#92400e", background: "#fefce8", textDecoration: "none", fontSize: "0.8125rem", fontWeight: 700, whiteSpace: "nowrap" }}>📦 Package</Link>
+                    ) : (
+                      <Link href={`/admin/courses/${course.id}/content`} style={{ padding: "0.25rem 0.75rem", borderRadius: "5px", border: "1px solid #0369a1", color: "#0369a1", background: "#f0f9ff", textDecoration: "none", fontSize: "0.8125rem", fontWeight: 700, whiteSpace: "nowrap" }}>📂 Content</Link>
+                    )}
                     <button onClick={() => openEdit(course)} style={{ padding: "0.25rem 0.75rem", borderRadius: "5px", border: `1px solid ${PURPLE}`, color: PURPLE, background: "#fff", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 }}>Edit</button>
                     <button onClick={() => setConfirmDeleteId(course.id)} style={{ padding: "0.25rem 0.625rem", borderRadius: "5px", border: "1px solid #fca5a5", color: "#dc2626", background: "#fff", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 }}>Del</button>
                   </div>

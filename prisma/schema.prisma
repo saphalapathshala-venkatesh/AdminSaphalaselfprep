@@ -568,23 +568,30 @@ model AuditLog {
 }
 
 // VIDEO MODULE
+enum CourseType {
+  STANDARD
+  PACKAGE
+}
+
 model Course {
-  id             String    @id @default(cuid())
-  tenantId       String    @default("default")
+  id             String     @id @default(cuid())
+  tenantId       String     @default("default")
   name           String
   description    String?
   categoryId     String?
-  isActive       Boolean   @default(true)
-  hasHtmlCourse  Boolean   @default(false)
-  hasVideoCourse Boolean   @default(false)
-  hasPdfCourse   Boolean   @default(false)
-  hasTestSeries  Boolean   @default(false)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  courseType     CourseType @default(STANDARD)
+  isActive       Boolean    @default(true)
+  hasHtmlCourse  Boolean    @default(false)
+  hasVideoCourse Boolean    @default(false)
+  hasPdfCourse   Boolean    @default(false)
+  hasTestSeries  Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
   videos         Video[]
   liveClasses    LiveClass[]
   @@index([categoryId])
   @@index([tenantId])
+  @@index([courseType])
 }
 
 model Faculty {
@@ -719,6 +726,23 @@ model CourseContentItem {
   @@index([courseId])
   @@index([folderId])
   @@index([courseId, folderId, sortOrder])
+}
+
+// COURSE PACKAGE ITEMS
+// Maps existing STANDARD courses into a PACKAGE course by reference.
+// No content duplication — child course remains the source of truth.
+model CoursePackageItem {
+  id              String   @id @default(cuid())
+  tenantId        String   @default("default")
+  packageCourseId String
+  childCourseId   String
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([packageCourseId, childCourseId])
+  @@index([packageCourseId, sortOrder])
+  @@index([childCourseId])
 }
 
 // CONTENT FLOW

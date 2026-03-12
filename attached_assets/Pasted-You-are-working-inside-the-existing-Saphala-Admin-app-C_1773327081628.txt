@@ -1,0 +1,497 @@
+You are working inside the existing Saphala Admin app.
+
+Current state:
+
+Courses already support product capability booleans for HTML, Video, PDF, and Test Series
+
+Admin users page and auth/session system already exist
+
+Device restriction and detailed user device/activity management are not fully implemented yet
+
+Do not redesign unrelated modules
+
+Do not implement Android-specific logic in this prompt
+
+Focus only on web app device restriction, admin user controls, and flashcard capability support
+
+Goal
+
+Implement:
+
+a separate flashcard capability flag in course configuration
+
+one-device-only web access per user by default
+
+admin override to allow a specific user to use both laptop and mobile web
+
+admin controls to reset devices per-user or globally
+
+admin user-management actions:
+
+edit
+
+block/unblock
+
+delete (prefer soft delete)
+
+admin visibility into:
+
+device/devices used by a user
+
+user activity/history
+
+Locked product rules
+1. Add separate flashcard capability flag
+
+Update course product/capability configuration to include:
+
+hasHtmlCourse
+
+hasVideoCourse
+
+hasPdfCourse
+
+hasTestSeries
+
+hasFlashcardDecks
+
+Requirements:
+
+course create/edit UI must show this as a separate selectable capability
+
+at least one capability must remain selected
+
+flashcard-related add buttons in course content builder should depend on this flag, not be always available
+
+update any course badges/UI accordingly
+
+2. Web device limit rule
+
+Default policy:
+
+one user may use only one active web device at a time
+
+Interpretation:
+
+one trusted browser/device slot by default
+
+can be desktop browser or mobile browser
+
+not both by default
+
+Admin override:
+
+allow selected users to access both laptop and mobile web
+
+Recommended implementation:
+
+store a numeric field such as maxWebDevices
+
+default = 1
+
+admin may set to 2 for approved users
+
+Do not build Android device logic now.
+
+3. Device enforcement behavior
+
+When user logs in on web:
+
+identify or register a trusted device/browser entry
+
+if user is within allowed device count, allow login
+
+if user exceeds allowed device count:
+
+block login/session creation
+
+return a clear message indicating device limit reached
+
+suggest contacting admin if needed
+
+This enforcement should work with the current auth/session flow.
+
+Do not rely on impossible hardware-perfect identification; use a realistic trusted-device approach based on browser/device fingerprint inputs available server-side.
+
+Main implementation areas
+A. Schema changes
+
+Add minimal safe schema support for:
+
+Course
+
+add hasFlashcardDecks Boolean @default(false)
+
+User
+
+Add fields such as:
+
+isBlocked Boolean @default(false)
+
+blockedReason String?
+
+maxWebDevices Int @default(1)
+
+optional soft-delete field like deletedAt DateTime?
+
+Use the existing codebase conventions if similar fields already exist.
+
+UserDevice / TrustedDevice model
+
+Add a model to track user web devices.
+
+Recommended fields:
+
+id
+
+tenantId
+
+userId
+
+deviceKey
+
+deviceType (DESKTOP, MOBILE, TABLET, UNKNOWN)
+
+browser
+
+os
+
+userAgent
+
+ipAddressLast
+
+firstSeenAt
+
+lastSeenAt
+
+isActive
+
+isBlocked
+
+label optional
+
+timestamps
+
+Add useful indexes on:
+
+userId
+
+deviceKey
+
+isActive
+
+lastSeenAt
+
+UserActivity model
+
+Add a model for user activity history.
+
+Recommended fields:
+
+id
+
+tenantId
+
+userId
+
+activityType
+
+meta JSON/string if appropriate
+
+deviceKey nullable
+
+ipAddress nullable
+
+createdAt
+
+Keep it simple and extensible.
+
+B. Course UI updates
+
+Update course create/edit pages and APIs so:
+
+hasFlashcardDecks is supported everywhere
+
+validation enforces at least one capability selected
+
+courses page shows a flashcard badge when enabled
+
+course content builder only shows Add Flashcards when hasFlashcardDecks = true
+
+C. User admin controls
+
+Update the Users admin module so each user can be:
+
+edited
+
+blocked/unblocked
+
+soft deleted / archived
+
+device-reset
+
+viewed in detail
+
+Users list should show:
+
+name
+
+email/mobile
+
+role
+
+blocked status
+
+active device count
+
+max allowed web devices
+
+last active
+
+actions
+
+Actions:
+
+Edit
+
+Block / Unblock
+
+Reset Devices
+
+View Devices
+
+View Activity
+
+Delete / Archive
+
+Prefer soft delete over hard delete.
+If hard delete exists, keep it highly restricted.
+
+D. User device pages / panels
+
+Create a per-user devices page or drawer such as:
+
+/admin/users/[id]/devices
+
+Show:
+
+current trusted devices
+
+device type
+
+browser
+
+OS
+
+first seen
+
+last active
+
+last IP
+
+active/blocked status
+
+Actions:
+
+remove device
+
+reset all user devices
+
+optionally block a device
+
+optionally relabel device
+
+Also expose a global admin action to reset all devices for all users.
+
+E. User activity page
+
+Create a per-user activity page such as:
+
+/admin/users/[id]/activity
+
+Show activity history, including at minimum:
+
+login
+
+logout if available
+
+blocked login attempts due to device limit
+
+device reset events
+
+significant learning activity if already easy to log
+
+If full learning activity isn’t available yet, at least implement:
+
+auth/device/account-level activity
+
+structure the model/page cleanly for future expansion
+
+F. Device reset behavior
+Per-user reset
+
+Admin can reset devices for one user:
+
+remove or deactivate trusted devices
+
+optionally invalidate active sessions too
+
+Global reset
+
+Admin can reset devices for all users:
+
+clear/deactivate all trusted web devices
+
+optionally force re-login
+
+Implement with strong confirmation modals and audit logging.
+
+G. Blocked user behavior
+
+If a user is blocked:
+
+they cannot log in
+
+existing sessions should be invalidated if practical
+
+admin can see blocked reason
+
+unblock should restore access cleanly
+
+H. Auth/session integration
+
+Integrate device-limit checks into the existing login/session creation flow.
+
+Requirements:
+
+first successful login creates or binds trusted device
+
+subsequent logins on same device continue normally
+
+login on new device checks maxWebDevices
+
+if exceeded, deny
+
+blocked users are denied before normal session creation
+
+Keep the implementation compatible with the current session/auth stack.
+
+I. Activity logging
+
+Add audit/activity logging for:
+
+user login success
+
+blocked login due to device limit
+
+user blocked/unblocked
+
+device reset per user
+
+global device reset
+
+device removed
+
+user edited
+
+user soft deleted / restored if applicable
+
+Reuse existing audit logging utilities where appropriate, but also store user-facing activity records in the new activity model if that is the cleaner separation.
+
+J. API/backend routes
+
+Add or update the necessary routes/server actions for:
+
+updating course flashcard capability
+
+user block/unblock
+
+user edit
+
+user soft delete/archive
+
+list user devices
+
+reset one user’s devices
+
+reset all users’ devices
+
+list user activity
+
+enforce device restriction during login/session issuance
+
+Protect admin routes with existing role guards.
+
+K. Scope boundaries
+
+Do not implement in this prompt:
+
+Android app device logic
+
+premium subscription/device monetization
+
+advanced anti-fraud fingerprinting
+
+overly complex analytics dashboards
+
+package/combo student rendering
+
+This prompt is only for:
+
+flashcard capability flag
+
+web device limit
+
+admin override for multi-device
+
+device reset controls
+
+user device visibility
+
+user activity visibility
+
+user block/edit/delete management
+
+L. UX expectations
+
+Keep the UI production-ready:
+
+reuse current admin shell
+
+clear statuses and badges
+
+strong confirmation on destructive actions
+
+clear empty states
+
+good filters and tables
+
+mobile-friendly enough for admin inspection, desktop-first
+
+M. Deliverables expected
+
+At the end, return:
+
+files created/updated
+
+schema changes made
+
+where device checks were enforced
+
+whether sessions are invalidated on block/reset
+
+pages/routes added for devices/activity
+
+any limitations in device identification
+
+assumptions taken
+
+Final architecture principle
+
+maxWebDevices = 1 by default
+
+admin may raise to 2 for approved users
+
+trusted-device enforcement applies only to web for now
+
+flashcards must have their own explicit course capability flag
