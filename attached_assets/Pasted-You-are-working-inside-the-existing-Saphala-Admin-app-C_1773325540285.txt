@@ -1,0 +1,493 @@
+You are working inside the existing Saphala Admin app.
+
+Current state:
+
+Courses already exist
+
+Course schema already supports:
+
+hasHtmlCourse
+
+hasVideoCourse
+
+hasPdfCourse
+
+hasTestSeries
+
+Videos and LIVE Classes modules already exist
+
+Admin Courses page already exists
+
+Do not redesign unrelated modules
+
+Do not integrate Bunny or Zoom in this prompt
+
+Do not break current course/video/live pages
+
+Goal
+
+Build the Course Content Builder with:
+
+folder creation
+
+nested folders
+
+add existing content into course
+
+remove existing content from course
+
+reorder content
+
+contextual filtering when selecting content to add
+
+This should be the central admin architecture for arranging course content in the exact teaching flow.
+
+Locked product rules
+1. Course product-type checkboxes control available add-actions
+
+If a course has these enabled:
+
+hasVideoCourse → show Add Video and Add LIVE Class
+
+hasPdfCourse → show Add PDF
+
+if flashcards are globally allowed in your content architecture, support Add Flashcards
+
+hasHtmlCourse and hasTestSeries should prepare the architecture for future support, even if not fully wired now
+
+Buttons shown in the course content builder must depend on selected product types.
+
+2. Folder is neutral
+
+Folders are structural containers, not product-type-specific.
+
+A folder may contain mixed content types, as long as those content types are allowed by the course.
+
+3. Add dialogs must be context-aware
+
+When admin clicks:
+
+Add PDF
+
+Add Video
+
+Add LIVE Class
+
+Add Flashcards
+
+the selector must show only relevant existing items.
+
+At minimum:
+
+only items from the same category as the course
+
+If possible, provide further narrowing filters:
+
+subject
+
+topic
+
+subtopic
+
+Do not show irrelevant content from unrelated categories.
+
+Main page to build
+
+Create a dedicated course content builder page, such as:
+
+/admin/courses/[id]/content
+
+Add clear Manage Content access from the Courses page.
+
+This page should support:
+
+folders tree
+
+current folder contents
+
+add/remove/reorder actions
+
+Required capabilities
+A. Folder creation
+
+Admin must be able to:
+
+create root folder
+
+create subfolder inside another folder
+
+rename folder
+
+delete folder safely
+
+reorder folders within the same parent
+
+Keep the UI clean and stable.
+
+Recommended model:
+
+nested folders via parentId
+
+ordered within parent via sortOrder
+
+B. Mixed content mapping
+
+Inside a course/folder, admin must be able to add existing:
+
+Videos
+
+LIVE Classes
+
+PDFs / PDF materials already in DB
+
+Flashcard decks already in DB
+
+Important:
+
+adding to course creates only a mapping
+
+it must not duplicate or recreate the source content
+
+removing from course removes only the mapping
+
+C. Conditional add buttons
+
+Show add buttons based on the course product types.
+
+Examples:
+
+if hasVideoCourse = true, show:
+
+Add Video
+
+Add LIVE Class
+
+if hasPdfCourse = true, show:
+
+Add PDF
+
+if flashcards are supported in your architecture, show:
+
+Add Flashcards
+
+Hide or disable irrelevant buttons.
+
+D. Contextual filtering in add selectors
+
+This is mandatory.
+
+When admin adds content into a course, selector results must be filtered by the course context.
+
+Minimum required filter
+
+same categoryId as the course
+
+Better filtering if schema supports it
+
+Also allow optional narrowing by:
+
+subjectId
+
+topicId
+
+subtopicId
+
+Examples:
+
+Add PDF should only show PDFs within the same course category
+
+Add Video should only show videos within the same course category
+
+Add Flashcards should only show flashcard decks within the same course category
+
+Add LIVE Class should only show live sessions within the same course category
+
+If some content types currently lack proper category mapping in the schema, surface only safely mappable records and note limitations at the end.
+
+E. Reordering
+
+Inside each folder, support exact manual ordering across:
+
+child folders
+
+content items
+
+Example:
+
+Folder — Constitution Basics
+
+Video — Intro
+
+PDF — Notes
+
+Flashcards — Key Terms
+
+LIVE Class — Marathon Session
+
+Preferred:
+
+drag-and-drop reorder
+
+Fallback:
+
+move up / move down
+
+sequence editing
+
+save order
+
+Persist order safely with a numeric sort field.
+
+F. Safe delete/removal behavior
+For content items
+
+Removing from course/folder must:
+
+remove only the course-content mapping
+
+not delete the underlying source content
+
+For folders
+
+Use a safe approach:
+
+either block delete unless empty
+
+or offer reassignment of children
+
+do not orphan data
+
+do not delete source content records
+
+Prefer the most stable implementation.
+
+Schema guidance
+
+Add only minimal safe schema needed.
+
+Recommended models:
+
+CourseFolder
+
+Fields may include:
+
+id
+
+tenantId
+
+courseId
+
+parentId nullable
+
+title
+
+description nullable
+
+sortOrder
+
+timestamps
+
+CourseContentItem
+
+Fields may include:
+
+id
+
+tenantId
+
+courseId
+
+folderId nullable
+
+itemType enum
+
+sourceId
+
+sortOrder
+
+timestamps
+
+Add indexes for:
+
+courseId
+
+parentId
+
+folderId
+
+sortOrder
+
+Keep it Prisma-friendly and simple.
+
+Supported item types
+
+Implement real support only for content types that already exist in the DB/module structure.
+
+Expected support now:
+
+VIDEO
+
+LIVE_CLASS
+
+PDF / material
+
+FLASHCARD_DECK
+
+Future-ready but optional now:
+
+HTML_LESSON
+
+TEST_SERIES
+
+If some item types cannot be wired cleanly because the source module/schema is not ready, do not fake it. Build the architecture cleanly and report what remains.
+
+UI layout recommendation
+
+Use a practical builder UI:
+
+Left panel
+
+Folder tree
+
+Main panel
+
+Selected folder contents, showing:
+
+child folders
+
+mapped content items
+
+order controls
+
+Top actions
+
+Based on enabled course product types:
+
+Add Folder
+
+Add Subfolder
+
+Add Video
+
+Add LIVE Class
+
+Add PDF
+
+Add Flashcards
+
+Each add button opens a context-aware existing-content selector.
+
+API requirements
+
+Add route handlers or server actions for:
+
+get course content tree
+
+create folder
+
+rename folder
+
+delete folder
+
+add content mapping
+
+remove content mapping
+
+reorder folder/items
+
+fetch candidate existing content for add dialogs using course-context filtering
+
+Protect with existing admin auth/role patterns.
+
+Candidate content query behavior
+
+For each add dialog, backend candidate query must:
+
+require matching course categoryId
+
+optionally support further filters
+
+return only content not already mapped into the same course/folder if practical
+
+return lightweight fields needed for selection:
+
+id
+
+title
+
+thumbnail/icon
+
+taxonomy summary
+
+status
+
+Course integration
+
+From the Courses page:
+
+add a Manage Content action/button for each course
+
+If there is an existing course editor modal/page, do not overload it with all builder functionality.
+Use the dedicated builder page instead.
+
+Important scope boundaries
+
+Do not implement in this prompt:
+
+Bunny integration
+
+Zoom integration
+
+student frontend rendering
+
+watch progress tracking
+
+attendance ingestion
+
+replay automation
+
+This prompt is only for:
+
+folder architecture
+
+add existing content
+
+delete/remove mapping
+
+reorder
+
+context-aware selectors
+
+Deliverables expected
+
+At the end, return:
+
+files created/updated
+
+schema changes made
+
+APIs added
+
+page routes added
+
+supported content types implemented
+
+any content types deferred
+
+whether add-dialog filtering is by category only or category + deeper taxonomy
+
+any assumptions/limitations
+
+Final quality bar
+
+Build this as a clean, reusable admin content-builder system:
+
+folders for structure
+
+content mappings for reuse
+
+contextual add selectors
+
+exact teaching flow ordering
+
+no accidental source deletions

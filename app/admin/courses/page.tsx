@@ -363,7 +363,8 @@ export default function CoursesPage() {
                   </button>
                 </td>
                 <td style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
-                  <div style={{ display: "flex", gap: "0.375rem" }}>
+                  <div style={{ display: "flex", gap: "0.375rem", flexWrap: "wrap" }}>
+                    <Link href={`/admin/courses/${course.id}/content`} style={{ padding: "0.25rem 0.75rem", borderRadius: "5px", border: "1px solid #6d28d9", color: "#6d28d9", background: "#f3e8ff", textDecoration: "none", fontSize: "0.8125rem", fontWeight: 700 }}>📂 Content</Link>
                     <button onClick={() => openEdit(course)} style={{ padding: "0.25rem 0.75rem", borderRadius: "5px", border: `1px solid ${PURPLE}`, color: PURPLE, background: "#fff", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 }}>Edit</button>
                     <button onClick={() => setConfirmDeleteId(course.id)} style={{ padding: "0.25rem 0.625rem", borderRadius: "5px", border: "1px solid #fca5a5", color: "#dc2626", background: "#fff", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 }}>Del</button>
                   </div>

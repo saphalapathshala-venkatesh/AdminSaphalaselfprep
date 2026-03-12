@@ -676,6 +676,51 @@ model LiveClass {
   @@index([tenantId])
 }
 
+// COURSE CONTENT BUILDER
+// Structured folder tree + content mappings for a specific course.
+// Folders are neutral containers; items are mappings only (never delete source content).
+
+enum CourseItemType {
+  VIDEO
+  LIVE_CLASS
+  PDF
+  FLASHCARD_DECK
+}
+
+model CourseFolder {
+  id          String   @id @default(cuid())
+  tenantId    String   @default("default")
+  courseId    String
+  parentId    String?
+  title       String
+  description String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([courseId])
+  @@index([parentId])
+  @@index([courseId, parentId, sortOrder])
+}
+
+model CourseContentItem {
+  id            String         @id @default(cuid())
+  tenantId      String         @default("default")
+  courseId      String
+  folderId      String?
+  itemType      CourseItemType
+  sourceId      String
+  titleSnapshot String?
+  sortOrder     Int            @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([courseId, itemType, sourceId])
+  @@index([courseId])
+  @@index([folderId])
+  @@index([courseId, folderId, sortOrder])
+}
+
 // CONTENT FLOW
 // Unified ordered sequence of mixed content (Video, PDF, Flashcard) for a given context.
 // Context is defined by any combination of courseId/categoryId/subjectId/topicId/subtopicId.
