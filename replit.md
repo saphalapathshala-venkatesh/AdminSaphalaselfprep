@@ -179,6 +179,12 @@ curl -X POST https://<domain>/api/admin/bootstrap -H "x-bootstrap-key: <BOOTSTRA
 - Both must be set before running seed; no hardcoded fallbacks
 - Seed is idempotent: if user exists, it does nothing (no overwrite)
 
+## Shared Design Tokens
+- `lib/adminStyles.ts` — Brand palette (`BRAND`), shared button styles (`adminBtn`), card style (`adminCard`), table styles (`adminTable`)
+- Brand primary color: `#7c3aed` (purple), used across all admin primary CTAs
+- Semantic colors preserved: blue `#2563eb` for tab indicators/links, green for paid users, cyan for net revenue
+- Logo: styled "S" monogram in dashboard hero (no external image dependency)
+
 ## Recent Changes
 - 2026-02-21: Initial project setup with full auth, middleware, admin layout, and placeholder pages
 - 2026-02-21: Updated to full PRD schema (28 models), added API route stubs for all entities, updated audit log to match new schema fields

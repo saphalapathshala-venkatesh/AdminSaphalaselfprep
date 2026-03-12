@@ -302,7 +302,7 @@ export default function TaxonomyPage() {
                   <p style={{ fontSize: "0.8125rem", color: "#999" }}>ID: {selected.id}</p>
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <button onClick={startEdit} style={{ ...btnStyle, backgroundColor: "#2563eb" }}>Edit</button>
+                  <button onClick={startEdit} style={{ ...btnStyle, backgroundColor: "#7c3aed" }}>Edit</button>
                   <button onClick={() => setDeleteConfirm({ level: selected.level, id: selected.id, name: selected.name })}
                     style={{ ...btnStyle, backgroundColor: "#dc2626" }}>Delete</button>
                 </div>
@@ -431,7 +431,7 @@ function TreeItem({
 }
 
 const btnStyle: React.CSSProperties = {
-  padding: "0.375rem 0.75rem", backgroundColor: "#2563eb", color: "#fff", border: "none",
+  padding: "0.375rem 0.75rem", backgroundColor: "#7c3aed", color: "#fff", border: "none",
   borderRadius: "4px", fontSize: "0.8125rem", fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap",
 };
 

@@ -355,7 +355,7 @@ export default function TestsPage() {
               <div style={{ ...cardStyle, marginBottom: "1rem" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
                   <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 600, color: "#374151" }}>Sections</h3>
-                  <button onClick={() => setSections([...sections, { title: `Section ${sections.length + 1}`, durationSec: "" }])} style={{ ...btnSmall, backgroundColor: "#2563eb" }}>+ Add Section</button>
+                  <button onClick={() => setSections([...sections, { title: `Section ${sections.length + 1}`, durationSec: "" }])} style={{ ...btnSmall, backgroundColor: "#7c3aed" }}>+ Add Section</button>
                 </div>
                 {sections.length === 0 ? (
                   <p style={{ color: "#888", fontSize: "0.8125rem" }}>No sections yet.</p>
@@ -378,7 +378,7 @@ export default function TestsPage() {
                 <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 600, color: "#374151" }}>
                   Questions ({testQuestions.length})
                 </h3>
-                <button onClick={() => openQuestionPicker(null)} style={{ ...btnSmall, backgroundColor: "#2563eb" }}>+ Add Questions</button>
+                <button onClick={() => openQuestionPicker(null)} style={{ ...btnSmall, backgroundColor: "#7c3aed" }}>+ Add Questions</button>
               </div>
               {testQuestions.length === 0 ? (
                 <p style={{ color: "#888", fontSize: "0.8125rem" }}>No questions added yet.</p>
@@ -515,9 +515,9 @@ export default function TestsPage() {
                   </table>
                   {qTotalPages > 1 && (
                     <div style={{ display: "flex", justifyContent: "center", gap: "0.5rem", marginTop: "0.75rem" }}>
-                      <button onClick={() => searchQuestions(qPage - 1)} disabled={qPage <= 1} style={{ ...btnSmall, backgroundColor: qPage <= 1 ? "#e2e8f0" : "#2563eb", color: qPage <= 1 ? "#94a3b8" : "#fff" }}>Prev</button>
+                      <button onClick={() => searchQuestions(qPage - 1)} disabled={qPage <= 1} style={{ ...btnSmall, backgroundColor: qPage <= 1 ? "#e2e8f0" : "#7c3aed", color: qPage <= 1 ? "#94a3b8" : "#fff" }}>Prev</button>
                       <span style={{ fontSize: "0.8125rem", color: "#666", lineHeight: "1.8" }}>Page {qPage}/{qTotalPages}</span>
-                      <button onClick={() => searchQuestions(qPage + 1)} disabled={qPage >= qTotalPages} style={{ ...btnSmall, backgroundColor: qPage >= qTotalPages ? "#e2e8f0" : "#2563eb", color: qPage >= qTotalPages ? "#94a3b8" : "#fff" }}>Next</button>
+                      <button onClick={() => searchQuestions(qPage + 1)} disabled={qPage >= qTotalPages} style={{ ...btnSmall, backgroundColor: qPage >= qTotalPages ? "#e2e8f0" : "#7c3aed", color: qPage >= qTotalPages ? "#94a3b8" : "#fff" }}>Next</button>
                     </div>
                   )}
                 </>
@@ -578,7 +578,7 @@ export default function TestsPage() {
                 <td style={{ ...tdStyle, fontSize: "0.75rem", color: "#6b7280" }}>{new Date(item.createdAt).toLocaleDateString()}</td>
                 <td style={tdStyle}>
                   <div style={{ display: "flex", gap: "0.25rem" }}>
-                    <button onClick={() => openEdit(item.id)} style={{ ...btnSmall, backgroundColor: "#2563eb" }}>Edit</button>
+                    <button onClick={() => openEdit(item.id)} style={{ ...btnSmall, backgroundColor: "#7c3aed" }}>Edit</button>
                     <button onClick={() => handleDelete(item.id, item.title)} style={{ ...btnSmall, backgroundColor: "#dc2626" }}>Delete</button>
                   </div>
                 </td>
@@ -588,9 +588,9 @@ export default function TestsPage() {
         </table>
         {totalPages > 1 && (
           <div style={{ display: "flex", justifyContent: "center", gap: "0.5rem", marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid #e2e8f0" }}>
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} style={{ ...btnSmall, backgroundColor: page <= 1 ? "#e2e8f0" : "#2563eb", color: page <= 1 ? "#94a3b8" : "#fff" }}>Prev</button>
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} style={{ ...btnSmall, backgroundColor: page <= 1 ? "#e2e8f0" : "#7c3aed", color: page <= 1 ? "#94a3b8" : "#fff" }}>Prev</button>
             <span style={{ fontSize: "0.8125rem", color: "#666", lineHeight: "1.8" }}>Page {page} of {totalPages}</span>
-            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} style={{ ...btnSmall, backgroundColor: page >= totalPages ? "#e2e8f0" : "#2563eb", color: page >= totalPages ? "#94a3b8" : "#fff" }}>Next</button>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} style={{ ...btnSmall, backgroundColor: page >= totalPages ? "#e2e8f0" : "#7c3aed", color: page >= totalPages ? "#94a3b8" : "#fff" }}>Next</button>
           </div>
         )}
       </div>
@@ -598,7 +598,7 @@ export default function TestsPage() {
   );
 }
 
-const btnPrimary: React.CSSProperties = { padding: "0.375rem 0.75rem", backgroundColor: "#2563eb", color: "#fff", border: "none", borderRadius: "4px", fontSize: "0.8125rem", fontWeight: 500, cursor: "pointer" };
+const btnPrimary: React.CSSProperties = { padding: "0.375rem 0.75rem", backgroundColor: "#7c3aed", color: "#fff", border: "none", borderRadius: "4px", fontSize: "0.8125rem", fontWeight: 500, cursor: "pointer" };
 const btnSmall: React.CSSProperties = { padding: "0.1875rem 0.5rem", color: "#fff", border: "none", borderRadius: "3px", fontSize: "0.75rem", cursor: "pointer" };
 const inputStyle: React.CSSProperties = { width: "100%", padding: "0.375rem 0.5rem", border: "1px solid #d1d5db", borderRadius: "4px", fontSize: "0.8125rem", outline: "none", boxSizing: "border-box" };
 const labelStyle: React.CSSProperties = { display: "block", fontSize: "0.75rem", fontWeight: 500, marginBottom: "0.125rem", color: "#374151" };

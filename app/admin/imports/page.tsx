@@ -267,7 +267,7 @@ export default function ImportsPage() {
           <button
             onClick={() => handleAction("validate")}
             disabled={!!actionLoading}
-            style={{ ...btnStyle, backgroundColor: "#2563eb" }}
+            style={{ ...btnStyle, backgroundColor: "#7c3aed" }}
           >
             {actionLoading === "validate" ? "Validating..." : "Validate"}
           </button>
@@ -355,7 +355,7 @@ export default function ImportsPage() {
                         ) : "-"}
                       </td>
                       <td style={tdStyle}>
-                        <button onClick={() => openEditRow(row)} style={{ ...btnSmall, backgroundColor: "#2563eb" }}>
+                        <button onClick={() => openEditRow(row)} style={{ ...btnSmall, backgroundColor: "#7c3aed" }}>
                           Edit
                         </button>
                       </td>
@@ -368,11 +368,11 @@ export default function ImportsPage() {
 
           {rowTotalPages > 1 && (
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.5rem", marginTop: "1rem", paddingTop: "0.75rem", borderTop: "1px solid #e2e8f0" }}>
-              <button onClick={() => setRowPage((p) => Math.max(1, p - 1))} disabled={rowPage <= 1} style={{ ...btnSmall, backgroundColor: rowPage <= 1 ? "#e2e8f0" : "#2563eb", color: rowPage <= 1 ? "#94a3b8" : "#fff" }}>
+              <button onClick={() => setRowPage((p) => Math.max(1, p - 1))} disabled={rowPage <= 1} style={{ ...btnSmall, backgroundColor: rowPage <= 1 ? "#e2e8f0" : "#7c3aed", color: rowPage <= 1 ? "#94a3b8" : "#fff" }}>
                 Prev
               </button>
               <span style={{ fontSize: "0.8125rem", color: "#666" }}>Page {rowPage} of {rowTotalPages}</span>
-              <button onClick={() => setRowPage((p) => Math.min(rowTotalPages, p + 1))} disabled={rowPage >= rowTotalPages} style={{ ...btnSmall, backgroundColor: rowPage >= rowTotalPages ? "#e2e8f0" : "#2563eb", color: rowPage >= rowTotalPages ? "#94a3b8" : "#fff" }}>
+              <button onClick={() => setRowPage((p) => Math.min(rowTotalPages, p + 1))} disabled={rowPage >= rowTotalPages} style={{ ...btnSmall, backgroundColor: rowPage >= rowTotalPages ? "#e2e8f0" : "#7c3aed", color: rowPage >= rowTotalPages ? "#94a3b8" : "#fff" }}>
                 Next
               </button>
             </div>
@@ -449,7 +449,7 @@ export default function ImportsPage() {
         <div style={{ fontSize: "0.875rem", color: "#6b7280", marginBottom: "0.75rem" }}>
           Upload a CSV or DOCX file to import questions
         </div>
-        <label style={{ ...btnStyle, backgroundColor: uploading ? "#94a3b8" : "#2563eb", cursor: uploading ? "wait" : "pointer", display: "inline-block" }}>
+        <label style={{ ...btnStyle, backgroundColor: uploading ? "#94a3b8" : "#7c3aed", cursor: uploading ? "wait" : "pointer", display: "inline-block" }}>
           {uploading ? "Processing..." : "Choose File"}
           <input
             type="file"
@@ -504,7 +504,7 @@ export default function ImportsPage() {
                       {new Date(job.createdAt).toLocaleDateString()}
                     </td>
                     <td style={tdStyle}>
-                      <button onClick={() => openJob(job)} style={{ ...btnSmall, backgroundColor: "#2563eb" }}>
+                      <button onClick={() => openJob(job)} style={{ ...btnSmall, backgroundColor: "#7c3aed" }}>
                         View
                       </button>
                     </td>
@@ -520,11 +520,11 @@ export default function ImportsPage() {
 }
 
 const btnStyle: React.CSSProperties = {
-  padding: "0.375rem 0.75rem", backgroundColor: "#2563eb", color: "#fff", border: "none",
+  padding: "0.375rem 0.75rem", backgroundColor: "#7c3aed", color: "#fff", border: "none",
   borderRadius: "4px", fontSize: "0.8125rem", fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap",
 };
 const btnSmall: React.CSSProperties = {
-  padding: "0.1875rem 0.5rem", backgroundColor: "#2563eb", color: "#fff", border: "none",
+  padding: "0.1875rem 0.5rem", backgroundColor: "#7c3aed", color: "#fff", border: "none",
   borderRadius: "3px", fontSize: "0.75rem", cursor: "pointer",
 };
 const inputStyle: React.CSSProperties = {

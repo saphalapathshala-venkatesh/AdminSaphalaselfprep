@@ -418,7 +418,7 @@ export default function FlashcardsPage() {
     fontSize: "0.875rem", outline: "none",
   };
   const btnPrimary: React.CSSProperties = {
-    padding: "8px 16px", background: "#2563eb", color: "#fff", border: "none",
+    padding: "8px 16px", background: "#7c3aed", color: "#fff", border: "none",
     borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", fontWeight: 500,
   };
   const btnSecondary: React.CSSProperties = {

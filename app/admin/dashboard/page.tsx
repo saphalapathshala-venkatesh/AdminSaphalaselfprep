@@ -2,6 +2,8 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
+import { BRAND } from "@/lib/adminStyles";
 
 interface DashboardData {
   kpis: { totalUsers: number; grossRevenuePaise: number; netRevenuePaise: number; paidUsers: number; freeUsers: number };
@@ -36,6 +38,13 @@ const STREAMS = [
   { value: "AI_ADDON", label: "AI Add-on" },
 ];
 
+const QUICK_ACTIONS = [
+  { label: "Upload HTML Page", href: "/admin/content-library" },
+  { label: "Upload PDF", href: "/admin/content-library" },
+  { label: "Create Flashcards", href: "/admin/flashcards" },
+  { label: "Create Test Series", href: "/admin/test-series" },
+];
+
 export default function DashboardPage() {
   const defaultRange = PRESETS["30 Days"]();
   const [start, setStart] = useState(defaultRange[0]);
@@ -67,6 +76,7 @@ export default function DashboardPage() {
   const inputStyle: React.CSSProperties = { padding: "0.375rem 0.5rem", border: "1px solid #d1d5db", borderRadius: "0.375rem", fontSize: "0.8rem" };
   const thStyle: React.CSSProperties = { padding: "0.5rem 0.75rem", textAlign: "left", borderBottom: "2px solid #e5e7eb", fontSize: "0.7rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase" };
   const tdStyle: React.CSSProperties = { padding: "0.5rem 0.75rem", borderBottom: "1px solid #f3f4f6", fontSize: "0.8rem" };
+  const card: React.CSSProperties = { background: "#fff", borderRadius: "0.5rem", padding: "1rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" };
 
   const maxVal = (arr: number[]) => Math.max(...arr, 1);
 
@@ -88,12 +98,58 @@ export default function DashboardPage() {
     );
   };
 
+  const KPIs = [
+    { label: "Total Users",    value: (d: DashboardData) => d.kpis.totalUsers.toLocaleString(),                                                         color: BRAND.blue,       icon: "👥" },
+    { label: "Paid Users",     value: (d: DashboardData) => d.kpis.paidUsers.toLocaleString(),                                                          color: BRAND.green,      icon: "✅" },
+    { label: "Free Users",     value: (d: DashboardData) => d.kpis.freeUsers.toLocaleString(),                                                          color: BRAND.gray,       icon: "🎓" },
+    { label: "Gross Revenue",  value: (d: DashboardData) => `₹${(d.kpis.grossRevenuePaise / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: BRAND.purple, icon: "💰" },
+    { label: "Net Revenue",    value: (d: DashboardData) => `₹${(d.kpis.netRevenuePaise / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,   color: BRAND.cyan,   icon: "📈" },
+  ];
+
   return (
     <div>
-      <h1 style={{ fontSize: "1.5rem", fontWeight: 600, color: "#111", marginBottom: "1rem" }}>Dashboard</h1>
+      {/* ── Branded Hero ── */}
+      <div style={{
+        background: `linear-gradient(135deg, ${BRAND.purpleDeep} 0%, ${BRAND.purpleDark} 45%, ${BRAND.purple} 100%)`,
+        borderRadius: "0.75rem",
+        padding: "1.5rem 2rem",
+        marginBottom: "1.75rem",
+        display: "flex",
+        alignItems: "center",
+        gap: "1.25rem",
+        boxShadow: "0 6px 24px rgba(109,40,217,0.22)",
+      }}>
+        <div style={{
+          width: "56px", height: "56px",
+          background: "rgba(255,255,255,0.15)",
+          border: "1.5px solid rgba(255,255,255,0.25)",
+          borderRadius: "14px",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: "1.75rem", fontWeight: 800, color: "#fff",
+          letterSpacing: "-1px", flexShrink: 0,
+        }}>
+          S
+        </div>
+        <div>
+          <div style={{ fontSize: "1.375rem", fontWeight: 700, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+            Saphala Pathshala Admin
+          </div>
+          <div style={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.78)", marginTop: "0.3rem", fontStyle: "italic" }}>
+            Your Success is our Focus
+          </div>
+        </div>
+        <div style={{ marginLeft: "auto", textAlign: "right" }}>
+          <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.55)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }}>
+            Admin Console
+          </div>
+          <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)", marginTop: "0.25rem" }}>
+            Saphala Self Prep
+          </div>
+        </div>
+      </div>
 
-      {/* Filter Bar */}
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", flexWrap: "wrap", alignItems: "center", padding: "0.75rem", background: "#f9fafb", borderRadius: "0.5rem" }}>
+      {/* ── Filter Bar ── */}
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", flexWrap: "wrap", alignItems: "center", padding: "0.75rem", background: "#f9fafb", borderRadius: "0.5rem", border: "1px solid #e5e7eb" }}>
         {Object.keys(PRESETS).map(name => (
           <button key={name} onClick={() => applyPreset(name)} style={{ padding: "0.25rem 0.625rem", border: "1px solid #d1d5db", borderRadius: "0.375rem", background: "#fff", cursor: "pointer", fontSize: "0.75rem", color: "#374151" }}>{name}</button>
         ))}
@@ -110,67 +166,76 @@ export default function DashboardPage() {
         </select>
       </div>
 
-      {loading ? <p style={{ color: "#999" }}>Loading dashboard...</p> : !data ? <p style={{ color: "#999" }}>Failed to load dashboard.</p> : (
+      {loading ? (
+        <p style={{ color: "#999", padding: "2rem 0" }}>Loading dashboard...</p>
+      ) : !data ? (
+        <p style={{ color: "#999" }}>Failed to load dashboard.</p>
+      ) : (
         <>
-          {/* KPI Cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-            {[
-              { label: "Total Users", value: data.kpis.totalUsers.toLocaleString(), color: "#2563eb" },
-              { label: "Paid Users", value: data.kpis.paidUsers.toLocaleString(), color: "#16a34a" },
-              { label: "Free Users", value: data.kpis.freeUsers.toLocaleString(), color: "#6b7280" },
-              { label: "Gross Revenue", value: `₹${(data.kpis.grossRevenuePaise / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: "#7c3aed" },
-              { label: "Net Revenue", value: `₹${(data.kpis.netRevenuePaise / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: "#0891b2" },
-            ].map(kpi => (
-              <div key={kpi.label} style={{ background: "#fff", borderRadius: "0.5rem", padding: "1rem", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", borderLeft: `4px solid ${kpi.color}` }}>
-                <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.25rem" }}>{kpi.label}</div>
-                <div style={{ fontSize: "1.25rem", fontWeight: 700, color: "#111" }}>{kpi.value}</div>
+          {/* ── KPI Cards ── */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "1rem", marginBottom: "1.75rem" }}>
+            {KPIs.map(kpi => (
+              <div key={kpi.label} style={{ background: "#fff", borderRadius: "0.5rem", padding: "1.125rem 1.25rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", borderLeft: `4px solid ${kpi.color}`, display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: "0.7rem", color: "#6b7280", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{kpi.label}</span>
+                  <span style={{ fontSize: "1rem" }}>{kpi.icon}</span>
+                </div>
+                <div style={{ fontSize: "1.375rem", fontWeight: 700, color: "#111", letterSpacing: "-0.02em" }}>{kpi.value(data)}</div>
               </div>
             ))}
           </div>
 
-          {/* Charts */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.5rem" }}>
-            <div style={{ background: "#fff", borderRadius: "0.5rem", padding: "1rem", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
-              <h3 style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.75rem" }}>Attempts / Day</h3>
-              <MiniBar items={data.charts.attemptsByDay} valKey="count" labelKey="date" color="#2563eb" />
+          {/* ── Charts ── */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.75rem" }}>
+            <div style={card}>
+              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.75rem", color: "#374151", textTransform: "uppercase", letterSpacing: "0.04em" }}>Attempts / Day</h3>
+              <MiniBar items={data.charts.attemptsByDay} valKey="count" labelKey="date" color={BRAND.blue} />
             </div>
-            <div style={{ background: "#fff", borderRadius: "0.5rem", padding: "1rem", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
-              <h3 style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.75rem" }}>Active Users / Day</h3>
-              <MiniBar items={data.charts.activeUsersByDay} valKey="count" labelKey="date" color="#16a34a" />
+            <div style={card}>
+              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.75rem", color: "#374151", textTransform: "uppercase", letterSpacing: "0.04em" }}>Active Users / Day</h3>
+              <MiniBar items={data.charts.activeUsersByDay} valKey="count" labelKey="date" color={BRAND.green} />
             </div>
-            <div style={{ background: "#fff", borderRadius: "0.5rem", padding: "1rem", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
-              <h3 style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.75rem" }}>XP / Day</h3>
-              <MiniBar items={data.charts.xpByDay} valKey="points" labelKey="date" color="#7c3aed" />
+            <div style={card}>
+              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.75rem", color: "#374151", textTransform: "uppercase", letterSpacing: "0.04em" }}>XP / Day</h3>
+              <MiniBar items={data.charts.xpByDay} valKey="points" labelKey="date" color={BRAND.purple} />
             </div>
-            <div style={{ background: "#fff", borderRadius: "0.5rem", padding: "1rem", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
-              <h3 style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.75rem" }}>Revenue / Day (Gross)</h3>
-              <MiniBar items={data.charts.revenueByDay} valKey="grossPaise" labelKey="date" color="#0891b2" />
+            <div style={card}>
+              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.75rem", color: "#374151", textTransform: "uppercase", letterSpacing: "0.04em" }}>Revenue / Day (Gross)</h3>
+              <MiniBar items={data.charts.revenueByDay} valKey="grossPaise" labelKey="date" color={BRAND.cyan} />
             </div>
           </div>
 
-          {/* Tables */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.5rem" }}>
-            <div style={{ background: "#fff", borderRadius: "0.5rem", padding: "1rem", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
-              <h3 style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.5rem" }}>Top XP Earners</h3>
+          {/* ── Tables ── */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.75rem" }}>
+            <div style={card}>
+              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.75rem", color: "#374151", textTransform: "uppercase", letterSpacing: "0.04em" }}>Top XP Earners</h3>
               {data.tables.topXpEarners.length === 0 ? <p style={{ fontSize: "0.8rem", color: "#999" }}>No data.</p> : (
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead><tr><th style={thStyle}>#</th><th style={thStyle}>User</th><th style={thStyle}>XP</th></tr></thead>
                   <tbody>
                     {data.tables.topXpEarners.map((u, i) => (
-                      <tr key={u.userId}><td style={tdStyle}>{i + 1}</td><td style={tdStyle}>{u.name || u.email || u.userId}</td><td style={{ ...tdStyle, fontWeight: 600, color: "#7c3aed" }}>{u.totalXp}</td></tr>
+                      <tr key={u.userId}>
+                        <td style={tdStyle}>{i + 1}</td>
+                        <td style={tdStyle}>{u.name || u.email || u.userId}</td>
+                        <td style={{ ...tdStyle, fontWeight: 600, color: BRAND.purple }}>{u.totalXp}</td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
               )}
             </div>
-            <div style={{ background: "#fff", borderRadius: "0.5rem", padding: "1rem", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
-              <h3 style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.5rem" }}>Most Attempted Tests</h3>
+            <div style={card}>
+              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.75rem", color: "#374151", textTransform: "uppercase", letterSpacing: "0.04em" }}>Most Attempted Tests</h3>
               {data.tables.mostAttemptedTests.length === 0 ? <p style={{ fontSize: "0.8rem", color: "#999" }}>No data.</p> : (
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead><tr><th style={thStyle}>#</th><th style={thStyle}>Test</th><th style={thStyle}>Attempts</th></tr></thead>
                   <tbody>
                     {data.tables.mostAttemptedTests.map((t, i) => (
-                      <tr key={t.testId}><td style={tdStyle}>{i + 1}</td><td style={tdStyle}>{t.title}</td><td style={{ ...tdStyle, fontWeight: 600 }}>{t.attempts}</td></tr>
+                      <tr key={t.testId}>
+                        <td style={tdStyle}>{i + 1}</td>
+                        <td style={tdStyle}>{t.title}</td>
+                        <td style={{ ...tdStyle, fontWeight: 600 }}>{t.attempts}</td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
@@ -178,16 +243,18 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Recently Published */}
-          <div style={{ background: "#fff", borderRadius: "0.5rem", padding: "1rem", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", marginBottom: "1.5rem" }}>
-            <h3 style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.5rem" }}>Recently Published Content</h3>
+          {/* ── Recently Published ── */}
+          <div style={{ ...card, marginBottom: "1.75rem" }}>
+            <h3 style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.75rem", color: "#374151", textTransform: "uppercase", letterSpacing: "0.04em" }}>Recently Published Content</h3>
             {data.tables.recentlyPublishedContent.length === 0 ? <p style={{ fontSize: "0.8rem", color: "#999" }}>No published content.</p> : (
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead><tr><th style={thStyle}>Type</th><th style={thStyle}>Title</th><th style={thStyle}>Published</th></tr></thead>
                 <tbody>
                   {data.tables.recentlyPublishedContent.map(c => (
                     <tr key={c.id}>
-                      <td style={tdStyle}><span style={{ padding: "0.125rem 0.375rem", borderRadius: "0.25rem", fontSize: "0.65rem", fontWeight: 500, background: c.type === "HTML" ? "#dbeafe" : "#fce7f3", color: c.type === "HTML" ? "#1e40af" : "#9d174d" }}>{c.type}</span></td>
+                      <td style={tdStyle}>
+                        <span style={{ padding: "0.125rem 0.375rem", borderRadius: "0.25rem", fontSize: "0.65rem", fontWeight: 500, background: c.type === "HTML" ? "#dbeafe" : "#ede9fe", color: c.type === "HTML" ? "#1e40af" : BRAND.purpleText }}>{c.type}</span>
+                      </td>
                       <td style={tdStyle}>{c.title}</td>
                       <td style={{ ...tdStyle, fontSize: "0.75rem", color: "#6b7280" }}>{c.publishedAt ? new Date(c.publishedAt).toLocaleDateString() : "—"}</td>
                     </tr>
@@ -197,16 +264,25 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Quick Actions */}
-          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-            {[
-              { label: "Upload HTML Page", href: "/admin/content-library" },
-              { label: "Upload PDF", href: "/admin/content-library" },
-              { label: "Create Flashcards", href: "/admin/flashcards" },
-              { label: "Create Test Series", href: "/admin/test-series" },
-            ].map(a => (
-              <a key={a.label} href={a.href} style={{ padding: "0.5rem 1rem", background: "#2563eb", color: "#fff", borderRadius: "0.375rem", textDecoration: "none", fontSize: "0.8rem", fontWeight: 500 }}>{a.label}</a>
-            ))}
+          {/* ── Quick Actions ── */}
+          <div>
+            <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.625rem" }}>Quick Actions</div>
+            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+              {QUICK_ACTIONS.map(a => (
+                <Link key={a.label} href={a.href} style={{
+                  padding: "0.5rem 1.125rem",
+                  background: BRAND.purple,
+                  color: "#fff",
+                  borderRadius: "0.375rem",
+                  textDecoration: "none",
+                  fontSize: "0.8rem",
+                  fontWeight: 500,
+                  boxShadow: "0 1px 3px rgba(124,58,237,0.3)",
+                }}>
+                  {a.label}
+                </Link>
+              ))}
+            </div>
           </div>
         </>
       )}

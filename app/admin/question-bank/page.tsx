@@ -734,7 +734,7 @@ export default function QuestionBankPage() {
                     ...btnStyle,
                     padding: "0.25rem 0.5rem",
                     fontSize: "0.75rem",
-                    backgroundColor: formOptions.length >= 8 ? "#cbd5e1" : "#2563eb",
+                    backgroundColor: formOptions.length >= 8 ? "#cbd5e1" : "#7c3aed",
                   }}
                 >
                   + Add Option
@@ -1015,7 +1015,7 @@ export default function QuestionBankPage() {
                   </td>
                   <td style={tdStyle}>
                     <div style={{ display: "flex", gap: "0.25rem" }}>
-                      <button onClick={() => startEdit(q)} style={{ ...btnSmall, backgroundColor: "#2563eb" }}>Edit</button>
+                      <button onClick={() => startEdit(q)} style={{ ...btnSmall, backgroundColor: "#7c3aed" }}>Edit</button>
                       <button onClick={() => setDeleteConfirm({ id: q.id, stem: q.stem })} style={{ ...btnSmall, backgroundColor: "#dc2626" }}>Del</button>
                     </div>
                   </td>
@@ -1030,7 +1030,7 @@ export default function QuestionBankPage() {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
-              style={{ ...btnSmall, backgroundColor: page <= 1 ? "#e2e8f0" : "#2563eb", color: page <= 1 ? "#94a3b8" : "#fff" }}
+              style={{ ...btnSmall, backgroundColor: page <= 1 ? "#e2e8f0" : "#7c3aed", color: page <= 1 ? "#94a3b8" : "#fff" }}
             >
               Prev
             </button>
@@ -1040,7 +1040,7 @@ export default function QuestionBankPage() {
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
-              style={{ ...btnSmall, backgroundColor: page >= totalPages ? "#e2e8f0" : "#2563eb", color: page >= totalPages ? "#94a3b8" : "#fff" }}
+              style={{ ...btnSmall, backgroundColor: page >= totalPages ? "#e2e8f0" : "#7c3aed", color: page >= totalPages ? "#94a3b8" : "#fff" }}
             >
               Next
             </button>
@@ -1176,7 +1176,7 @@ export default function QuestionBankPage() {
 
 const btnStyle: React.CSSProperties = {
   padding: "0.375rem 0.75rem",
-  backgroundColor: "#2563eb",
+  backgroundColor: "#7c3aed",
   color: "#fff",
   border: "none",
   borderRadius: "4px",
@@ -1188,7 +1188,7 @@ const btnStyle: React.CSSProperties = {
 
 const btnSmall: React.CSSProperties = {
   padding: "0.1875rem 0.5rem",
-  backgroundColor: "#2563eb",
+  backgroundColor: "#7c3aed",
   color: "#fff",
   border: "none",
   borderRadius: "3px",

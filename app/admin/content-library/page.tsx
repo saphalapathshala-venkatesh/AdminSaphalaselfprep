@@ -300,7 +300,7 @@ export default function ContentLibraryPage() {
   const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) + "..." : s;
 
   const inputStyle: React.CSSProperties = { width: "100%", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "0.875rem", outline: "none" };
-  const btnPrimary: React.CSSProperties = { padding: "8px 16px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", fontWeight: 500 };
+  const btnPrimary: React.CSSProperties = { padding: "8px 16px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", fontWeight: 500 };
   const btnSecondary: React.CSSProperties = { padding: "8px 16px", background: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem" };
   const btnDanger: React.CSSProperties = { padding: "6px 12px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "6px", cursor: "pointer", fontSize: "0.8rem" };
   const btnSmall: React.CSSProperties = { padding: "4px 10px", fontSize: "0.8rem", border: "1px solid #d1d5db", borderRadius: "4px", cursor: "pointer", background: "#fff" };

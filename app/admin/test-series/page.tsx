@@ -220,7 +220,7 @@ export default function TestSeriesPage() {
                 <td style={{ ...tdStyle, fontSize: "0.75rem", color: "#6b7280" }}>{new Date(item.createdAt).toLocaleDateString()}</td>
                 <td style={tdStyle}>
                   <div style={{ display: "flex", gap: "0.25rem" }}>
-                    <button onClick={() => openEdit(item)} style={{ ...btnSmall, backgroundColor: "#2563eb" }}>Edit</button>
+                    <button onClick={() => openEdit(item)} style={{ ...btnSmall, backgroundColor: "#7c3aed" }}>Edit</button>
                     <button onClick={() => togglePublish(item)} style={{ ...btnSmall, backgroundColor: item.isPublished ? "#f59e0b" : "#059669" }}>
                       {item.isPublished ? "Unpublish" : "Publish"}
                     </button>
@@ -233,9 +233,9 @@ export default function TestSeriesPage() {
         </table>
         {totalPages > 1 && (
           <div style={{ display: "flex", justifyContent: "center", gap: "0.5rem", marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid #e2e8f0" }}>
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} style={{ ...btnSmall, backgroundColor: page <= 1 ? "#e2e8f0" : "#2563eb", color: page <= 1 ? "#94a3b8" : "#fff" }}>Prev</button>
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} style={{ ...btnSmall, backgroundColor: page <= 1 ? "#e2e8f0" : "#7c3aed", color: page <= 1 ? "#94a3b8" : "#fff" }}>Prev</button>
             <span style={{ fontSize: "0.8125rem", color: "#666", lineHeight: "1.8" }}>Page {page} of {totalPages}</span>
-            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} style={{ ...btnSmall, backgroundColor: page >= totalPages ? "#e2e8f0" : "#2563eb", color: page >= totalPages ? "#94a3b8" : "#fff" }}>Next</button>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} style={{ ...btnSmall, backgroundColor: page >= totalPages ? "#e2e8f0" : "#7c3aed", color: page >= totalPages ? "#94a3b8" : "#fff" }}>Next</button>
           </div>
         )}
       </div>
@@ -307,7 +307,7 @@ export default function TestSeriesPage() {
   );
 }
 
-const btnPrimary: React.CSSProperties = { padding: "0.375rem 0.75rem", backgroundColor: "#2563eb", color: "#fff", border: "none", borderRadius: "4px", fontSize: "0.8125rem", fontWeight: 500, cursor: "pointer" };
+const btnPrimary: React.CSSProperties = { padding: "0.375rem 0.75rem", backgroundColor: "#7c3aed", color: "#fff", border: "none", borderRadius: "4px", fontSize: "0.8125rem", fontWeight: 500, cursor: "pointer" };
 const btnSmall: React.CSSProperties = { padding: "0.1875rem 0.5rem", color: "#fff", border: "none", borderRadius: "3px", fontSize: "0.75rem", cursor: "pointer" };
 const inputStyle: React.CSSProperties = { width: "100%", padding: "0.375rem 0.5rem", border: "1px solid #d1d5db", borderRadius: "4px", fontSize: "0.8125rem", outline: "none", boxSizing: "border-box" };
 const labelStyle: React.CSSProperties = { display: "block", fontSize: "0.75rem", fontWeight: 500, marginBottom: "0.125rem", color: "#374151" };
