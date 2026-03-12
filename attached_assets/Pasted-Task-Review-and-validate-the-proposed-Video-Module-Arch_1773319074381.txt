@@ -1,0 +1,246 @@
+Task: Review and validate the proposed Video Module Architecture for Saphala Self Prep, and also evaluate the unit economics of the proposed technology stack and infrastructure.
+
+IMPORTANT
+This is an ARCHITECTURE REVIEW and ECONOMICS ANALYSIS task only.
+
+Do NOT implement code.
+Do NOT modify the database schema.
+Do NOT run migrations.
+Do NOT change existing modules.
+
+Your role is to review the architecture, identify risks, estimate infrastructure costs, and suggest improvements.
+
+------------------------------------------------
+
+BACKGROUND
+
+We are planning to introduce a Video Module in Saphala Self Prep.
+
+Videos will be used for structured course lessons and must integrate with the existing taxonomy system:
+
+Category
+→ Course
+→ Subject
+→ Topic
+→ Subtopic
+
+Videos must NEVER be downloadable.
+
+Students must only be able to stream videos.
+
+------------------------------------------------
+
+PROPOSED VIDEO STACK
+
+Encoding + Storage + CDN
+
+Bunny Stream
+
+Video Player
+
+Video.js
+
+Streaming Protocol
+
+HLS Adaptive Streaming
+
+Live Classes
+
+Zoom
+
+------------------------------------------------
+
+LIVE CLASS WORKFLOW
+
+Live class hosted on Zoom.
+
+After the class:
+
+Zoom recording
+→ downloaded
+→ uploaded to Bunny Stream
+→ encoded into VOD
+→ attached to course
+
+------------------------------------------------
+
+RECORDED VIDEO WORKFLOW
+
+Admin creates video lesson.
+
+Steps:
+
+1. Select taxonomy
+   category
+   course
+   subject
+   topic
+   subtopic
+
+2. Upload video
+
+3. Video sent to Bunny Stream
+
+4. Bunny encodes adaptive formats
+
+5. System stores provider_video_id
+
+6. Admin preview
+
+7. Publish video
+
+------------------------------------------------
+
+VIDEO ENTITY STRUCTURE (PROPOSED)
+
+Fields:
+
+id
+title
+category
+course_id
+subject
+topic
+subtopic
+provider
+provider_video_id
+duration
+thumbnail
+status
+created_at
+
+Important:
+Video files are NOT stored in our database.
+
+Only the provider video ID.
+
+------------------------------------------------
+
+VIDEO SECURITY REQUIREMENTS
+
+Videos must not be downloadable.
+
+Planned protections:
+
+• HLS streaming only
+• token playback
+• domain restriction
+• no direct file URLs
+• disable raw download links
+
+Possible future improvements:
+
+• watermarking
+• playback analytics
+• session-based access tokens
+
+------------------------------------------------
+
+PLAYER ARCHITECTURE
+
+Frontend player:
+
+Video.js
+
+Requirements:
+
+• adaptive HLS playback
+• mobile compatibility
+• subtitle support
+• analytics support later
+
+------------------------------------------------
+
+ADMIN VIDEO MANAGEMENT
+
+Admin should be able to:
+
+• upload videos
+• attach video to course
+• reorder lessons
+• preview videos
+• publish/unpublish videos
+
+------------------------------------------------
+
+UNIT ECONOMICS ANALYSIS REQUEST
+
+Please estimate infrastructure costs for this architecture using reasonable assumptions.
+
+Assume the following platform scale:
+
+Video Library
+500 videos
+
+Average size
+1–2 GB per video (assume ~1.5 GB average)
+
+Total video storage
+~750 GB
+
+Average course price
+₹3000
+
+Students scenarios to evaluate:
+
+10 students
+50 students
+100 students
+200 students
+500 students
+1000 students
+2000 students
+5000 students
+
+Students may watch videos multiple times (some up to 5–10 times).
+
+Estimate the following:
+
+1. Video storage cost
+2. Video encoding cost
+3. Video bandwidth cost
+4. Platform hosting cost (frontend + backend)
+5. Database cost
+6. Zoom license cost
+7. Total infrastructure cost per year
+
+Then calculate:
+
+• approximate cost per student
+• approximate platform cost for each scale level
+• infrastructure cost vs revenue
+
+------------------------------------------------
+
+QUESTIONS FOR REVIEW
+
+Please evaluate and provide feedback on:
+
+1. Is Bunny Stream + Video.js a good stack for this platform?
+2. Are there technical risks with this architecture?
+3. Should we introduce a provider abstraction layer for future video providers?
+4. Is the proposed video entity structure sufficient?
+5. What additional fields might be required?
+6. Are there scalability concerns if we reach 10k+ students?
+7. Any performance issues expected with HLS + Video.js?
+8. What security improvements should we consider?
+9. What improvements would simplify implementation?
+
+------------------------------------------------
+
+EXPECTED OUTPUT
+
+Provide a structured response including:
+
+• architecture validation
+• potential risks
+• suggested improvements
+• additional fields or modules needed
+• security recommendations
+• scalability considerations
+• unit economics estimation for this stack
+• approximate infrastructure cost at different student scales
+
+Do NOT write implementation code.
+
+We will finalize the architecture before starting development.
