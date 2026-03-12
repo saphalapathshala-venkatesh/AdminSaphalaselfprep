@@ -1,0 +1,470 @@
+Task: Finalize and implement the “Add Questions” workflow inside Saphala Admin Test Builder based on the locked product decisions below.
+
+CRITICAL CONSTRAINTS
+- Do NOT create any unnecessary DB/schema changes
+- LIVE Neon DB and Prisma schema must remain in exact sync at all times
+- Before making any DB-related change, inspect the current Prisma schema and the live database usage carefully
+- Do NOT introduce schema drift
+- Do NOT run speculative migrations
+- If implementation can be done without schema changes, prefer that
+- If a schema change is absolutely required, make the minimum safe change only after verifying current live DB alignment
+- Preserve all existing auth, role guards, admin protections, and current working flows
+- Do NOT modify unrelated admin menus/modules
+- This task is limited to Test Builder / Add Questions / supporting question import-review flow
+
+HIGH-LEVEL PRODUCT DECISION
+“Imports” should no longer be treated as a separate standalone admin menu.
+Instead, it should become an integrated feature inside Test Creation / Test Editing called:
+
+ADD QUESTIONS
+
+It should function as a section-wise / subsection-wise question ingestion and preparation workflow.
+
+FINAL FEATURE GOAL
+Inside Test Builder, admin should be able to:
+1. Create/edit a test
+2. Define sections
+3. Optionally define subsections inside a section
+4. For each section or subsection, click “Add Questions”
+5. Add questions through multiple sources
+6. Review, validate, edit, bulk edit, classify, and finalize questions
+7. Save clean questions into Question Bank as new records where applicable
+8. Attach selected clean questions to the current test section/subsection
+
+IMPORTANT: The feature should feel premium, operationally practical, and safe for real admin usage.
+
+==================================================
+PART 1 — TEST BUILDER STRUCTURE: SECTION + SUBSECTION SUPPORT
+==================================================
+
+Implement support for:
+Test
+→ Section
+→ Subsection (optional)
+→ Questions
+
+Rules:
+- A section may have zero or more subsections
+- Questions may be added at section level or subsection level depending on builder design, but subsection-level targeting must be supported
+- Subsections should be useful for structures like:
+  - Reasoning → Seating Arrangement / Puzzles / Misc
+  - Quant → Arithmetic / Algebra / DI
+  - English → Comprehension / Cloze / Grammar
+
+TIMER RULES FOR SUBSECTIONS
+- Section has one total section time
+- Subsection separate timer is OPTIONAL
+- Some subsections may have separate timers while others may not
+- Timed subsection totals must never exceed the parent section total time
+- Untimed subsections should use the remaining shared section time pool
+- Example:
+  - Section total = 40 min
+  - Subsection A timed = 10
+  - Subsection B timed = 8
+  - Remaining untimed subsection pool = 22
+- The system should display:
+  - Section total time
+  - Timed subsection total
+  - Remaining shared time
+- Do NOT force all subsections to be timed
+- Do NOT force equal split across untimed subsections
+- Separate timer for subsection is optional and adaptive
+
+Validation:
+- If timed subsection totals exceed section total → blocking error, cannot save
+- If mixed timed + untimed subsections exist → calculate and show remaining shared pool clearly
+
+==================================================
+PART 2 — RENAME / REFRAME IMPORTS AS “ADD QUESTIONS”
+==================================================
+
+Replace standalone import thinking with an integrated Test Builder action:
+
+ADD QUESTIONS
+
+This should be available inside each section/subsection area.
+
+Example UX:
+- Polity 15/30 → Add Questions
+- Quant > Data Interpretation 8/10 → Add Questions
+
+The count format must clearly show current clean attached count vs target count defined during test creation.
+
+Examples:
+- Polity 15/30
+- Quant 30/30
+- DI 8/10
+- Seating Arrangement 5/5
+
+If overfilled:
+- show clear warning (example: 32/30)
+
+==================================================
+PART 3 — ADD QUESTIONS SOURCES
+==================================================
+
+Inside “Add Questions”, provide these source options:
+
+1. Upload File
+   - CSV
+   - DOCX
+
+2. From Question Bank
+
+3. From Existing Test
+
+All three paths must end in a common workflow:
+PARSE / SELECT → VALIDATE → REVIEW → EDIT / BULK EDIT → FINAL COMMIT
+
+==================================================
+PART 4 — DOWNLOADABLE STRICT TEMPLATES + RULES
+==================================================
+
+Replit must provide downloadable strict template assets and guidance for Upload File flows.
+
+Required downloadable support materials:
+- CSV template
+- DOCX template for single questions
+- DOCX template for paragraph/group questions if needed as separate template, or equivalent strict guidance
+- Rules / instructions document
+- Sample filled examples
+- Clear formatting guidance
+- Common mistakes and how to avoid them
+
+These must be visible directly inside the Add Questions upload flow, not hidden elsewhere.
+
+Examples of visible actions:
+- Download CSV Template
+- Download DOCX Template
+- View Import Rules
+- Download Sample File
+
+Templates must be strict and parser-friendly, not vague.
+
+==================================================
+PART 5 — QUESTION CONTENT TYPES TO SUPPORT
+==================================================
+
+The system must support at least these import/review content structures:
+
+A. Standalone single questions
+
+B. Paragraph / passage / set-based grouped questions
+
+Grouped question use cases include:
+- English comprehension
+- Reasoning seating arrangement
+- Puzzle sets
+- Data interpretation sets
+- Shared-instruction question groups
+- Caselet-type grouped questions
+
+RULES FOR GROUPED QUESTIONS
+- Shared paragraph / set / stimulus should be typed only once in the source template
+- System should automatically associate that shared parent content with all child questions in the group
+- There must be an explicit boundary / end indicator in upload format so the parser knows where the group ends
+- This is necessary so the next single question or next new group is not incorrectly merged
+- Group sizes can vary (2, 3, 5, 10, etc.)
+- Order locking inside the group is NOT required; shuffling within group can be allowed later or in exam behavior
+- But group relationships must remain intact
+- In review UI, grouped questions should be clearly indicated as belonging to a shared parent/group
+
+==================================================
+PART 6 — QUESTION TAXONOMY / METADATA FIELDS
+==================================================
+
+Replace weak comma-separated generic tagging with structured fields/placeholders.
+
+Required structured fields:
+- Category
+- Subject
+- Topic
+- Subtopic
+- Question Type
+- Difficulty
+- Source Tag
+- Marks
+- Negative Marks (optional)
+
+Question Type examples:
+- Single MCQ
+- Passage Based
+- Seating Arrangement
+- Puzzle Set
+- Data Interpretation
+- Caselet
+- Assertion-Reason
+- Multi-statement
+(Use practical supported types based on current platform scope)
+
+Passage-based / grouped questions should be separately identifiable within taxonomy/metadata so filtering and importing become easier.
+
+==================================================
+PART 7 — SCORING SUPPORT: MARKS + NEGATIVE MARKING
+==================================================
+
+Each question must support:
+- Marks awarded if correct
+- Optional negative marking
+
+Rules:
+- Negative marking is optional
+- If negative marks are configured, system must automatically reflect it correctly in test scoring and scorecard calculations
+- Avoid free-text scoring inputs; use structured numeric fields
+- Prefer section-level default scoring with per-question override if practical
+- Bulk edit must support updating marks and negative marks
+- Review UI should clearly show marks and negative marks for each question
+
+Examples:
+- +1, no negative
+- +1, -0.25
+- +2, -0.5
+
+==================================================
+PART 8 — IMPORT FROM QUESTION BANK / EXISTING TEST WITH TWEAKING
+==================================================
+
+For “From Question Bank” and “From Existing Test” flows:
+
+Admin must be able to:
+- search and filter questions
+- select one or many
+- import into target section/subsection
+- tweak imported questions before final commit
+
+CRITICAL RULE:
+If a reused question is tweaked/modified, it must be saved as a NEW question in the Question Bank, not just as a live reference to the old one.
+
+Purpose:
+- preserve originality for candidates
+- allow same concept/model with minor changes
+- grow question bank over time
+- maintain safe reuse without exact repetition
+
+Examples of tweakable elements:
+- question text
+- names
+- values/numbers
+- options
+- correct answer
+- explanation
+- taxonomy
+- marks / negative marks
+- source labels
+
+Import from Existing Test should support selective import, not only full test cloning.
+
+Import from Question Bank should support strong filtering:
+- category
+- subject
+- topic
+- subtopic
+- question type
+- difficulty
+- source tag
+- used in test count / usage state if available
+
+==================================================
+PART 9 — VALIDATION FIRST, NO DIRTY FINAL UPLOAD
+==================================================
+
+Upload/select flow must NOT blindly commit data.
+
+The system should:
+1. Parse input
+2. Validate structure/content
+3. Explain errors clearly
+4. Allow admin fixes
+5. Only after everything is clean enough, allow final upload/commit
+
+Important:
+All errors while uploading must be clearly explained.
+
+Differentiate:
+A. Blocking errors
+- missing question text
+- invalid options structure
+- missing correct answer
+- broken grouped structure
+- invalid template format
+- impossible timer/scoring structure
+
+B. Warnings
+- possible duplicate
+- missing optional metadata
+- questionable taxonomy
+- missing explanation
+- unused extra fields
+
+Only after blocking issues are resolved should final upload be allowed.
+
+==================================================
+PART 10 — REVIEW WORKSPACE AFTER PARSE / SELECTION
+==================================================
+
+After parsing or selecting questions, show a strong review workspace before final commit.
+
+This review stage must support:
+- question count detected
+- section/subsection target count context
+- clear errors and warnings
+- single-question editing
+- bulk edit
+- taxonomy updates
+- scoring updates
+- question type updates
+- grouped question visibility
+- duplicate warnings
+- preview of formatted question
+
+The review stage is a core part of the feature, not an optional afterthought.
+
+Question status indicators are strongly recommended:
+- Clean
+- Warning
+- Error
+- Edited
+
+==================================================
+PART 11 — BULK EDIT SUPPORT
+==================================================
+
+Before final upload/commit, admin must be able to bulk edit selected questions.
+
+Bulk-editable fields should include as many of these as practical:
+- Category
+- Subject
+- Topic
+- Subtopic
+- Question Type
+- Difficulty
+- Source Tag
+- Marks
+- Negative Marks
+- Section / Subsection assignment if relevant
+- possibly language/source labels if already supported
+
+Also support slight model variation workflows as practical.
+If feasible, include a simple bulk replace helper for text-value tweaks in selected questions, such as:
+- Ram → Ravi
+- 5 → 7
+- ₹100 → ₹150
+
+Do not over-engineer if this is too large, but include practical support for efficient tweak-based reuse.
+
+==================================================
+PART 12 — DUPLICATE / REUSE AWARENESS
+==================================================
+
+Implement duplicate awareness in review flow as much as practical.
+
+System should help flag:
+- exact duplicates
+- possible near-duplicates
+- likely already-existing question
+
+Admin can then decide:
+- skip
+- keep
+- edit
+- proceed as new version
+
+This is especially important because reuse-with-tweaks is a major workflow.
+
+Also, if practical, track or show “used in tests” count / freshness indicator for bank questions to improve import decisions.
+
+==================================================
+PART 13 — FINAL COMMIT BEHAVIOR
+==================================================
+
+After validation/review/editing is complete:
+
+Final commit should:
+1. Save clean questions appropriately into Question Bank as new records where required
+2. Attach selected/finalized questions to the current test section/subsection
+3. Update displayed counts like 15/30, 30/30, etc.
+4. Preserve grouped-question relationships
+5. Preserve scoring/taxonomy/metadata
+6. Keep the workflow safe and repeatable
+
+Important:
+- Reused tweaked questions should become new bank entries
+- Blind dirty commits should not happen
+- Do not create confusing orphan flows
+
+==================================================
+PART 14 — UX / ADMIN EXPERIENCE EXPECTATIONS
+==================================================
+
+The feature should feel like a premium internal authoring tool.
+
+Expected qualities:
+- clear stage-based workflow
+- no cluttered or confusing upload experience
+- direct visibility of templates/rules
+- clear error explanations
+- easy section/subsection targeting
+- visible progress counts
+- strong edit-before-commit experience
+- practical bulk edit tools
+- structured metadata instead of weak free-text tagging
+
+Consider a workflow like:
+1. Create/Edit Test
+2. Define Section
+3. Define Subsections (optional)
+4. Set target count + scoring defaults
+5. Click Add Questions
+6. Choose source
+7. Parse/select
+8. Validate
+9. Review/edit/bulk edit
+10. Final commit
+11. See updated section/subsection counts
+
+==================================================
+PART 15 — DO NOT BREAK LIVE SYSTEMS
+==================================================
+
+Again:
+- LIVE DB and Prisma schema must remain exactly aligned
+- Do not introduce unnecessary schema drift
+- Do not break current test/question flows
+- Preserve current admin stability
+- Implement in the safest practical way
+- If some advanced pieces must be staged, structure code cleanly for future extension without breaking the current app
+
+==================================================
+EXPECTED OUTPUT FROM REPLIT
+==================================================
+
+1. Implement the Add Questions workflow inside Test Builder / Test Edit flow
+2. Add subsection support inside section builder, including optional adaptive subsection timers
+3. Add Upload File / Question Bank / Existing Test source flows
+4. Add templates/rules/sample support for uploads
+5. Add validation + review + edit + bulk edit + final commit workflow
+6. Add grouped question support
+7. Add structured taxonomy/metadata fields
+8. Add marks + optional negative marks handling
+9. Keep schema and live DB in exact sync
+10. Briefly explain:
+   - exact files changed
+   - whether any schema change was truly needed
+   - how live DB/schema safety was preserved
+   - any staged limitations if some advanced capability is partially scaffolded first
+
+ACCEPTANCE CRITERIA
+- Imports is effectively replaced by Add Questions inside Test Builder
+- Section-wise and subsection-wise targeting works
+- Subsections supported with optional adaptive timers
+- CSV/DOCX upload workflow exists with strict guidance/templates
+- Validation happens before final upload
+- Errors are clearly explained
+- Single edit + bulk edit works before final commit
+- Grouped/passage-based question flow is supported
+- Structured taxonomy fields replace weak comma-separated tags in this workflow
+- Marks + optional negative marks are supported and affect scorecards correctly
+- Reused tweaked questions become new bank questions
+- Counts like 15/30 or 30/30 are visible
+- LIVE DB and Prisma schema remain exactly aligned
+- No unrelated modules are modified

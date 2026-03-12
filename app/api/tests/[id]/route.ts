@@ -16,7 +16,13 @@ export async function GET(
       where: { id: params.id },
       include: {
         series: { select: { id: true, title: true } },
-        sections: { orderBy: { order: "asc" } },
+        sections: {
+          orderBy: { order: "asc" },
+          select: {
+            id: true, title: true, order: true, durationSec: true,
+            targetCount: true, parentSectionId: true,
+          },
+        },
         questions: {
           orderBy: { order: "asc" },
           include: {
@@ -24,6 +30,8 @@ export async function GET(
               select: {
                 id: true, type: true, stem: true, difficulty: true, status: true,
                 categoryId: true, subjectId: true, topicId: true, subtopicId: true,
+                explanation: true, tags: true,
+                options: { select: { id: true, text: true, isCorrect: true, order: true }, orderBy: { order: "asc" } },
               },
             },
           },

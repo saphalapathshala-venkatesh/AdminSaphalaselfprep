@@ -79,13 +79,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    await writeAuditLog({
+    writeAuditLog({
       actorId: user.id,
       action: "TEST_CREATE",
       entityType: "Test",
       entityId: test.id,
       after: { title: test.title, mode: test.mode },
-    });
+    }).catch(() => {});
 
     return NextResponse.json({ data: test }, { status: 201 });
   } catch (err) {
@@ -128,33 +128,31 @@ export async function PUT(req: NextRequest) {
       if (sections !== undefined && Array.isArray(sections)) {
         await tx.testQuestion.deleteMany({ where: { testId: id } });
         await tx.testSection.deleteMany({ where: { testId: id } });
-        if (sections.length > 0) {
-          await tx.testSection.createMany({
-            data: sections.map((s: any, i: number) => ({
+
+        const createdSections: { id: string }[] = [];
+        for (let i = 0; i < sections.length; i++) {
+          const s = sections[i];
+          const parentId = (s.parentIndex !== null && s.parentIndex !== undefined && createdSections[s.parentIndex])
+            ? createdSections[s.parentIndex].id
+            : null;
+          const created = await tx.testSection.create({
+            data: {
               testId: id,
               title: s.title || `Section ${i + 1}`,
               order: i,
               durationSec: s.durationSec ? parseInt(s.durationSec) : null,
-            })),
+              targetCount: s.targetCount ? parseInt(s.targetCount) : null,
+              parentSectionId: parentId,
+            },
           });
-        }
-      }
-
-      if (questions !== undefined && Array.isArray(questions)) {
-        if (!(sections !== undefined && Array.isArray(sections))) {
-          await tx.testQuestion.deleteMany({ where: { testId: id } });
+          createdSections.push(created);
         }
 
-        const newSections = await tx.testSection.findMany({
-          where: { testId: id },
-          orderBy: { order: "asc" },
-        });
-
-        if (questions.length > 0) {
+        if (questions !== undefined && Array.isArray(questions) && questions.length > 0) {
           const tqData = questions.map((q: any, i: number) => {
             let sectionId: string | null = null;
-            if (q.sectionIndex !== undefined && q.sectionIndex !== null && newSections[q.sectionIndex]) {
-              sectionId = newSections[q.sectionIndex].id;
+            if (q.sectionIndex !== undefined && q.sectionIndex !== null && createdSections[q.sectionIndex]) {
+              sectionId = createdSections[q.sectionIndex].id;
             } else if (q.sectionId) {
               sectionId = q.sectionId;
             }
@@ -163,6 +161,33 @@ export async function PUT(req: NextRequest) {
               questionId: q.questionId,
               sectionId,
               order: i,
+              marks: q.marks !== undefined ? parseFloat(String(q.marks)) || 1 : 1,
+              negativeMarks: q.negativeMarks !== undefined ? parseFloat(String(q.negativeMarks)) || 0 : 0,
+            };
+          });
+          await tx.testQuestion.createMany({ data: tqData });
+        }
+      } else if (questions !== undefined && Array.isArray(questions)) {
+        await tx.testQuestion.deleteMany({ where: { testId: id } });
+        const currentSections = await tx.testSection.findMany({
+          where: { testId: id },
+          orderBy: { order: "asc" },
+        });
+        if (questions.length > 0) {
+          const tqData = questions.map((q: any, i: number) => {
+            let sectionId: string | null = null;
+            if (q.sectionIndex !== undefined && q.sectionIndex !== null && currentSections[q.sectionIndex]) {
+              sectionId = currentSections[q.sectionIndex].id;
+            } else if (q.sectionId) {
+              sectionId = q.sectionId;
+            }
+            return {
+              testId: id,
+              questionId: q.questionId,
+              sectionId,
+              order: i,
+              marks: q.marks !== undefined ? parseFloat(String(q.marks)) || 1 : 1,
+              negativeMarks: q.negativeMarks !== undefined ? parseFloat(String(q.negativeMarks)) || 0 : 0,
             };
           });
           await tx.testQuestion.createMany({ data: tqData });
@@ -172,20 +197,23 @@ export async function PUT(req: NextRequest) {
       return tx.test.findUnique({
         where: { id },
         include: {
-          sections: { orderBy: { order: "asc" } },
+          sections: {
+            orderBy: { order: "asc" },
+            select: { id: true, title: true, order: true, durationSec: true, targetCount: true, parentSectionId: true },
+          },
           questions: { orderBy: { order: "asc" }, include: { question: true } },
         },
       });
     });
 
-    await writeAuditLog({
+    writeAuditLog({
       actorId: user.id,
       action: "TEST_UPDATE",
       entityType: "Test",
       entityId: id,
       before: { title: existing.title, mode: existing.mode },
       after: { title: result?.title, mode: result?.mode },
-    });
+    }).catch(() => {});
 
     return NextResponse.json({ data: result });
   } catch (err: any) {
@@ -215,13 +243,13 @@ export async function DELETE(req: NextRequest) {
 
     await prisma.test.delete({ where: { id } });
 
-    await writeAuditLog({
+    writeAuditLog({
       actorId: user.id,
       action: "TEST_DELETE",
       entityType: "Test",
       entityId: id,
       before: { title: existing.title },
-    });
+    }).catch(() => {});
 
     return NextResponse.json({ data: { deleted: true } });
   } catch (err) {

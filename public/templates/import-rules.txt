@@ -1,0 +1,73 @@
+====================================================
+SAPHALA QUESTION IMPORT — STRICT FORMAT RULES
+====================================================
+
+FILE FORMAT: CSV (UTF-8 encoded, comma-separated)
+
+REQUIRED COLUMNS (in this exact order):
+  RowType, Stem, OptionA, OptionB, OptionC, OptionD,
+  CorrectOption, Explanation, Category, Subject, Topic,
+  Subtopic, Difficulty, Marks, NegativeMarks, SourceTag, GroupId
+
+ROW TYPES
+---------
+QUESTION      — A standalone MCQ question (most common)
+PASSAGE_START — Marks the beginning of a passage/group. Stem = passage text.
+                All QUESTION rows following until GROUP_END share this passage.
+GROUP_END     — Marks the end of a passage group. Must include the GroupId.
+
+REQUIRED FIELDS (blocking if missing)
+---------------------------------------
+- Stem (question text or passage text)
+- OptionA, OptionB, OptionC, OptionD (all four options)
+- CorrectOption (must be A, B, C, or D)
+
+OPTIONAL FIELDS (warnings if missing)
+---------------------------------------
+- Explanation
+- Category / Subject / Topic / Subtopic  (taxonomy classification)
+- Difficulty  (FOUNDATIONAL / MODERATE / ADVANCED — defaults to FOUNDATIONAL)
+- Marks       (numeric, defaults to 1)
+- NegativeMarks (numeric, e.g. 0.25 or 0.5 — defaults to 0)
+- SourceTag   (e.g. NCERT_9, PYQ_2023, SOURCE_PIB)
+- GroupId     (required only for PASSAGE_START and GROUP_END rows)
+
+PASSAGE / GROUP RULES
+-----------------------
+1. Start a group with a PASSAGE_START row:
+   - Put the full passage text in the Stem column
+   - Assign a unique GroupId (e.g. GROUP001, GRP_DI_1)
+2. Add QUESTION rows immediately after, with the same GroupId
+3. End the group with a GROUP_END row with the same GroupId
+4. Questions in a group DO NOT need to repeat the passage text
+5. Group sizes can be 2–15 questions
+
+DIFFICULTY VALUES
+------------------
+  FOUNDATIONAL   (easy)
+  MODERATE       (medium)
+  ADVANCED       (hard)
+
+MARKS & NEGATIVE MARKS
+------------------------
+  Marks        — numeric, e.g. 1 or 2
+  NegativeMarks — numeric, e.g. 0 or 0.25 or 0.5 or 1
+
+COMMON MISTAKES TO AVOID
+--------------------------
+1. Do NOT include a header row more than once
+2. Do NOT use quotes around CorrectOption — write just: A, B, C, or D
+3. Do NOT include newlines inside a cell — use a space instead
+4. Do NOT skip the GROUP_END row — the parser will flag an unclosed group
+5. Do NOT use commas inside cell text without wrapping the cell in double-quotes
+6. Do NOT leave OptionA/OptionB/OptionC/OptionD blank for QUESTION rows
+
+ENCODING
+---------
+  Save the file as UTF-8 (not Windows ANSI/Latin-1)
+  Excel: File → Save As → CSV UTF-8 (Comma delimited)
+
+DOWNLOAD THE SAMPLE FILE
+--------------------------
+  Download "question-import-sample.csv" from the same templates section
+  to see a filled example with standalone questions and a passage group.
