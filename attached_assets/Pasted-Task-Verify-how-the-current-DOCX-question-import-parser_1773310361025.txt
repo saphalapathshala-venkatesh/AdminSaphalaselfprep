@@ -1,0 +1,101 @@
+Task: Verify how the current DOCX question import parser handles formatting such as bold and italic text.
+
+IMPORTANT
+Do NOT modify code.
+Do NOT change schema.
+Do NOT implement new features.
+
+This task is ONLY to analyze and report how DOCX formatting is currently handled.
+
+------------------------------------------------
+
+BACKGROUND
+
+We recently upgraded question fields to support rich text.
+
+The CSV templates now include rich-text columns such as:
+
+question_rich_text
+option_a_rich_text
+explanation_rich_text
+
+DOCX templates also contain formatted text such as:
+
+- bold text
+- italic text
+- bullet lists
+- equations
+- images
+
+------------------------------------------------
+
+QUESTION TO VERIFY
+
+If a DOCX file contains formatting like:
+
+• Bold text  
+• Italic text  
+• Underline  
+• Lists  
+
+Will this formatting appear correctly in the frontend question viewer after import?
+
+Example DOCX content:
+
+Question:
+
+The ratio of the ages of A and B is **3:5**.
+
+Options:
+
+A) *24*  
+B) **30**  
+C) 36  
+D) 42
+
+------------------------------------------------
+
+WHAT TO CHECK
+
+Please inspect the DOCX parsing code and confirm:
+
+1. Does the parser preserve formatting when converting DOCX content?
+
+2. Does it convert formatting to HTML tags such as:
+
+<b> </b>  
+<i> </i>  
+<u> </u>
+
+3. Or does it strip formatting and store only plain text?
+
+4. If formatting is preserved, what HTML structure is produced?
+
+Example expected output:
+
+The ratio of the ages of A and B is <b>3:5</b>.
+
+5. Are lists preserved?
+
+6. Are inline images extracted and referenced correctly?
+
+------------------------------------------------
+
+EXPECTED RESPONSE
+
+Provide a short technical explanation covering:
+
+A. Whether DOCX formatting is preserved  
+B. Whether formatting is converted to HTML  
+C. Whether any formatting is lost  
+D. Whether frontend will display it correctly
+
+If formatting is currently lost, explain exactly why and what layer would need to change (parser, storage field, or renderer).
+
+IMPORTANT
+
+This is analysis only.
+
+Do not change code.
+Do not implement fixes.
+Just report the behavior.
