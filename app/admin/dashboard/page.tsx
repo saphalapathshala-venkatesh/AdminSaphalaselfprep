@@ -112,29 +112,35 @@ export default function DashboardPage() {
       <div style={{
         background: `linear-gradient(135deg, ${BRAND.purpleDeep} 0%, ${BRAND.purpleDark} 45%, ${BRAND.purple} 100%)`,
         borderRadius: "0.75rem",
-        padding: "1.5rem 2rem",
+        padding: "1.25rem 2rem",
         marginBottom: "1.75rem",
         display: "flex",
         alignItems: "center",
-        gap: "1.25rem",
+        gap: "1.5rem",
         boxShadow: "0 6px 24px rgba(109,40,217,0.22)",
       }}>
+        {/* Logo */}
         <div style={{
-          width: "56px", height: "56px",
-          background: "rgba(255,255,255,0.15)",
-          border: "1.5px solid rgba(255,255,255,0.25)",
+          width: "80px", height: "80px",
+          background: "#fff",
           borderRadius: "14px",
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: "1.75rem", fontWeight: 800, color: "#fff",
-          letterSpacing: "-1px", flexShrink: 0,
+          flexShrink: 0,
+          boxShadow: "0 2px 12px rgba(0,0,0,0.18)",
+          overflow: "hidden",
+          padding: "4px",
         }}>
-          S
+          <img
+            src="/saphala-logo.png"
+            alt="Saphala Logo"
+            style={{ width: "100%", height: "100%", objectFit: "contain" }}
+          />
         </div>
         <div>
-          <div style={{ fontSize: "1.375rem", fontWeight: 700, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+          <div style={{ fontSize: "1.4rem", fontWeight: 700, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
             Saphala Pathshala Admin
           </div>
-          <div style={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.78)", marginTop: "0.3rem", fontStyle: "italic" }}>
+          <div style={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.75)", marginTop: "0.35rem", fontStyle: "italic" }}>
             Your Success is our Focus
           </div>
         </div>

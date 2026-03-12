@@ -63,7 +63,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div style={styles.wrapper}>
       <aside style={styles.sidebar}>
-        <div style={styles.brand}>Saphala Admin</div>
+        <div style={styles.brand}>
+          <img
+            src="/saphala-logo.png"
+            alt="Saphala"
+            style={{ width: "36px", height: "36px", objectFit: "contain", borderRadius: "8px", background: "#fff", flexShrink: 0 }}
+          />
+          <span>Saphala Admin</span>
+        </div>
         <nav style={styles.nav}>
           {navSections.map((section) => (
             <div key={section.heading}>
@@ -115,10 +122,13 @@ const styles: Record<string, React.CSSProperties> = {
     flexShrink: 0,
   },
   brand: {
-    padding: "1.25rem 1rem",
-    fontSize: "1.125rem",
+    padding: "0.875rem 1rem",
+    fontSize: "1rem",
     fontWeight: 700,
     borderBottom: "1px solid #334155",
+    display: "flex",
+    alignItems: "center",
+    gap: "0.625rem",
   },
   nav: {
     flex: 1,
