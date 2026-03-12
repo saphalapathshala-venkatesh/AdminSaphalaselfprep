@@ -7,10 +7,11 @@ const PURPLE = "#7c3aed";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ProductTypes = {
-  hasHtmlCourse:  boolean;
-  hasVideoCourse: boolean;
-  hasPdfCourse:   boolean;
-  hasTestSeries:  boolean;
+  hasHtmlCourse:     boolean;
+  hasVideoCourse:    boolean;
+  hasPdfCourse:      boolean;
+  hasTestSeries:     boolean;
+  hasFlashcardDecks: boolean;
 };
 
 type CourseType = "STANDARD" | "PACKAGE";
@@ -27,16 +28,17 @@ type FormData = {
 
 // ─── Product type config ──────────────────────────────────────────────────────
 const TYPE_CONFIG = [
-  { key: "hasHtmlCourse"  as const, label: "HTML Course",  short: "HTML",  bg: "#dbeafe", color: "#1d4ed8" },
-  { key: "hasVideoCourse" as const, label: "Video Course", short: "Video", bg: "#f3e8ff", color: PURPLE    },
-  { key: "hasPdfCourse"   as const, label: "PDF Course",   short: "PDF",   bg: "#fef3c7", color: "#b45309" },
-  { key: "hasTestSeries"  as const, label: "Test Series",  short: "Tests", bg: "#dcfce7", color: "#15803d" },
+  { key: "hasHtmlCourse"     as const, label: "HTML Course",    short: "HTML",   bg: "#dbeafe", color: "#1d4ed8" },
+  { key: "hasVideoCourse"    as const, label: "Video Course",   short: "Video",  bg: "#f3e8ff", color: PURPLE    },
+  { key: "hasPdfCourse"      as const, label: "PDF Course",     short: "PDF",    bg: "#fef3c7", color: "#b45309" },
+  { key: "hasTestSeries"     as const, label: "Test Series",    short: "Tests",  bg: "#dcfce7", color: "#15803d" },
+  { key: "hasFlashcardDecks" as const, label: "Flashcard Decks",short: "Flash",  bg: "#fce7f3", color: "#9d174d" },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const defaultForm = (): FormData => ({
   name: "", description: "", courseType: "STANDARD", isActive: true,
-  hasHtmlCourse: false, hasVideoCourse: false, hasPdfCourse: false, hasTestSeries: false,
+  hasHtmlCourse: false, hasVideoCourse: false, hasPdfCourse: false, hasTestSeries: false, hasFlashcardDecks: false,
 });
 
 function courseToForm(c: Course): FormData {
@@ -44,11 +46,12 @@ function courseToForm(c: Course): FormData {
     name: c.name, description: c.description || "", courseType: c.courseType || "STANDARD", isActive: c.isActive,
     hasHtmlCourse: c.hasHtmlCourse, hasVideoCourse: c.hasVideoCourse,
     hasPdfCourse: c.hasPdfCourse, hasTestSeries: c.hasTestSeries,
+    hasFlashcardDecks: c.hasFlashcardDecks,
   };
 }
 
 function hasAnyType(f: FormData | ProductTypes) {
-  return f.hasHtmlCourse || f.hasVideoCourse || f.hasPdfCourse || f.hasTestSeries;
+  return f.hasHtmlCourse || f.hasVideoCourse || f.hasPdfCourse || f.hasTestSeries || f.hasFlashcardDecks;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────

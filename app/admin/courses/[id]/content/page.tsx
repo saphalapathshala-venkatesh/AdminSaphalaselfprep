@@ -7,7 +7,7 @@ import { useParams } from "next/navigation";
 const PURPLE = "#7c3aed";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
-type ProductTypes = { hasHtmlCourse: boolean; hasVideoCourse: boolean; hasPdfCourse: boolean; hasTestSeries: boolean };
+type ProductTypes = { hasHtmlCourse: boolean; hasVideoCourse: boolean; hasPdfCourse: boolean; hasTestSeries: boolean; hasFlashcardDecks: boolean };
 type Course = ProductTypes & { id: string; name: string; categoryId: string | null; isActive: boolean };
 type CourseFolder = { id: string; courseId: string; parentId: string | null; title: string; description: string | null; sortOrder: number };
 type CourseItem = {
@@ -331,8 +331,10 @@ export default function CourseContentBuilderPage() {
     if (course.hasPdfCourse) {
       btns.push({ type: "PDF",        label: "Add PDF",        icon: "📄", color: "#b45309", bg: "#fef3c7" });
     }
-    // Flashcards are globally supported
-    btns.push({ type: "FLASHCARD_DECK", label: "Add Flashcards", icon: "🃏", color: "#15803d", bg: "#dcfce7" });
+    // Flashcards: only shown when the course has the flashcard decks capability
+    if (course.hasFlashcardDecks) {
+      btns.push({ type: "FLASHCARD_DECK", label: "Add Flashcards", icon: "🃏", color: "#15803d", bg: "#dcfce7" });
+    }
     return btns;
   }, [course]);
 

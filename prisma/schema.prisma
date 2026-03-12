@@ -122,27 +122,35 @@ model User {
   name         String?
   passwordHash String
   role         UserRole  @default(STUDENT)
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  sessions     Session[]
-  entitlements UserEntitlement[]
-  attempts     Attempt[]
-  xpEvents     XpEvent[]
-  xpLedger     XpLedgerEntry[]
-  auditLogs    AuditLog[] @relation("AuditActor")
-  importJobs   ImportJob[]
-  testSeries   TestSeries[]
-  tests        Test[]
+  isActive       Boolean   @default(true)
+  isBlocked      Boolean   @default(false)
+  blockedReason  String?
+  maxWebDevices  Int       @default(1)
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  sessions       Session[]
+  entitlements   UserEntitlement[]
+  attempts       Attempt[]
+  xpEvents       XpEvent[]
+  xpLedger       XpLedgerEntry[]
+  auditLogs      AuditLog[]    @relation("AuditActor")
+  importJobs     ImportJob[]
+  testSeries     TestSeries[]
+  tests          Test[]
   flashcardDecks FlashcardDeck[]
-  contentPages ContentPage[]
-  pdfAssets    PdfAsset[]
-  coupons      Coupon[]
-  xpRules      XpRule[]
-  purchases    Purchase[]
-  videos       Video[]     @relation("VideoCreatedBy")
-  liveClasses  LiveClass[] @relation("LiveClassCreatedBy")
+  contentPages   ContentPage[]
+  pdfAssets      PdfAsset[]
+  coupons        Coupon[]
+  xpRules        XpRule[]
+  purchases      Purchase[]
+  videos         Video[]       @relation("VideoCreatedBy")
+  liveClasses    LiveClass[]   @relation("LiveClassCreatedBy")
+  devices        UserDevice[]
+  activities     UserActivity[]
   @@index([role])
+  @@index([isBlocked])
+  @@index([deletedAt])
 }
 model Session {
   id         String      @id @default(cuid())
@@ -581,11 +589,12 @@ model Course {
   categoryId     String?
   courseType     CourseType @default(STANDARD)
   isActive       Boolean    @default(true)
-  hasHtmlCourse  Boolean    @default(false)
-  hasVideoCourse Boolean    @default(false)
-  hasPdfCourse   Boolean    @default(false)
-  hasTestSeries  Boolean    @default(false)
-  createdAt      DateTime   @default(now())
+  hasHtmlCourse     Boolean    @default(false)
+  hasVideoCourse    Boolean    @default(false)
+  hasPdfCourse      Boolean    @default(false)
+  hasTestSeries     Boolean    @default(false)
+  hasFlashcardDecks Boolean    @default(false)
+  createdAt         DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   videos         Video[]
   liveClasses    LiveClass[]
@@ -765,4 +774,70 @@ model ContentFlowItem {
   updatedAt     DateTime        @updatedAt
   @@index([tenantId, courseId])
   @@index([tenantId, categoryId, subjectId, topicId, subtopicId])
+}
+
+// USER DEVICE TRACKING
+enum DeviceType {
+  DESKTOP
+  MOBILE
+  TABLET
+  UNKNOWN
+}
+
+model UserDevice {
+  id            String     @id @default(cuid())
+  tenantId      String     @default("default")
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceKey     String
+  deviceType    DeviceType @default(UNKNOWN)
+  browser       String?
+  os            String?
+  userAgent     String?
+  ipAddressLast String?
+  label         String?
+  firstSeenAt   DateTime   @default(now())
+  lastSeenAt    DateTime   @default(now())
+  isActive      Boolean    @default(true)
+  isBlocked     Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  @@unique([userId, deviceKey])
+  @@index([userId])
+  @@index([deviceKey])
+  @@index([isActive])
+  @@index([lastSeenAt])
+}
+
+// USER ACTIVITY LOG
+enum ActivityType {
+  LOGIN_SUCCESS
+  LOGIN_BLOCKED_DEVICE_LIMIT
+  LOGIN_BLOCKED_USER
+  LOGOUT
+  DEVICE_REGISTERED
+  DEVICE_REMOVED
+  DEVICE_RESET
+  GLOBAL_DEVICE_RESET
+  USER_BLOCKED
+  USER_UNBLOCKED
+  USER_EDITED
+  USER_SOFT_DELETED
+  USER_RESTORED
+  SESSION_REVOKED
+}
+
+model UserActivity {
+  id           String       @id @default(cuid())
+  tenantId     String       @default("default")
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activityType ActivityType
+  meta         String?
+  deviceKey    String?
+  ipAddress    String?
+  createdAt    DateTime     @default(now())
+  @@index([userId])
+  @@index([userId, activityType])
+  @@index([createdAt])
 }

@@ -7,16 +7,17 @@ import { writeAuditLog } from "@/lib/audit";
 
 function parseProductTypes(body: any) {
   return {
-    hasHtmlCourse:  Boolean(body.hasHtmlCourse),
-    hasVideoCourse: Boolean(body.hasVideoCourse),
-    hasPdfCourse:   Boolean(body.hasPdfCourse),
-    hasTestSeries:  Boolean(body.hasTestSeries),
+    hasHtmlCourse:     Boolean(body.hasHtmlCourse),
+    hasVideoCourse:    Boolean(body.hasVideoCourse),
+    hasPdfCourse:      Boolean(body.hasPdfCourse),
+    hasTestSeries:     Boolean(body.hasTestSeries),
+    hasFlashcardDecks: Boolean(body.hasFlashcardDecks),
   };
 }
 
 function validateProductTypes(types: ReturnType<typeof parseProductTypes>): string | null {
-  if (!types.hasHtmlCourse && !types.hasVideoCourse && !types.hasPdfCourse && !types.hasTestSeries) {
-    return "At least one product type must be selected";
+  if (!types.hasHtmlCourse && !types.hasVideoCourse && !types.hasPdfCourse && !types.hasTestSeries && !types.hasFlashcardDecks) {
+    return "At least one capability must be selected";
   }
   return null;
 }
@@ -45,7 +46,7 @@ export async function GET(req: NextRequest) {
         orderBy: { name: "asc" },
         select: {
           id: true, name: true, isActive: true, courseType: true,
-          hasHtmlCourse: true, hasVideoCourse: true, hasPdfCourse: true, hasTestSeries: true,
+          hasHtmlCourse: true, hasVideoCourse: true, hasPdfCourse: true, hasTestSeries: true, hasFlashcardDecks: true,
         },
       });
       return NextResponse.json({ data: items });

@@ -64,6 +64,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (user.isBlocked) {
+      return NextResponse.json(
+        { error: user.blockedReason ? `Account blocked: ${user.blockedReason}` : "Account has been blocked. Contact support." },
+        { status: 403 }
+      );
+    }
+
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
       return NextResponse.json(

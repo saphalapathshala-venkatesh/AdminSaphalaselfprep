@@ -6,12 +6,13 @@ import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 
 function validateProductTypes(body: any, existing?: any): string | null {
-  const hasHtml  = body.hasHtmlCourse  !== undefined ? Boolean(body.hasHtmlCourse)  : existing?.hasHtmlCourse;
-  const hasVideo = body.hasVideoCourse !== undefined ? Boolean(body.hasVideoCourse) : existing?.hasVideoCourse;
-  const hasPdf   = body.hasPdfCourse   !== undefined ? Boolean(body.hasPdfCourse)   : existing?.hasPdfCourse;
-  const hasTest  = body.hasTestSeries  !== undefined ? Boolean(body.hasTestSeries)  : existing?.hasTestSeries;
-  if (!hasHtml && !hasVideo && !hasPdf && !hasTest) {
-    return "At least one product type must be selected";
+  const hasHtml      = body.hasHtmlCourse      !== undefined ? Boolean(body.hasHtmlCourse)      : existing?.hasHtmlCourse;
+  const hasVideo     = body.hasVideoCourse     !== undefined ? Boolean(body.hasVideoCourse)     : existing?.hasVideoCourse;
+  const hasPdf       = body.hasPdfCourse       !== undefined ? Boolean(body.hasPdfCourse)       : existing?.hasPdfCourse;
+  const hasTest      = body.hasTestSeries      !== undefined ? Boolean(body.hasTestSeries)      : existing?.hasTestSeries;
+  const hasFlashcard = body.hasFlashcardDecks  !== undefined ? Boolean(body.hasFlashcardDecks)  : existing?.hasFlashcardDecks;
+  if (!hasHtml && !hasVideo && !hasPdf && !hasTest && !hasFlashcard) {
+    return "At least one capability must be selected";
   }
   return null;
 }
@@ -71,10 +72,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         categoryId:     body.categoryId    !== undefined ? (body.categoryId  || null) : existing.categoryId,
         courseType,
         isActive:       body.isActive      !== undefined ? Boolean(body.isActive)     : existing.isActive,
-        hasHtmlCourse:  body.hasHtmlCourse  !== undefined ? Boolean(body.hasHtmlCourse)  : existing.hasHtmlCourse,
-        hasVideoCourse: body.hasVideoCourse !== undefined ? Boolean(body.hasVideoCourse) : existing.hasVideoCourse,
-        hasPdfCourse:   body.hasPdfCourse   !== undefined ? Boolean(body.hasPdfCourse)   : existing.hasPdfCourse,
-        hasTestSeries:  body.hasTestSeries  !== undefined ? Boolean(body.hasTestSeries)  : existing.hasTestSeries,
+        hasHtmlCourse:     body.hasHtmlCourse     !== undefined ? Boolean(body.hasHtmlCourse)     : existing.hasHtmlCourse,
+        hasVideoCourse:    body.hasVideoCourse    !== undefined ? Boolean(body.hasVideoCourse)    : existing.hasVideoCourse,
+        hasPdfCourse:      body.hasPdfCourse      !== undefined ? Boolean(body.hasPdfCourse)      : existing.hasPdfCourse,
+        hasTestSeries:     body.hasTestSeries     !== undefined ? Boolean(body.hasTestSeries)     : existing.hasTestSeries,
+        hasFlashcardDecks: body.hasFlashcardDecks !== undefined ? Boolean(body.hasFlashcardDecks) : existing.hasFlashcardDecks,
       },
     });
 
