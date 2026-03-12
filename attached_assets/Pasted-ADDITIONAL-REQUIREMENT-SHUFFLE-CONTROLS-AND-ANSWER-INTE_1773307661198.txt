@@ -1,0 +1,76 @@
+ADDITIONAL REQUIREMENT — SHUFFLE CONTROLS AND ANSWER INTEGRITY
+
+Add shuffle controls in test settings using checkboxes/toggles.
+
+Required shuffle behaviors:
+
+1. Shuffle Questions
+
+Shuffling must respect the test hierarchy.
+
+Hierarchy:
+Test → Section → Subsection → Questions
+
+Rules:
+
+• If the test contains sections but NO subsections:
+  → shuffle questions within each section only.
+
+• If a section contains subsections:
+  → shuffle questions ONLY within each subsection.
+  → questions must never move across subsections.
+
+• Questions must never move across unrelated sections.
+
+2. Paragraph / Group Question Shuffle
+
+Grouped questions (paragraph, comprehension, puzzle, DI set, etc.) must be treated as logical groups.
+
+Rules:
+
+• The entire group can shuffle as one block within the section/subsection.
+• Child questions inside the group may optionally shuffle within the group.
+• Group integrity must never break:
+  - shared paragraph/set must remain attached
+  - child questions must remain linked to that paragraph
+
+Example structure:
+
+Section
+ → Subsection
+    → Paragraph Group
+       → Q1
+       → Q2
+       → Q3
+
+The group may move within the subsection, but its internal structure must remain valid.
+
+3. Shuffle Options
+
+Add a checkbox/toggle for option shuffling.
+
+Behavior:
+
+• Options may be shuffled randomly.
+• The correct answer must remain logically correct after shuffling.
+• Evaluation must not break due to option order changes.
+• Negative marking and scoring must remain accurate.
+
+Critical validation requirement:
+
+• The system must NOT rely only on static option letters (A/B/C/D).
+• Correctness must be preserved using reliable option mapping.
+
+The engine must ensure:
+
+• candidate-selected option maps to the correct stored answer
+• scoring works correctly
+• no valuation mistakes occur due to option shuffle.
+
+Testing must cover:
+
+• standalone questions
+• grouped questions
+• sectional tests
+• subsection-based tests
+• option-shuffled questions

@@ -265,11 +265,15 @@ model Test {
   title          String
   instructions   String?
   mode           TestMode
-  isTimed        Boolean  @default(true)
-  durationSec    Int?
-  allowPause     Boolean  @default(false)
-  strictSectionMode Boolean @default(false)
-  isPublished    Boolean  @default(false)
+  isTimed              Boolean  @default(true)
+  durationSec          Int?
+  allowPause           Boolean  @default(false)
+  strictSectionMode    Boolean  @default(false)
+  shuffleQuestions     Boolean  @default(false)
+  shuffleOptions       Boolean  @default(false)
+  shuffleGroups        Boolean  @default(false)
+  shuffleGroupChildren Boolean  @default(false)
+  isPublished          Boolean  @default(false)
   publishedAt    DateTime?
   createdById    String
   createdBy      User     @relation(fields: [createdById], references: [id], onDelete: Restrict)

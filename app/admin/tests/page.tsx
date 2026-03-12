@@ -28,7 +28,10 @@ type TestQuestionState = {
 type TestDetail = {
   id: string; title: string; instructions?: string; mode: string;
   isTimed: boolean; durationSec?: number; allowPause: boolean;
-  strictSectionMode: boolean; seriesId?: string; isPublished: boolean;
+  strictSectionMode: boolean;
+  shuffleQuestions: boolean; shuffleOptions: boolean;
+  shuffleGroups: boolean; shuffleGroupChildren: boolean;
+  seriesId?: string; isPublished: boolean;
   series?: { id: string; title: string };
   sections: { id: string; title: string; order: number; durationSec?: number; targetCount?: number; parentSectionId?: string }[];
   questions: {
@@ -934,7 +937,7 @@ export default function TestsPage() {
 
   const [testId, setTestId] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(false);
-  const [form, setForm] = useState({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", allowPause: false, strictSectionMode: false, seriesId: "", categoryId: "" });
+  const [form, setForm] = useState({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "" });
   const [hasSectionsManual, setHasSectionsManual] = useState(false);
   const [sectionPresetOpen, setSectionPresetOpen] = useState<number | null>(null);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
@@ -977,7 +980,7 @@ export default function TestsPage() {
 
   function openCreate() {
     setTestId(null); setIsPublished(false);
-    setForm({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", allowPause: false, strictSectionMode: false, seriesId: "", categoryId: "" });
+    setForm({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "" });
     setHasSectionsManual(false);
     setSections([]); setTestQuestions([]); setValidation(null);
     setView("builder");
@@ -990,7 +993,7 @@ export default function TestsPage() {
       if (!res.ok) { showToast(d.error || "Failed", "error"); return; }
       const t: TestDetail = d.data;
       setTestId(t.id); setIsPublished(t.isPublished);
-      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(t.durationSec) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, seriesId: t.seriesId || "", categoryId: (t as any).categoryId || "" });
+      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(t.durationSec) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, shuffleQuestions: t.shuffleQuestions, shuffleOptions: t.shuffleOptions, shuffleGroups: t.shuffleGroups, shuffleGroupChildren: t.shuffleGroupChildren, seriesId: t.seriesId || "", categoryId: (t as any).categoryId || "" });
       setHasSectionsManual(t.sections.length > 0 || ["SECTIONAL", "MULTI_SECTION"].includes(t.mode));
       const flatSecs: SectionState[] = t.sections.map((s, i) => {
         const parentIndex = s.parentSectionId ? t.sections.findIndex(p => p.id === s.parentSectionId) : null;
@@ -1016,6 +1019,8 @@ export default function TestsPage() {
         title: form.title, instructions: form.instructions, mode: form.mode,
         isTimed: form.isTimed, durationSec: form.durationSec || null,
         allowPause: form.allowPause, strictSectionMode: form.strictSectionMode,
+        shuffleQuestions: form.shuffleQuestions, shuffleOptions: form.shuffleOptions,
+        shuffleGroups: form.shuffleGroups, shuffleGroupChildren: form.shuffleGroupChildren,
         seriesId: form.seriesId || null, categoryId: form.categoryId || null,
         sections: sections.map(s => ({ title: s.title, durationSec: s.durationSec || null, targetCount: s.targetCount || null, parentIndex: s.parentIndex })),
         questions: testQuestions.map(q => ({ questionId: q.questionId, sectionIndex: q.sectionIndex, marks: q.marks, negativeMarks: q.negativeMarks })),
@@ -1289,6 +1294,61 @@ export default function TestsPage() {
                     </label>
                   ))}
                 </div>
+              </div>
+            </div>
+
+            {/* SHUFFLE SETTINGS */}
+            <div style={card}>
+              <h3 style={{ margin: "0 0 0.75rem 0", fontSize: "0.875rem", fontWeight: 700, color: "#374151" }}>Shuffle Settings</h3>
+              <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.75rem", color: "#6b7280" }}>
+                Controls how questions and options are randomised at exam runtime. Hierarchy integrity is always preserved — questions never cross section or subsection boundaries.
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                <label style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", cursor: "pointer" }}>
+                  <input type="checkbox" style={{ marginTop: "2px" }} checked={form.shuffleQuestions} onChange={e => setForm({ ...form, shuffleQuestions: e.target.checked, shuffleGroups: e.target.checked ? form.shuffleGroups : false, shuffleGroupChildren: e.target.checked ? form.shuffleGroupChildren : false })} />
+                  <span>
+                    <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#111827" }}>Shuffle Questions</span>
+                    <span style={{ display: "block", fontSize: "0.75rem", color: "#6b7280" }}>
+                      Randomises question order within each section (or subsection, when present). Questions never cross section/subsection boundaries.
+                    </span>
+                  </span>
+                </label>
+                {form.shuffleQuestions && (
+                  <div style={{ paddingLeft: "1.5rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                    <label style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", cursor: "pointer" }}>
+                      <input type="checkbox" style={{ marginTop: "2px" }} checked={form.shuffleGroups} onChange={e => setForm({ ...form, shuffleGroups: e.target.checked })} />
+                      <span>
+                        <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#374151" }}>Shuffle Paragraph Groups as Blocks</span>
+                        <span style={{ display: "block", fontSize: "0.75rem", color: "#6b7280" }}>
+                          Paragraph / comprehension groups move as a single unit within the section. The shared passage stays attached to its child questions.
+                        </span>
+                      </span>
+                    </label>
+                    <label style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", cursor: "pointer" }}>
+                      <input type="checkbox" style={{ marginTop: "2px" }} checked={form.shuffleGroupChildren} onChange={e => setForm({ ...form, shuffleGroupChildren: e.target.checked })} />
+                      <span>
+                        <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#374151" }}>Shuffle Questions Within Groups</span>
+                        <span style={{ display: "block", fontSize: "0.75rem", color: "#6b7280" }}>
+                          Child questions inside each paragraph group are randomised. The passage remains at the top of the group.
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                )}
+                <label style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", cursor: "pointer" }}>
+                  <input type="checkbox" style={{ marginTop: "2px" }} checked={form.shuffleOptions} onChange={e => setForm({ ...form, shuffleOptions: e.target.checked })} />
+                  <span>
+                    <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#111827" }}>Shuffle Answer Options</span>
+                    <span style={{ display: "block", fontSize: "0.75rem", color: "#6b7280" }}>
+                      Randomises the order of A / B / C / D for each question. The correct answer is tracked by value — not position — so scoring and negative marking are always accurate.
+                    </span>
+                  </span>
+                </label>
+                {form.shuffleOptions && (
+                  <div style={{ paddingLeft: "1.5rem", padding: "0.5rem 0.5rem 0.5rem 1.25rem", background: "#fefce8", border: "1px solid #fde68a", borderRadius: "6px", fontSize: "0.75rem", color: "#92400e" }}>
+                    ⚠ Evaluation uses stored answer value mapping. Static A/B/C/D letters are never used alone for scoring — answer integrity is preserved.
+                  </div>
+                )}
               </div>
             </div>
 

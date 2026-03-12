@@ -93,3 +93,26 @@ Fully tabbed client component with 6 sections:
 4. **Admin Access** — list all admins with role/status/joined; SUPER_ADMIN can enable/disable others and create new accounts with temporary password
 5. **Platform** — read-only environment overview; contact details env var guidance
 6. **Danger Zone** — Revoke All Other Sessions with two-step confirmation; red-themed isolation from other sections
+
+## Shuffle Controls (March 2026)
+
+### Schema Changes
+- Migration `add_test_shuffle_controls` applied: added 4 Boolean fields (default `false`) to `Test` model:
+  - `shuffleQuestions` — randomise question order within each section/subsection at runtime
+  - `shuffleOptions` — randomise A/B/C/D option order; correctness tracked by value mapping, never by position
+  - `shuffleGroups` — move paragraph/comprehension groups as a single block within their section
+  - `shuffleGroupChildren` — randomise child questions inside each group (passage stays at top)
+
+### Shuffle Hierarchy Rules (enforced at runtime)
+- Questions never cross section or subsection boundaries regardless of shuffle state
+- `shuffleGroups` and `shuffleGroupChildren` are only meaningful when `shuffleQuestions` is true; the UI enforces this by disabling them when `shuffleQuestions` is off
+- Option shuffle uses value-based answer mapping — scoring, negative marking, and evaluation are all correct regardless of displayed option order
+
+### API Changes
+- `POST /api/tests` and `PUT /api/tests`: accept and persist all 4 shuffle fields
+- All 4 fields default to `false` — no behaviour change for existing tests
+
+### Test Builder UI
+- New "Shuffle Settings" card below the existing checkboxes
+- `shuffleGroups` and `shuffleGroupChildren` are nested under `shuffleQuestions` (only shown when it is checked)
+- `shuffleOptions` shows an inline amber warning note explaining value-based scoring when enabled

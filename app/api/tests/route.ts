@@ -54,7 +54,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title, instructions, mode, isTimed, durationSec, allowPause, strictSectionMode, seriesId } = body;
+    const { title, instructions, mode, isTimed, durationSec, allowPause, strictSectionMode,
+            shuffleQuestions, shuffleOptions, shuffleGroups, shuffleGroupChildren, seriesId } = body;
     let { categoryId } = body;
 
     if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -84,6 +85,10 @@ export async function POST(req: NextRequest) {
         durationSec: durationSec ? parseInt(durationSec) : null,
         allowPause: allowPause || false,
         strictSectionMode: strictSectionMode || false,
+        shuffleQuestions: shuffleQuestions || false,
+        shuffleOptions: shuffleOptions || false,
+        shuffleGroups: shuffleGroups || false,
+        shuffleGroupChildren: shuffleGroupChildren || false,
         seriesId: seriesId || null,
         categoryId: categoryId || null,
         createdById: user.id,
@@ -115,7 +120,9 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { id, title, instructions, mode, isTimed, durationSec, allowPause, strictSectionMode, seriesId, sections, questions } = body;
+    const { id, title, instructions, mode, isTimed, durationSec, allowPause, strictSectionMode,
+            shuffleQuestions, shuffleOptions, shuffleGroups, shuffleGroupChildren,
+            seriesId, sections, questions } = body;
     let { categoryId } = body;
 
     if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
@@ -151,6 +158,10 @@ export async function PUT(req: NextRequest) {
           durationSec: durationSec !== undefined ? (durationSec ? parseInt(durationSec) : null) : existing.durationSec,
           allowPause: allowPause !== undefined ? allowPause : existing.allowPause,
           strictSectionMode: strictSectionMode !== undefined ? strictSectionMode : existing.strictSectionMode,
+          shuffleQuestions: shuffleQuestions !== undefined ? shuffleQuestions : existing.shuffleQuestions,
+          shuffleOptions: shuffleOptions !== undefined ? shuffleOptions : existing.shuffleOptions,
+          shuffleGroups: shuffleGroups !== undefined ? shuffleGroups : existing.shuffleGroups,
+          shuffleGroupChildren: shuffleGroupChildren !== undefined ? shuffleGroupChildren : existing.shuffleGroupChildren,
           seriesId: resolvedSeriesId,
           categoryId: categoryId !== undefined ? (categoryId || null) : existing.categoryId,
         },
