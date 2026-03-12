@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
   const topicId = searchParams.get("topicId");
   const subtopicId = searchParams.get("subtopicId");
   const search = searchParams.get("search");
+  const sourceTag = searchParams.get("sourceTag");
 
   const where: any = {};
   if (type && VALID_TYPES.includes(type)) where.type = type;
@@ -50,6 +51,7 @@ export async function GET(req: NextRequest) {
   if (subjectId) where.subjectId = subjectId;
   if (topicId) where.topicId = topicId;
   if (subtopicId) where.subtopicId = subtopicId;
+  if (sourceTag) where.tags = { has: `source:${sourceTag}` };
   if (search) {
     where.OR = [
       { stem: { contains: search, mode: "insensitive" } },
@@ -63,6 +65,7 @@ export async function GET(req: NextRequest) {
         where,
         include: {
           options: { orderBy: { order: "asc" } },
+          _count: { select: { testQuestions: true } },
           subtopic: {
             select: {
               id: true,

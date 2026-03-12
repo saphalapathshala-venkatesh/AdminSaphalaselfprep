@@ -41,3 +41,33 @@ The console utilizes a consistent brand palette with purple (`#7c3aed`) as the p
 - **Framework**: Next.js 14
 - **Language Tooling**: TypeScript
 - **Validation Library**: Zod v4
+## Category Enforcement & Governance (March 2026)
+
+### Schema
+- Added `categoryId String?` to `Test` model — migration `add_test_category` applied
+
+### Category Enforcement (API)
+- `POST /api/tests`: Accepts `categoryId`; auto-inherits from series if series has category; blocks 400 on mismatch
+- `PUT /api/tests`: Same validation on update
+- `DELETE /api/test-series`: Blocked with 400 if any published tests exist in the series
+- `GET /api/questions`: Added `sourceTag` filter; added `_count: { testQuestions }` to include
+- `DELETE /api/questions/[id]`: Returns `{ warning, usageCount, message }` if used in tests; requires `?force=true` to bypass
+
+### Test Builder UI
+- `categoryId` in form state; auto-populated when series is selected
+- Inline red mismatch banner shown if category and series don't agree
+- `hasSectionsManual` checkbox ("Multiple Sections") — decoupled from mode
+- Category-based section presets dropdown (Banking, APPSC, AP Police, UPSC, SSC)
+- Button wording: "Remove" on questions, "✕ Remove" on sections — never "Delete Question"
+
+### Test Series UI
+- Category is now required (validation + red-border on empty)
+- Category column visible in the series list table
+- Deletion blocked at API if published tests exist
+
+### Question Bank UI
+- Stats bar: Total in Bank, Showing (filtered), per-difficulty counts
+- Source Tag filter added
+- "In Tests" column — shows N tests badge or "—"
+- Delete flow: usage-warning modal before force-delete
+- Bulk Delete button — with confirmation modal showing force-delete implications

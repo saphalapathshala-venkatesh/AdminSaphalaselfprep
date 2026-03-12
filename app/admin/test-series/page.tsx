@@ -113,6 +113,7 @@ export default function TestSeriesPage() {
 
   async function handleSave() {
     if (!form.title.trim()) { showToast("Title is required", "error"); return; }
+    if (!form.categoryId) { showToast("Category is required for a test series", "error"); return; }
     setSaving(true);
     try {
       let scheduleJson = null;
@@ -195,6 +196,7 @@ export default function TestSeriesPage() {
           <thead>
             <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
               <th style={thStyle}>Title</th>
+              <th style={thStyle}>Category</th>
               <th style={thStyle}>Tests</th>
               <th style={thStyle}>Price</th>
               <th style={thStyle}>Status</th>
@@ -204,12 +206,21 @@ export default function TestSeriesPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>Loading...</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>Loading...</td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>No test series found.</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>No test series found.</td></tr>
             ) : items.map((item) => (
               <tr key={item.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
                 <td style={tdStyle}><strong>{item.title}</strong></td>
+                <td style={tdStyle}>
+                  {item.categoryId ? (
+                    <span style={{ fontSize: "0.75rem", background: "#f0f4ff", color: "#3730a3", padding: "1px 7px", borderRadius: "9999px", fontWeight: 500 }}>
+                      {categories.find(c => c.id === item.categoryId)?.name || item.categoryId.substring(0, 8)}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: "0.75rem", color: "#dc2626" }}>⚠ None</span>
+                  )}
+                </td>
                 <td style={tdStyle}>{item._count?.tests ?? 0}</td>
                 <td style={tdStyle}>{item.pricePaise > 0 ? `₹${(item.pricePaise / 100).toFixed(2)}` : "Free"}</td>
                 <td style={tdStyle}>
@@ -257,9 +268,9 @@ export default function TestSeriesPage() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                 <div>
-                  <label style={labelStyle}>Category</label>
-                  <select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value, subjectIds: [] })} style={inputStyle}>
-                    <option value="">-- None --</option>
+                  <label style={labelStyle}>Category *</label>
+                  <select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value, subjectIds: [] })} style={{ ...inputStyle, borderColor: !form.categoryId ? "#fca5a5" : "#d1d5db" }}>
+                    <option value="">-- Select Category (required) --</option>
                     {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>

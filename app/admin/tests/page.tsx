@@ -36,7 +36,16 @@ type TestDetail = {
     question: QuestionItem;
   }[];
 };
-type SeriesOption = { id: string; title: string };
+type SeriesOption = { id: string; title: string; categoryId?: string | null };
+
+// Category-based section presets
+const CATEGORY_SECTION_PRESETS: Record<string, string[]> = {
+  banking: ["Quantitative Aptitude", "Reasoning Ability", "English Language", "General Awareness", "Computer Knowledge"],
+  appsc: ["General Studies", "Mental Ability", "Current Affairs", "Telugu", "English"],
+  "ap police": ["Arithmetic", "Reasoning", "General Studies", "Telugu", "English"],
+  upsc: ["General Studies", "CSAT", "Essay", "Optional Paper I", "Optional Paper II"],
+  ssc: ["Quantitative Aptitude", "English Language", "General Intelligence", "General Awareness"],
+};
 
 // Add Questions
 type ReviewItem = {
@@ -925,7 +934,10 @@ export default function TestsPage() {
 
   const [testId, setTestId] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(false);
-  const [form, setForm] = useState({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", allowPause: false, strictSectionMode: false, seriesId: "" });
+  const [form, setForm] = useState({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", allowPause: false, strictSectionMode: false, seriesId: "", categoryId: "" });
+  const [hasSectionsManual, setHasSectionsManual] = useState(false);
+  const [sectionPresetOpen, setSectionPresetOpen] = useState<number | null>(null);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [sections, setSections] = useState<SectionState[]>([]);
   const [testQuestions, setTestQuestions] = useState<TestQuestionState[]>([]);
   const [saving, setSaving] = useState(false);
@@ -956,13 +968,17 @@ export default function TestsPage() {
   useEffect(() => { fetchList(); }, [fetchList]);
   useEffect(() => {
     fetch("/api/test-series?limit=100").then(r => r.json()).then(d => {
-      setSeriesList((d.data || []).map((s: any) => ({ id: s.id, title: s.title })));
+      setSeriesList((d.data || []).map((s: any) => ({ id: s.id, title: s.title, categoryId: s.categoryId || null })));
+    }).catch(() => {});
+    fetch("/api/taxonomy?limit=200").then(r => r.json()).then(d => {
+      setCategories((d.data || []).map((c: any) => ({ id: c.id, name: c.name })));
     }).catch(() => {});
   }, []);
 
   function openCreate() {
     setTestId(null); setIsPublished(false);
-    setForm({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", allowPause: false, strictSectionMode: false, seriesId: "" });
+    setForm({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", allowPause: false, strictSectionMode: false, seriesId: "", categoryId: "" });
+    setHasSectionsManual(false);
     setSections([]); setTestQuestions([]); setValidation(null);
     setView("builder");
   }
@@ -974,7 +990,8 @@ export default function TestsPage() {
       if (!res.ok) { showToast(d.error || "Failed", "error"); return; }
       const t: TestDetail = d.data;
       setTestId(t.id); setIsPublished(t.isPublished);
-      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(t.durationSec) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, seriesId: t.seriesId || "" });
+      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(t.durationSec) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, seriesId: t.seriesId || "", categoryId: (t as any).categoryId || "" });
+      setHasSectionsManual(t.sections.length > 0 || ["SECTIONAL", "MULTI_SECTION"].includes(t.mode));
       const flatSecs: SectionState[] = t.sections.map((s, i) => {
         const parentIndex = s.parentSectionId ? t.sections.findIndex(p => p.id === s.parentSectionId) : null;
         return { id: s.id, title: s.title, durationSec: s.durationSec ? String(s.durationSec) : "", targetCount: s.targetCount ? String(s.targetCount) : "", parentIndex: parentIndex === -1 ? null : parentIndex };
@@ -998,7 +1015,8 @@ export default function TestsPage() {
       const payload: any = {
         title: form.title, instructions: form.instructions, mode: form.mode,
         isTimed: form.isTimed, durationSec: form.durationSec || null,
-        allowPause: form.allowPause, strictSectionMode: form.strictSectionMode, seriesId: form.seriesId || null,
+        allowPause: form.allowPause, strictSectionMode: form.strictSectionMode,
+        seriesId: form.seriesId || null, categoryId: form.categoryId || null,
         sections: sections.map(s => ({ title: s.title, durationSec: s.durationSec || null, targetCount: s.targetCount || null, parentIndex: s.parentIndex })),
         questions: testQuestions.map(q => ({ questionId: q.questionId, sectionIndex: q.sectionIndex, marks: q.marks, negativeMarks: q.negativeMarks })),
       };
@@ -1163,8 +1181,10 @@ export default function TestsPage() {
     );
   }
 
-  const hasSections = ["SECTIONAL", "MULTI_SECTION"].includes(form.mode);
+  const hasSections = hasSectionsManual || ["SECTIONAL", "MULTI_SECTION"].includes(form.mode);
   const topLevelSections = sections.filter(s => s.parentIndex === null);
+  const selectedCategoryName = categories.find(c => c.id === form.categoryId)?.name?.toLowerCase() || "";
+  const sectionPresets = Object.entries(CATEGORY_SECTION_PRESETS).find(([key]) => selectedCategoryName.includes(key))?.[1] || [];
 
   // ─────────────────── BUILDER VIEW ───────────────────
   if (view === "builder") {
@@ -1199,6 +1219,53 @@ export default function TestsPage() {
                   <label style={lbl}>Instructions</label>
                   <textarea value={form.instructions} onChange={e => setForm({ ...form, instructions: e.target.value })} rows={2} style={{ ...inp, resize: "vertical" }} />
                 </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                  <div>
+                    <label style={lbl}>Category *</label>
+                    <select
+                      value={form.categoryId}
+                      onChange={e => {
+                        const newCatId = e.target.value;
+                        const selectedSeries = seriesList.find(s => s.id === form.seriesId);
+                        if (selectedSeries?.categoryId && newCatId && newCatId !== selectedSeries.categoryId) {
+                          showToast("Warning: this category does not match the selected series' category. The save will be blocked.", "error");
+                        }
+                        setForm({ ...form, categoryId: newCatId });
+                      }}
+                      style={inp}
+                    >
+                      <option value="">— Select Category —</option>
+                      {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={lbl}>Series</label>
+                    <select
+                      value={form.seriesId}
+                      onChange={e => {
+                        const s = seriesList.find(x => x.id === e.target.value);
+                        const newForm: typeof form = { ...form, seriesId: e.target.value };
+                        if (s?.categoryId) newForm.categoryId = s.categoryId;
+                        setForm(newForm);
+                      }}
+                      style={inp}
+                    >
+                      <option value="">— None —</option>
+                      {seriesList.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+                    </select>
+                  </div>
+                </div>
+                {(() => {
+                  const selectedSeries = seriesList.find(s => s.id === form.seriesId);
+                  if (selectedSeries?.categoryId && form.categoryId && form.categoryId !== selectedSeries.categoryId) {
+                    return (
+                      <div style={{ padding: "0.375rem 0.75rem", borderRadius: "6px", background: "#fef2f2", color: "#dc2626", fontSize: "0.8125rem", border: "1px solid #fecaca" }}>
+                        ⚠ Category mismatch — this test's category does not match the selected series. Please fix before saving.
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem" }}>
                   <div>
                     <label style={lbl}>Mode</label>
@@ -1210,16 +1277,13 @@ export default function TestsPage() {
                     <label style={lbl}>Total Duration (sec)</label>
                     <input type="number" value={form.durationSec} onChange={e => setForm({ ...form, durationSec: e.target.value })} style={inp} placeholder="e.g. 3600" />
                   </div>
-                  <div>
-                    <label style={lbl}>Series</label>
-                    <select value={form.seriesId} onChange={e => setForm({ ...form, seriesId: e.target.value })} style={inp}>
-                      <option value="">— None —</option>
-                      {seriesList.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
-                    </select>
-                  </div>
                 </div>
-                <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-                  {[["isTimed", "Timed"], ["allowPause", "Allow Pause"], ["strictSectionMode", "Strict Section Mode"]].map(([k, label]) => (
+                <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap", alignItems: "center" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.8125rem", fontWeight: 600, color: "#374151", cursor: "pointer" }}>
+                    <input type="checkbox" checked={hasSectionsManual} onChange={e => { setHasSectionsManual(e.target.checked); if (!e.target.checked) setSections([]); }} />
+                    Multiple Sections
+                  </label>
+                  {[["isTimed", "Timed"], ["allowPause", "Allow Pause"], ["strictSectionMode", "Strict Sections"]].map(([k, label]) => (
                     <label key={k} style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontSize: "0.8125rem" }}>
                       <input type="checkbox" checked={(form as any)[k]} onChange={e => setForm({ ...form, [k]: e.target.checked })} /> {label}
                     </label>
@@ -1235,7 +1299,38 @@ export default function TestsPage() {
                   <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 700, color: "#374151" }}>
                     Sections & Subsections
                   </h3>
-                  <button onClick={addTopLevelSection} style={btn(BRAND.purple)}>+ Add Section</button>
+                  <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", position: "relative" }}>
+                    {sectionPresets.length > 0 && (
+                      <div style={{ position: "relative" }}>
+                        <button
+                          onClick={() => setSectionPresetOpen(sectionPresetOpen === -1 ? null : -1)}
+                          style={{ ...btn("#6b7280"), fontSize: "0.75rem" }}
+                          title="Add preset sections for this category"
+                        >
+                          ★ Preset Sections ▾
+                        </button>
+                        {sectionPresetOpen === -1 && (
+                          <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "6px", boxShadow: "0 4px 16px rgba(0,0,0,0.12)", zIndex: 50, minWidth: "200px" }}>
+                            {sectionPresets.map(preset => (
+                              <button
+                                key={preset}
+                                onClick={() => {
+                                  setSections(prev => [...prev, { title: preset, durationSec: "", targetCount: "", parentIndex: null }]);
+                                  setSectionPresetOpen(null);
+                                }}
+                                style={{ display: "block", width: "100%", textAlign: "left", padding: "0.375rem 0.75rem", background: "transparent", border: "none", borderBottom: "1px solid #f1f5f9", fontSize: "0.8125rem", cursor: "pointer", color: "#374151" }}
+                                onMouseEnter={e => (e.currentTarget.style.background = "#f8fafc")}
+                                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                              >
+                                {preset}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <button onClick={addTopLevelSection} style={btn(BRAND.purple)}>+ Add Section</button>
+                  </div>
                 </div>
                 {sections.length === 0 && <p style={{ color: "#888", fontSize: "0.8rem" }}>No sections yet.</p>}
                 {topLevelSections.map(sec => {
@@ -1258,7 +1353,7 @@ export default function TestsPage() {
                         {countBadge(idx)}
                         <button onClick={() => openAddQ(idx)} style={btn("#059669")} title="Add questions to this section">+ Q</button>
                         <button onClick={() => addSubsection(idx)} style={btn("#7c3aed")} title="Add subsection">+ Sub</button>
-                        <button onClick={() => deleteSection(idx)} style={btn("#dc2626")} title="Delete section">✕</button>
+                        <button onClick={() => deleteSection(idx)} style={{ ...btn("#dc2626"), fontSize: "0.7rem" }} title="Remove this section from the test">✕ Remove</button>
                       </div>
 
                       {/* Timer pool display */}
@@ -1281,7 +1376,7 @@ export default function TestsPage() {
                           <input type="number" value={sub.targetCount} onChange={e => updateSection(subIdx, { targetCount: e.target.value })} style={{ ...inp, width: "55px" }} placeholder="# Q" title="Target question count" />
                           {countBadge(subIdx)}
                           <button onClick={() => openAddQ(subIdx)} style={btn("#059669")} title="Add questions to this subsection">+ Q</button>
-                          <button onClick={() => deleteSection(subIdx)} style={btn("#dc2626")}>✕</button>
+                          <button onClick={() => deleteSection(subIdx)} style={{ ...btn("#dc2626"), fontSize: "0.7rem" }} title="Remove this subsection from the test">✕ Remove</button>
                         </div>
                       ))}
                     </div>
@@ -1346,7 +1441,7 @@ export default function TestsPage() {
                           <div style={{ display: "flex", gap: "0.2rem" }}>
                             <button onClick={() => moveQuestion(i, -1)} disabled={i === 0} style={btn(i === 0 ? "#e2e8f0" : "#6b7280", i === 0 ? "#94a3b8" : "#fff")}>↑</button>
                             <button onClick={() => moveQuestion(i, 1)} disabled={i === testQuestions.length - 1} style={btn(i === testQuestions.length - 1 ? "#e2e8f0" : "#6b7280", i === testQuestions.length - 1 ? "#94a3b8" : "#fff")}>↓</button>
-                            <button onClick={() => removeQuestion(i)} style={btn("#dc2626")}>✕</button>
+                            <button onClick={() => removeQuestion(i)} style={{ ...btn("#dc2626"), fontSize: "0.75rem" }} title="Remove from test">Remove</button>
                           </div>
                         </td>
                       </tr>

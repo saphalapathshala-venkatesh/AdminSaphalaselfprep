@@ -74,6 +74,7 @@ export default function QuestionBankPage() {
   const [filterSubjectId, setFilterSubjectId] = useState("");
   const [filterTopicId, setFilterTopicId] = useState("");
   const [filterSubtopicId, setFilterSubtopicId] = useState("");
+  const [filterSourceTag, setFilterSourceTag] = useState("");
   const [search, setSearch] = useState("");
 
   const [categories, setCategories] = useState<TaxItem[]>([]);
@@ -126,6 +127,9 @@ export default function QuestionBankPage() {
   const [bulkSubtopics, setBulkSubtopics] = useState<TaxItem[]>([]);
 
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; stem: string } | null>(null);
+  const [deleteUsageWarning, setDeleteUsageWarning] = useState<{ id: string; stem: string; usageCount: number; message: string } | null>(null);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   function showToast(msg: string, type: "success" | "error") {
@@ -216,6 +220,7 @@ export default function QuestionBankPage() {
     if (filterSubjectId) params.set("subjectId", filterSubjectId);
     if (filterTopicId) params.set("topicId", filterTopicId);
     if (filterSubtopicId) params.set("subtopicId", filterSubtopicId);
+    if (filterSourceTag) params.set("sourceTag", filterSourceTag);
     if (search) params.set("search", search);
 
     try {
@@ -229,7 +234,7 @@ export default function QuestionBankPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, filterType, filterStatus, filterDifficulty, filterCategoryId, filterSubjectId, filterTopicId, filterSubtopicId, search]);
+  }, [page, filterType, filterStatus, filterDifficulty, filterCategoryId, filterSubjectId, filterTopicId, filterSubtopicId, filterSourceTag, search]);
 
   useEffect(() => {
     fetchQuestions();
@@ -404,21 +409,28 @@ export default function QuestionBankPage() {
     await handleSave(true);
   }
 
-  async function handleDelete() {
-    if (!deleteConfirm) return;
+  async function handleDelete(force = false) {
+    const target = deleteConfirm || (deleteUsageWarning ? { id: deleteUsageWarning.id, stem: deleteUsageWarning.stem } : null);
+    if (!target) return;
     try {
-      const res = await fetch(`/api/questions/${deleteConfirm.id}`, {
-        method: "DELETE",
-      });
+      const url = `/api/questions/${target.id}${force ? "?force=true" : ""}`;
+      const res = await fetch(url, { method: "DELETE" });
       const data = await res.json();
+
+      if (data.warning && !force) {
+        setDeleteConfirm(null);
+        setDeleteUsageWarning({ id: target.id, stem: target.stem, usageCount: data.usageCount, message: data.message });
+        return;
+      }
+
       if (!res.ok) {
         showToast(data.error || "Delete failed", "error");
         return;
       }
-      showToast("Question deleted", "success");
+      showToast("Question deleted from Question Bank", "success");
       setSelected((prev) => {
         const next = new Set(prev);
-        next.delete(deleteConfirm.id);
+        next.delete(target.id);
         return next;
       });
       fetchQuestions();
@@ -426,7 +438,25 @@ export default function QuestionBankPage() {
       showToast("Delete failed", "error");
     } finally {
       setDeleteConfirm(null);
+      setDeleteUsageWarning(null);
     }
+  }
+
+  async function handleBulkDelete() {
+    setBulkDeleting(true);
+    let deleted = 0, failed = 0;
+    for (const id of Array.from(selected)) {
+      try {
+        const res = await fetch(`/api/questions/${id}?force=true`, { method: "DELETE" });
+        if (res.ok) deleted++;
+        else failed++;
+      } catch { failed++; }
+    }
+    setBulkDeleting(false);
+    setBulkDeleteConfirm(false);
+    setSelected(new Set());
+    showToast(`${deleted} deleted${failed > 0 ? `, ${failed} failed` : ""}`, deleted > 0 ? "success" : "error");
+    fetchQuestions();
   }
 
   function toggleSelect(id: string) {
@@ -810,23 +840,45 @@ export default function QuestionBankPage() {
     );
   }
 
+  const foundationalCount = questions.filter(q => q.difficulty === "FOUNDATIONAL").length;
+  const proficientCount = questions.filter(q => q.difficulty === "PROFICIENT").length;
+  const masteryCount = questions.filter(q => q.difficulty === "MASTERY").length;
+
   return (
     <div style={{ fontFamily: "system-ui, sans-serif" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
         <h1 style={{ fontSize: "1.5rem", fontWeight: 600, color: "#111", margin: 0 }}>
           Question Bank
-          <span style={{ fontSize: "0.875rem", fontWeight: 400, color: "#6b7280", marginLeft: "0.5rem" }}>
-            ({total} total)
-          </span>
         </h1>
         <div style={{ display: "flex", gap: "0.5rem" }}>
           {selected.size > 0 && (
-            <button onClick={openBulkEdit} style={{ ...btnStyle, backgroundColor: "#7c3aed" }}>
-              Bulk Edit ({selected.size})
-            </button>
+            <>
+              <button onClick={openBulkEdit} style={{ ...btnStyle, backgroundColor: "#7c3aed" }}>
+                Bulk Edit ({selected.size})
+              </button>
+              <button onClick={() => setBulkDeleteConfirm(true)} style={{ ...btnStyle, backgroundColor: "#dc2626" }}>
+                Delete Selected ({selected.size})
+              </button>
+            </>
           )}
           <button onClick={startCreate} style={btnStyle}>+ New Question</button>
         </div>
+      </div>
+
+      {/* Stats bar */}
+      <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+        {[
+          { label: "Total in Bank", value: total, color: "#7c3aed", bg: "#f5f3ff" },
+          { label: "Showing (filtered)", value: questions.length, color: "#0369a1", bg: "#eff6ff" },
+          { label: "Foundational", value: foundationalCount, color: "#1e40af", bg: "#dbeafe" },
+          { label: "Proficient", value: proficientCount, color: "#92400e", bg: "#fef3c7" },
+          { label: "Mastery", value: masteryCount, color: "#9d174d", bg: "#fce7f3" },
+        ].map(({ label, value, color, bg }) => (
+          <div key={label} style={{ background: bg, border: `1px solid ${color}20`, borderRadius: "8px", padding: "0.5rem 0.875rem", minWidth: "110px" }}>
+            <div style={{ fontSize: "0.6875rem", color, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.03em" }}>{label}</div>
+            <div style={{ fontSize: "1.25rem", fontWeight: 700, color, lineHeight: 1.2 }}>{value.toLocaleString()}</div>
+          </div>
+        ))}
       </div>
 
       {toast && (
@@ -922,6 +974,16 @@ export default function QuestionBankPage() {
               </select>
             </div>
           )}
+          <div>
+            <label style={filterLabelStyle}>Source Tag</label>
+            <input
+              type="text"
+              value={filterSourceTag}
+              onChange={(e) => { setFilterSourceTag(e.target.value); setPage(1); }}
+              placeholder="e.g. PYQ_2023"
+              style={{ ...inputStyle, width: "110px" }}
+            />
+          </div>
         </div>
       </div>
 
@@ -941,19 +1003,20 @@ export default function QuestionBankPage() {
               <th style={thStyle}>Difficulty</th>
               <th style={thStyle}>Status</th>
               <th style={thStyle}>Taxonomy</th>
+              <th style={thStyle}>In Tests</th>
               <th style={thStyle}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>
+                <td colSpan={8} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>
                   Loading...
                 </td>
               </tr>
             ) : questions.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>
+                <td colSpan={8} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>
                   No questions found. Create one to get started.
                 </td>
               </tr>
@@ -1014,9 +1077,18 @@ export default function QuestionBankPage() {
                     </span>
                   </td>
                   <td style={tdStyle}>
+                    {(q as any)._count?.testQuestions > 0 ? (
+                      <span style={{ display: "inline-block", padding: "1px 6px", borderRadius: "9999px", fontSize: "0.6875rem", fontWeight: 600, background: "#fef9c3", color: "#78350f" }} title={`Used in ${(q as any)._count.testQuestions} test(s)`}>
+                        {(q as any)._count.testQuestions} test{(q as any)._count.testQuestions > 1 ? "s" : ""}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: "0.6875rem", color: "#94a3b8" }}>—</span>
+                    )}
+                  </td>
+                  <td style={tdStyle}>
                     <div style={{ display: "flex", gap: "0.25rem" }}>
                       <button onClick={() => startEdit(q)} style={{ ...btnSmall, backgroundColor: "#7c3aed" }}>Edit</button>
-                      <button onClick={() => setDeleteConfirm({ id: q.id, stem: q.stem })} style={{ ...btnSmall, backgroundColor: "#dc2626" }}>Del</button>
+                      <button onClick={() => setDeleteConfirm({ id: q.id, stem: q.stem })} style={{ ...btnSmall, backgroundColor: "#dc2626" }}>Delete</button>
                     </div>
                   </td>
                 </tr>
@@ -1051,16 +1123,57 @@ export default function QuestionBankPage() {
       {deleteConfirm && (
         <div style={modalOverlay}>
           <div style={modalBox}>
-            <h3 style={{ margin: "0 0 0.75rem", fontSize: "1rem", fontWeight: 600 }}>Delete Question</h3>
-            <p style={{ fontSize: "0.875rem", color: "#333", marginBottom: "1rem" }}>
-              Are you sure you want to delete this question?
+            <h3 style={{ margin: "0 0 0.75rem", fontSize: "1rem", fontWeight: 600 }}>Delete from Question Bank</h3>
+            <p style={{ fontSize: "0.875rem", color: "#333", marginBottom: "0.5rem" }}>
+              This will permanently remove the question from the Question Bank. Questions can only be deleted here, not from individual tests.
             </p>
-            <p style={{ fontSize: "0.8125rem", color: "#666", marginBottom: "1rem", fontStyle: "italic" }}>
-              &ldquo;{deleteConfirm.stem.substring(0, 120)}...&rdquo;
+            <p style={{ fontSize: "0.8125rem", color: "#666", marginBottom: "1rem", fontStyle: "italic", padding: "0.5rem", background: "#f8fafc", borderRadius: "4px" }}>
+              &ldquo;{deleteConfirm.stem.substring(0, 150)}&rdquo;
             </p>
             <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
               <button onClick={() => setDeleteConfirm(null)} style={{ ...btnStyle, backgroundColor: "#6b7280" }}>Cancel</button>
-              <button onClick={handleDelete} style={{ ...btnStyle, backgroundColor: "#dc2626" }}>Delete</button>
+              <button onClick={() => handleDelete(false)} style={{ ...btnStyle, backgroundColor: "#dc2626" }}>Delete from Bank</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteUsageWarning && (
+        <div style={modalOverlay}>
+          <div style={modalBox}>
+            <h3 style={{ margin: "0 0 0.75rem", fontSize: "1rem", fontWeight: 600, color: "#dc2626" }}>⚠ Question Used in Tests</h3>
+            <div style={{ padding: "0.75rem", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px", marginBottom: "1rem" }}>
+              <p style={{ fontSize: "0.875rem", color: "#991b1b", margin: "0 0 0.25rem", fontWeight: 600 }}>{deleteUsageWarning.message}</p>
+            </div>
+            <p style={{ fontSize: "0.8125rem", color: "#666", marginBottom: "1rem", fontStyle: "italic", padding: "0.5rem", background: "#f8fafc", borderRadius: "4px" }}>
+              &ldquo;{deleteUsageWarning.stem.substring(0, 150)}&rdquo;
+            </p>
+            <p style={{ fontSize: "0.8125rem", color: "#374151", marginBottom: "1rem" }}>
+              Deleting will remove this question from the Question Bank and from all tests it is currently attached to. This cannot be undone.
+            </p>
+            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+              <button onClick={() => setDeleteUsageWarning(null)} style={{ ...btnStyle, backgroundColor: "#6b7280" }}>Cancel</button>
+              <button onClick={() => handleDelete(true)} style={{ ...btnStyle, backgroundColor: "#dc2626" }}>Force Delete Anyway</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkDeleteConfirm && (
+        <div style={modalOverlay}>
+          <div style={modalBox}>
+            <h3 style={{ margin: "0 0 0.75rem", fontSize: "1rem", fontWeight: 600 }}>Bulk Delete from Question Bank</h3>
+            <p style={{ fontSize: "0.875rem", color: "#333", marginBottom: "1rem" }}>
+              You are about to delete <strong>{selected.size} question{selected.size > 1 ? "s" : ""}</strong> from the Question Bank. Questions used in tests will be force-deleted and removed from those tests as well.
+            </p>
+            <p style={{ fontSize: "0.8125rem", color: "#dc2626", marginBottom: "1rem", fontWeight: 600 }}>
+              This action cannot be undone. Questions can only be deleted from the Question Bank, never from individual tests.
+            </p>
+            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+              <button onClick={() => setBulkDeleteConfirm(false)} style={{ ...btnStyle, backgroundColor: "#6b7280" }}>Cancel</button>
+              <button onClick={handleBulkDelete} disabled={bulkDeleting} style={{ ...btnStyle, backgroundColor: "#dc2626" }}>
+                {bulkDeleting ? "Deleting..." : `Delete ${selected.size} Question${selected.size > 1 ? "s" : ""}`}
+              </button>
             </div>
           </div>
         </div>

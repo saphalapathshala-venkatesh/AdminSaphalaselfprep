@@ -251,12 +251,23 @@ export async function DELETE(
   const { id } = params;
 
   try {
+    const forceDelete = new URL(req.url).searchParams.get("force") === "true";
+
     const existing = await prisma.question.findUnique({
       where: { id },
-      select: { id: true, stem: true, type: true, status: true },
+      select: { id: true, stem: true, type: true, status: true, _count: { select: { testQuestions: true } } },
     });
     if (!existing) {
       return NextResponse.json({ error: "Question not found" }, { status: 404 });
+    }
+
+    const usageCount = existing._count.testQuestions;
+    if (usageCount > 0 && !forceDelete) {
+      return NextResponse.json({
+        warning: true,
+        usageCount,
+        message: `This question is used in ${usageCount} test${usageCount > 1 ? "s" : ""}. Deleting it will remove it from those tests. Pass force=true to confirm deletion.`,
+      }, { status: 200 });
     }
 
     await prisma.question.delete({ where: { id } });

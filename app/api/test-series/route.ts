@@ -141,6 +141,13 @@ export async function DELETE(req: NextRequest) {
     const existing = await prisma.testSeries.findUnique({ where: { id } });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+    const publishedTestCount = await prisma.test.count({ where: { seriesId: id, isPublished: true } });
+    if (publishedTestCount > 0) {
+      return NextResponse.json({
+        error: `Cannot delete: this series has ${publishedTestCount} published test${publishedTestCount > 1 ? "s" : ""}. Unpublish all tests in this series before deleting it.`,
+      }, { status: 400 });
+    }
+
     if (existing.isPublished && user.role !== "SUPER_ADMIN") {
       return NextResponse.json({ error: "Only SUPER_ADMIN can delete published series" }, { status: 403 });
     }

@@ -1,0 +1,326 @@
+Task: Finalize Saphala Admin Tests + Question Bank structure based on the locked product decisions below.
+
+CRITICAL CONSTRAINTS
+- Do NOT include or rework already completed tasks
+- Do NOT touch completed login/logout improvements
+- Do NOT re-implement already finished Add Questions work unless needed only for clean integration with this task
+- Keep the scope limited to Tests builder structure, deletion governance, and Question Bank management behavior
+- LIVE Neon DB and Prisma schema must remain in exact sync
+- Before any DB-related change, inspect current Prisma schema and existing live usage carefully
+- Do NOT introduce schema drift
+- Do NOT run speculative or unnecessary migrations
+- If schema change is absolutely required, make only the minimum safe change after verifying current live DB alignment
+- Preserve current auth, role guards, admin protections, and working admin flows
+- Do NOT modify unrelated menus/modules
+
+SCOPE OF THIS TASK ONLY
+Implement only these not-yet-finalized areas:
+1. Test-level category mapping
+2. Multiple sections checkbox behavior
+3. Section/subsection builder structure
+4. Reusable category-based section labels/presets in test creation
+5. Deletion rules for tests / test series / sections / subsections / question attachments
+6. Separate Question Bank sidebar workflow with taxonomy-based filtering, counts, single-question editing, and question deletion only from Question Bank
+
+DO NOT include already completed login/logout work.
+DO NOT repeat already completed generic UI polishing tasks unless required for this scope.
+
+==================================================
+PART 1 — TEST BUILDER: CATEGORY MAPPING
+==================================================
+
+Implement category mapping at the test level.
+
+Requirements:
+- Each test must be mapped to a category
+- Category selection should appear before section-building logic
+- Category should drive reusable section suggestions / labels for future tests in that category
+- Category is mandatory for serious structured tests; implement it as required in the test builder flow if practical
+
+Goal:
+When creating a new test, admin first chooses the category, and then section-building behavior can use category-specific defaults/suggestions.
+
+==================================================
+PART 2 — MULTIPLE SECTIONS CHECKBOX
+==================================================
+
+Add a checkbox in the test builder:
+
+[ ] Multiple Sections
+
+Behavior:
+- If unchecked:
+  - keep simple test flow
+  - section/subsection builder should remain hidden
+  - test can behave as a simpler single-block test structure
+- If checked:
+  - show section builder UI
+  - show add section button
+  - allow section-wise and subsection-wise structure creation
+
+This checkbox should control whether advanced section UI appears.
+
+==================================================
+PART 3 — SECTION + SUBSECTION BUILDER
+==================================================
+
+When “Multiple Sections” is enabled, implement:
+
+- + Add Section button
+- inside each section, + Add Subsection button
+- section rows/cards should support reuse of category-linked section labels
+- subsection creation should remain flexible and manual where needed
+
+Required behavior:
+Test
+→ Section
+→ Subsection (optional)
+
+Subsection notes:
+- subsections exist inside sections
+- some sections may have no subsections
+- subsection timer logic has already been locked conceptually; do not unnecessarily rework already completed timer logic if it exists
+- only integrate subsection structure properly into builder if not already completed
+
+==================================================
+PART 4 — CATEGORY-BASED REUSABLE SECTION LABELS
+==================================================
+
+When a category is selected and Multiple Sections is enabled:
+
+The UI should offer:
+- dropdown/select of already labeled sections associated with that category
+- option to use an existing section label
+- + Add Section option for creating a new custom section if needed
+
+Important:
+- reusable section labels should help standardize future tests in the same category
+- but the system must remain flexible: admin can still add custom sections/subsections
+- section labels loaded from category suggestions should remain editable if practical
+- avoid rigid forcing of presets only
+
+Good examples:
+- Banking category → Quant / Reasoning / English
+- APPSC category → General Studies / Mental Ability / Current Affairs
+- AP Police category → Arithmetic / Reasoning / General Studies
+
+If feasible, structure the code so category-level full section templates can be supported later, but do not over-engineer if that is outside current safe scope.
+
+==================================================
+PART 5 — DELETION GOVERNANCE RULES
+==================================================
+
+Implement these deletion rules safely and clearly.
+
+A. Test Series deletion
+- A test series can be deleted ONLY if it has no published tests
+- If published tests exist, block deletion
+- Show a clear message explaining why deletion is blocked
+
+B. Test deletion
+- Tests can be deleted
+- Deleting a test must NOT delete underlying questions from Question Bank
+- It should only remove the test structure / associations safely
+
+C. Section deletion
+- Sections can be deleted from a test
+- Deleting a section must NOT delete underlying bank questions
+- It should only remove section/test structure or section-question associations as appropriate
+
+D. Subsection deletion
+- Subsections can be deleted from a test
+- Deleting a subsection must NOT delete underlying bank questions
+- It should only remove subsection/test structure or subsection-question associations as appropriate
+
+E. Question deletion rule
+- Questions must be deleted ONLY through the Question Bank
+- Do NOT allow destructive question deletion from tests / sections / subsections / test builder
+- In test builder, use wording like:
+  - Remove from Test
+  - Remove from Section
+  - Remove from Subsection
+  not “Delete Question”
+
+This distinction is very important.
+
+==================================================
+PART 6 — QUESTION BANK AS A SEPARATE SIDEBAR MENU
+==================================================
+
+Preserve / finalize Question Bank as its own dedicated sidebar menu for question asset management.
+
+Question Bank responsibilities:
+- browse stored questions
+- filter using taxonomy
+- show counts
+- edit one question at a time
+- bulk select via checkboxes
+- delete questions only here
+- never confuse this with Add Questions in test builder
+
+This must remain clearly separate from test-building workflows.
+
+==================================================
+PART 7 — QUESTION BANK FILTERING
+==================================================
+
+In Question Bank, implement strong taxonomy-based filtering.
+
+Required filters:
+- Category
+- Subject
+- Topic
+- Subtopic
+- Difficulty
+- Question Type
+- Source Tag
+
+If some of these already exist, improve and align them cleanly rather than duplicating.
+
+Goal:
+Admin should be able to quickly narrow down questions based on taxonomy structure and question metadata.
+
+==================================================
+PART 8 — QUESTION BANK COUNTS / VISIBILITY
+==================================================
+
+Question Bank should clearly show counts based on taxonomy and filters.
+
+Required visibility:
+- total question count overall
+- count for selected category
+- count for selected subject
+- count by difficulty level
+- count of currently filtered results
+
+Examples:
+- Total Questions: 12,480
+- Category: Polity → 1,240
+- Subject/Topic filtered result count
+- Easy / Medium / Hard counts for current filter
+
+Use practical UI presentation:
+- summary cards
+- count chips
+- header stats
+- or equivalent clean admin UI
+
+The main point:
+Question Bank should show both total and filtered visibility grounded in taxonomy.
+
+==================================================
+PART 9 — QUESTION BANK EDITING + BULK SELECTION
+==================================================
+
+Editing behavior:
+- edit one question at a time
+- keep editing workflow safe and focused
+- do not turn Question Bank into a cluttered mass inline editor
+
+Selection behavior:
+- checkbox against each question row/card
+- support bulk selection
+- support bulk delete from Question Bank only
+
+If practical, use table layout for admin-scale usability.
+A card/table hybrid is acceptable, but table-like admin efficiency is preferred.
+
+==================================================
+PART 10 — QUESTION DELETION BEHAVIOR IN QUESTION BANK
+==================================================
+
+Question deletion should happen only in Question Bank.
+
+Implement:
+- single delete
+- bulk delete using checkboxes
+
+Additional safety:
+- before deletion, show whether question is used in tests / published tests if practical
+- if a question is used somewhere important, either:
+  - block deletion, or
+  - show strong warning / confirmation
+Use the safest practical approach.
+
+Soft delete / archive is preferred if safely feasible with current architecture.
+If soft delete is too large for this phase, use strong confirmation and usage warnings.
+
+Important:
+Do not silently break published tests by destructive deletion behavior.
+
+==================================================
+PART 11 — TEST / QUESTION OWNERSHIP SEPARATION
+==================================================
+
+Preserve this architectural rule clearly:
+
+- Tests and Test Series are containers/assemblies
+- Question Bank owns question assets
+- Deleting tests/test series/sections/subsections must not destroy Question Bank data
+- Question assets are centrally managed in Question Bank
+
+This ownership separation must be reflected both in code behavior and admin wording.
+
+==================================================
+PART 12 — INTEGRATION EXPECTATIONS
+==================================================
+
+Integrate these changes into the current admin without breaking existing flows.
+
+Expected UX:
+1. Create/Edit Test
+2. Select Category
+3. Decide whether Multiple Sections is enabled
+4. If enabled:
+   - add/reuse sections
+   - add subsections as needed
+5. Use Add Questions flow for populating the structure
+6. In Test Builder, only remove question attachments from test structure
+7. In Question Bank, manage actual question editing/deletion/filtering/counts
+
+==================================================
+PART 13 — LIVE DB / SCHEMA SAFETY
+==================================================
+
+Again:
+- LIVE DB and Prisma schema must remain exactly aligned
+- inspect current schema and live usage before touching models
+- no unnecessary migrations
+- no speculative schema redesign
+- if no schema change is needed, do not make one
+- if schema change is absolutely necessary, keep it minimal and safe, and verify compatibility with current live data
+
+==================================================
+EXPECTED OUTPUT FROM REPLIT
+==================================================
+
+1. Implement test-level category mapping in test builder
+2. Add Multiple Sections checkbox behavior
+3. Add section/subsection builder visibility and actions
+4. Add category-driven reusable section labels/dropdowns with add-section flexibility
+5. Implement safe deletion governance for test series / tests / sections / subsections / question attachments
+6. Finalize separate Question Bank management behavior
+7. Add taxonomy-based filters and counts in Question Bank
+8. Support one-question-at-a-time editing and checkbox-based bulk delete in Question Bank
+9. Keep schema and LIVE DB in exact sync
+10. Briefly report:
+   - exact files changed
+   - whether any schema change was actually required
+   - how live DB/schema safety was preserved
+   - any important limitations or safe staged decisions
+
+ACCEPTANCE CRITERIA
+- Test builder has category mapping
+- Multiple Sections checkbox controls section/subsection builder visibility
+- Add Section button appears when Multiple Sections is enabled
+- Category-based section label reuse/dropdown is available while still allowing custom sections/subsections
+- Test series deletion is blocked if published tests exist
+- Deleting tests/sections/subsections does not delete Question Bank questions
+- Questions can be deleted only from Question Bank
+- Question Bank remains a separate sidebar menu
+- Question Bank supports taxonomy-based filtering
+- Question Bank shows total and filtered counts based on taxonomy/difficulty
+- Question Bank supports one-question-at-a-time editing
+- Question Bank supports checkbox-based bulk delete
+- Schema and LIVE DB remain exactly aligned
+- No unrelated completed tasks are reworked

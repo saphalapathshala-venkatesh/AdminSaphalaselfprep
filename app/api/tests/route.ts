@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
         skip,
         take: limit,
         include: {
-          series: { select: { id: true, title: true } },
+          series: { select: { id: true, title: true, categoryId: true } },
           _count: { select: { questions: true, sections: true } },
         },
       }),
@@ -55,10 +55,24 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { title, instructions, mode, isTimed, durationSec, allowPause, strictSectionMode, seriesId } = body;
+    let { categoryId } = body;
 
     if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
     if (!mode || !["TIMED", "SECTIONAL", "MULTI_SECTION"].includes(mode)) {
       return NextResponse.json({ error: "Invalid mode" }, { status: 400 });
+    }
+
+    if (seriesId) {
+      const series = await prisma.testSeries.findUnique({ where: { id: seriesId }, select: { categoryId: true } });
+      if (!series) return NextResponse.json({ error: "Test series not found" }, { status: 400 });
+      if (series.categoryId) {
+        if (categoryId && categoryId !== series.categoryId) {
+          return NextResponse.json({
+            error: "Category mismatch: the selected test series belongs to a different category. Please choose a series that matches the selected category, or clear the category field.",
+          }, { status: 400 });
+        }
+        categoryId = series.categoryId;
+      }
     }
 
     const test = await prisma.test.create({
@@ -71,6 +85,7 @@ export async function POST(req: NextRequest) {
         allowPause: allowPause || false,
         strictSectionMode: strictSectionMode || false,
         seriesId: seriesId || null,
+        categoryId: categoryId || null,
         createdById: user.id,
       },
       include: {
@@ -101,6 +116,7 @@ export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
     const { id, title, instructions, mode, isTimed, durationSec, allowPause, strictSectionMode, seriesId, sections, questions } = body;
+    let { categoryId } = body;
 
     if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
 
@@ -109,6 +125,20 @@ export async function PUT(req: NextRequest) {
       include: { sections: true, questions: true },
     });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const resolvedSeriesId = seriesId !== undefined ? (seriesId || null) : existing.seriesId;
+    if (resolvedSeriesId) {
+      const series = await prisma.testSeries.findUnique({ where: { id: resolvedSeriesId }, select: { categoryId: true } });
+      if (series?.categoryId) {
+        const resolvedCategoryId = categoryId !== undefined ? (categoryId || null) : existing.categoryId;
+        if (resolvedCategoryId && resolvedCategoryId !== series.categoryId) {
+          return NextResponse.json({
+            error: "Category mismatch: the selected test series belongs to a different category. Please choose a series that matches the selected category.",
+          }, { status: 400 });
+        }
+        if (categoryId === undefined) categoryId = series.categoryId;
+      }
+    }
 
     const result = await prisma.$transaction(async (tx) => {
       const updated = await tx.test.update({
@@ -121,7 +151,8 @@ export async function PUT(req: NextRequest) {
           durationSec: durationSec !== undefined ? (durationSec ? parseInt(durationSec) : null) : existing.durationSec,
           allowPause: allowPause !== undefined ? allowPause : existing.allowPause,
           strictSectionMode: strictSectionMode !== undefined ? strictSectionMode : existing.strictSectionMode,
-          seriesId: seriesId !== undefined ? (seriesId || null) : existing.seriesId,
+          seriesId: resolvedSeriesId,
+          categoryId: categoryId !== undefined ? (categoryId || null) : existing.categoryId,
         },
       });
 
