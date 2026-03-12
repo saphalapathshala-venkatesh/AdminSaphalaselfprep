@@ -116,3 +116,31 @@ Fully tabbed client component with 6 sections:
 - New "Shuffle Settings" card below the existing checkboxes
 - `shuffleGroups` and `shuffleGroupChildren` are nested under `shuffleQuestions` (only shown when it is checked)
 - `shuffleOptions` shows an inline amber warning note explaining value-based scoring when enabled
+
+## Rich Content Support — Images, Screenshots, and Equations (March 2026)
+
+### Design
+- **Zero schema changes** — `Question.stem`, `Question.explanation`, and `QuestionOption.text` are `String` fields that now store HTML. Existing plain text is valid HTML and renders correctly (fully backward compatible).
+- **Images stored as base64 data URIs** embedded inline in the HTML — no external file storage required.
+- **Equations stored as** `<span class="math-eq" data-latex="...">$$source$$</span>` markers within the HTML, rendered client-side via KaTeX.
+
+### New Files
+- `lib/htmlUtils.ts` — `stripHtml(html)` and `hasVisibleText(html)` utilities; used in API validation and content-hash normalization
+- `components/ui/RichEditor.tsx` — `contenteditable` rich text editor for admin question forms; supports:
+  - Direct image/screenshot paste from clipboard (Ctrl+V)
+  - Image file upload via toolbar button
+  - Equation insertion via LaTeX dialog (∑ button)
+  - Bold / italic via toolbar
+- `components/ui/RichContent.tsx` — client-side renderer for stored HTML; finds `.math-eq` spans and renders them with KaTeX (dynamic import)
+
+### Updated Files
+- `lib/questionHash.ts` — `normalizeText()` now calls `stripHtml()` before normalization; hash/similarity remain meaningful when content contains HTML
+- `app/api/questions/route.ts` — option text validation uses `hasVisibleText()` instead of `.trim()`
+- `app/api/questions/[id]/route.ts` — same
+- `app/admin/question-bank/page.tsx` — Question Stem, all MCQ Option fields, and Explanation now use `RichEditor`; list/table uses `stripHtml()` for truncated plain-text preview; delete dialogs use `stripHtml()` for quoted preview
+
+### Equation Format
+Equations are stored as `<span class="math-eq" data-latex="LaTeX source">$$LaTeX source$$</span>`. Inserted via the ∑ toolbar button, which opens an inline LaTeX input dialog. KaTeX renders them client-side after component mount.
+
+### Dependency Added
+- `katex` + `@types/katex` — equation rendering (dynamic import, zero SSR overhead)

@@ -1,7 +1,8 @@
 import { createHash } from "crypto";
+import { stripHtml } from "./htmlUtils";
 
 export function normalizeText(text: string): string {
-  return text
+  return stripHtml(text)
     .toLowerCase()
     .replace(/[\s\r\n]+/g, " ")
     .replace(/[^\w\s]/g, "")

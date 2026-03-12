@@ -8,6 +8,7 @@ import {
   computeContentHash,
   computeSimilarity,
 } from "@/lib/questionHash";
+import { hasVisibleText } from "@/lib/htmlUtils";
 
 const VALID_TYPES = [
   "MCQ_SINGLE",
@@ -63,7 +64,7 @@ export async function PUT(
       difficulty && VALID_DIFFICULTIES.includes(difficulty)
         ? difficulty
         : existing.difficulty;
-    const finalStem = stem && typeof stem === "string" && stem.trim() ? stem.trim() : existing.stem;
+    const finalStem = stem && typeof stem === "string" && hasVisibleText(stem) ? stem : existing.stem;
     const finalStatus =
       qStatus && VALID_STATUSES.includes(qStatus) ? qStatus : existing.status;
 
@@ -78,11 +79,11 @@ export async function PUT(
         );
       }
       validatedOptions = options.map((o: any, i: number) => ({
-        text: String(o.text || "").trim(),
+        text: String(o.text || ""),
         isCorrect: Boolean(o.isCorrect),
         order: i,
       }));
-      if (validatedOptions.some((o) => !o.text)) {
+      if (validatedOptions.some((o) => !hasVisibleText(o.text))) {
         return NextResponse.json({ error: "All options must have text" }, { status: 400 });
       }
       const correctCount = validatedOptions.filter((o) => o.isCorrect).length;

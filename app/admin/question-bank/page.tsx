@@ -1,6 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
+import { stripHtml, hasVisibleText } from "@/lib/htmlUtils";
+
+const RichEditor = dynamic(() => import("@/components/ui/RichEditor"), { ssr: false });
+const RichContent = dynamic(() => import("@/components/ui/RichContent"), { ssr: false });
 
 const Q_TYPES = [
   { value: "MCQ_SINGLE", label: "MCQ (Single)" },
@@ -316,7 +321,7 @@ export default function QuestionBankPage() {
   }
 
   async function handleSave(confirmNearDup = false) {
-    if (!formStem.trim()) {
+    if (!hasVisibleText(formStem)) {
       setFormError("Question stem is required");
       return;
     }
@@ -326,7 +331,7 @@ export default function QuestionBankPage() {
         setFormError("At least 2 options required");
         return;
       }
-      if (formOptions.some((o) => !o.text.trim())) {
+      if (formOptions.some((o) => !hasVisibleText(o.text))) {
         setFormError("All options must have text");
         return;
       }
@@ -339,8 +344,8 @@ export default function QuestionBankPage() {
       type: formType,
       difficulty: formDifficulty,
       status: formStatus,
-      stem: formStem.trim(),
-      explanation: formExplanation.trim() || null,
+      stem: formStem,
+      explanation: hasVisibleText(formExplanation) ? formExplanation : null,
       tags: formTags
         .split(",")
         .map((t) => t.trim())
@@ -628,7 +633,7 @@ export default function QuestionBankPage() {
             <ul style={{ margin: "0.5rem 0", paddingLeft: "1.25rem" }}>
               {nearDupWarning.matches.map((m) => (
                 <li key={m.id} style={{ marginBottom: "0.25rem" }}>
-                  ({m.similarity}% similar) {m.stem}
+                  ({m.similarity}% similar) {stripHtml(m.stem)}
                 </li>
               ))}
             </ul>
@@ -743,11 +748,11 @@ export default function QuestionBankPage() {
 
           <div style={{ marginBottom: "1rem" }}>
             <label style={labelStyle}>Question Stem *</label>
-            <textarea
+            <RichEditor
               value={formStem}
-              onChange={(e) => setFormStem(e.target.value)}
-              rows={3}
-              style={{ ...inputStyle, resize: "vertical" }}
+              onChange={setFormStem}
+              placeholder="Type question text, paste an image/screenshot, or insert an equation…"
+              minHeight={80}
             />
           </div>
 
@@ -771,28 +776,33 @@ export default function QuestionBankPage() {
                 </button>
               </div>
               {formOptions.map((opt, i) => (
-                <div key={i} style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.375rem" }}>
-                  <input
-                    type={formType === "MCQ_SINGLE" ? "radio" : "checkbox"}
-                    name="correctOption"
-                    checked={opt.isCorrect}
-                    onChange={() => updateOption(i, "isCorrect", formType === "MCQ_SINGLE" ? true : !opt.isCorrect)}
-                    style={{ cursor: "pointer", accentColor: "#059669" }}
-                  />
-                  <input
-                    type="text"
-                    value={opt.text}
-                    onChange={(e) => updateOption(i, "text", e.target.value)}
-                    placeholder={`Option ${i + 1}`}
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
+                <div key={i} style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", marginBottom: "0.5rem" }}>
+                  <div style={{ paddingTop: "2.25rem" }}>
+                    <input
+                      type={formType === "MCQ_SINGLE" ? "radio" : "checkbox"}
+                      name="correctOption"
+                      checked={opt.isCorrect}
+                      onChange={() => updateOption(i, "isCorrect", formType === "MCQ_SINGLE" ? true : !opt.isCorrect)}
+                      style={{ cursor: "pointer", accentColor: "#059669", width: "16px", height: "16px" }}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <RichEditor
+                      value={opt.text}
+                      onChange={(html) => updateOption(i, "text", html)}
+                      placeholder={`Option ${i + 1} — text, image, or equation`}
+                      minHeight={44}
+                    />
+                  </div>
                   {formOptions.length > 2 && (
-                    <button
-                      onClick={() => removeOption(i)}
-                      style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: "1.125rem", padding: "0 0.25rem" }}
-                    >
-                      &times;
-                    </button>
+                    <div style={{ paddingTop: "2.125rem" }}>
+                      <button
+                        onClick={() => removeOption(i)}
+                        style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: "1.125rem", padding: "0 0.25rem" }}
+                      >
+                        &times;
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -801,11 +811,11 @@ export default function QuestionBankPage() {
 
           <div style={{ marginBottom: "1rem" }}>
             <label style={labelStyle}>Explanation</label>
-            <textarea
+            <RichEditor
               value={formExplanation}
-              onChange={(e) => setFormExplanation(e.target.value)}
-              rows={2}
-              style={{ ...inputStyle, resize: "vertical" }}
+              onChange={setFormExplanation}
+              placeholder="Explain the correct answer — include images or equations if needed…"
+              minHeight={60}
             />
           </div>
 
@@ -1032,7 +1042,7 @@ export default function QuestionBankPage() {
                   </td>
                   <td style={{ ...tdStyle, maxWidth: "300px" }}>
                     <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {q.stem}
+                      {stripHtml(q.stem)}
                     </span>
                     {q.tags.length > 0 && (
                       <span style={{ fontSize: "0.6875rem", color: "#94a3b8" }}>
@@ -1128,7 +1138,7 @@ export default function QuestionBankPage() {
               This will permanently remove the question from the Question Bank. Questions can only be deleted here, not from individual tests.
             </p>
             <p style={{ fontSize: "0.8125rem", color: "#666", marginBottom: "1rem", fontStyle: "italic", padding: "0.5rem", background: "#f8fafc", borderRadius: "4px" }}>
-              &ldquo;{deleteConfirm.stem.substring(0, 150)}&rdquo;
+              &ldquo;{stripHtml(deleteConfirm.stem).substring(0, 150)}&rdquo;
             </p>
             <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
               <button onClick={() => setDeleteConfirm(null)} style={{ ...btnStyle, backgroundColor: "#6b7280" }}>Cancel</button>
@@ -1146,7 +1156,7 @@ export default function QuestionBankPage() {
               <p style={{ fontSize: "0.875rem", color: "#991b1b", margin: "0 0 0.25rem", fontWeight: 600 }}>{deleteUsageWarning.message}</p>
             </div>
             <p style={{ fontSize: "0.8125rem", color: "#666", marginBottom: "1rem", fontStyle: "italic", padding: "0.5rem", background: "#f8fafc", borderRadius: "4px" }}>
-              &ldquo;{deleteUsageWarning.stem.substring(0, 150)}&rdquo;
+              &ldquo;{stripHtml(deleteUsageWarning.stem).substring(0, 150)}&rdquo;
             </p>
             <p style={{ fontSize: "0.8125rem", color: "#374151", marginBottom: "1rem" }}>
               Deleting will remove this question from the Question Bank and from all tests it is currently attached to. This cannot be undone.

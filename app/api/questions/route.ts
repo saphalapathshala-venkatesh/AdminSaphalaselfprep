@@ -8,6 +8,7 @@ import {
   computeContentHash,
   computeSimilarity,
 } from "@/lib/questionHash";
+import { hasVisibleText } from "@/lib/htmlUtils";
 
 const VALID_TYPES = [
   "MCQ_SINGLE",
@@ -137,7 +138,7 @@ export async function POST(req: NextRequest) {
     if (!difficulty || !VALID_DIFFICULTIES.includes(difficulty)) {
       return NextResponse.json({ error: "Invalid difficulty level" }, { status: 400 });
     }
-    if (!stem || typeof stem !== "string" || !stem.trim()) {
+    if (!stem || typeof stem !== "string" || !hasVisibleText(stem)) {
       return NextResponse.json({ error: "Question stem is required" }, { status: 400 });
     }
 
@@ -152,11 +153,11 @@ export async function POST(req: NextRequest) {
         );
       }
       validatedOptions = options.map((o: any, i: number) => ({
-        text: String(o.text || "").trim(),
+        text: String(o.text || ""),
         isCorrect: Boolean(o.isCorrect),
         order: i,
       }));
-      if (validatedOptions.some((o) => !o.text)) {
+      if (validatedOptions.some((o) => !hasVisibleText(o.text))) {
         return NextResponse.json({ error: "All options must have text" }, { status: 400 });
       }
       const correctCount = validatedOptions.filter((o) => o.isCorrect).length;

@@ -1,0 +1,53 @@
+You worked on the wrong task.
+
+I did NOT ask for code fixes, auth cleanup, Prisma checks, or build validation.
+
+I asked for PURE DOCUMENT GENERATION ONLY.
+
+Do not modify any app code.
+Do not inspect auth/security/build tasks.
+Do not touch schema or database.
+Do not report code fixes.
+
+Your only task now is to GENERATE DOWNLOADABLE FILES for the updated bulk upload documentation/templates.
+
+Generate these 6 files exactly, and provide them as downloadable artifacts/files:
+
+1. saphala_bulk_upload_single_questions_UPDATED.csv
+2. saphala_single_question_template_UPDATED.docx
+3. saphala_group_question_template_UPDATED.docx
+4. saphala_import_rules_UPDATED.docx
+5. saphala_quick_reference_UPDATED.docx
+6. saphala_image_equation_guide_UPDATED.docx
+
+These files must reflect the latest locked requirements:
+
+- Section and Subsection must NOT be columns in the upload templates
+- Admin selects Section first, then Subsection if applicable, then clicks Add Questions
+- Per-question marks allowed
+- Negative marks optional
+- Support guidance for images in:
+  - question
+  - paragraph/shared set
+  - options
+  - explanation
+- Support guidance for screenshots as valid images
+- Support guidance for equations/math content
+- CSV template must include image_ref and equation fields
+- DOCX templates must include examples for:
+  - text-only question
+  - image/screenshot question
+  - equation question
+  - paragraph/group question with clear group start and group end markers
+
+IMPORTANT OUTPUT RULES
+- Actually generate the files, not just describe them
+- Provide downloadable file artifacts
+- If direct file generation is not possible, output the FULL contents for each file clearly labeled so they can be copied into files manually
+- Do not return unrelated engineering audit summaries
+- Do not say tasks are complete unless the 6 files are actually produced
+
+At the end, show:
+A. List of generated files
+B. Download links or attached artifacts
+C. One-line usage note for each file
