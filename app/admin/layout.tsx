@@ -24,6 +24,13 @@ const navSections = [
     ],
   },
   {
+    heading: "MEDIA",
+    items: [
+      { label: "Videos", href: "/admin/videos" },
+      { label: "Live Classes", href: "/admin/live-classes" },
+    ],
+  },
+  {
     heading: "COMMERCE",
     items: [
       { label: "Products", href: "/admin/products" },

@@ -70,6 +70,44 @@ enum XpRuleKey {
   FLASHCARD_XP
   RR_XP
 }
+// VIDEO MODULE ENUMS
+enum VideoStatus {
+  DRAFT
+  UPLOADING
+  PROCESSING
+  READY
+  PUBLISHED
+  ARCHIVED
+  FAILED
+}
+enum VideoAccessType {
+  FREE
+  PAID
+}
+enum VideoProvider {
+  BUNNY
+  YOUTUBE
+  MANUAL
+  OTHER
+}
+// LIVE CLASS MODULE ENUMS
+enum LiveClassStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  COMPLETED
+  CANCELLED
+}
+enum LivePlatform {
+  ZOOM
+  YOUTUBE_LIVE
+  OTHER
+}
+enum RecordingPolicy {
+  RECORD
+  NO_RECORD
+  RECORD_AND_SHARE
+}
 // CORE IDENTITY + SESSIONS (LOCKED)
 model User {
   id           String    @id @default(cuid())
@@ -96,6 +134,8 @@ model User {
   coupons      Coupon[]
   xpRules      XpRule[]
   purchases    Purchase[]
+  videos       Video[]     @relation("VideoCreatedBy")
+  liveClasses  LiveClass[] @relation("LiveClassCreatedBy")
   @@index([role])
 }
 model Session {
@@ -519,4 +559,109 @@ model AuditLog {
   createdAt   DateTime @default(now())
   @@index([actorId, createdAt])
   @@index([entityType, entityId])
+}
+
+// VIDEO MODULE
+model Course {
+  id          String    @id @default(cuid())
+  tenantId    String    @default("default")
+  name        String
+  description String?
+  categoryId  String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  videos      Video[]
+  liveClasses LiveClass[]
+  @@index([categoryId])
+  @@index([tenantId])
+}
+
+model Faculty {
+  id        String    @id @default(cuid())
+  tenantId  String    @default("default")
+  name      String
+  title     String?
+  bio       String?
+  avatarUrl String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  videos    Video[]
+  liveClasses LiveClass[]
+  @@index([tenantId])
+}
+
+model Video {
+  id               String          @id @default(cuid())
+  tenantId         String          @default("default")
+  title            String
+  description      String?
+  facultyId        String?
+  faculty          Faculty?        @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+  courseId         String?
+  course           Course?         @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  categoryId       String?
+  subjectId        String?
+  topicId          String?
+  subtopicId       String?
+  accessType       VideoAccessType @default(FREE)
+  status           VideoStatus     @default(DRAFT)
+  lessonOrder      Int?            @default(0)
+  durationSeconds  Int?
+  thumbnailUrl     String?
+  provider         VideoProvider   @default(MANUAL)
+  providerVideoId  String?
+  hlsUrl           String?
+  playbackUrl      String?
+  processingStatus String?
+  processingError  String?
+  allowPreview     Boolean         @default(false)
+  tags             String[]        @default([])
+  publishedAt      DateTime?
+  createdById      String
+  createdBy        User            @relation("VideoCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  @@index([status])
+  @@index([courseId])
+  @@index([categoryId])
+  @@index([tenantId])
+}
+
+// LIVE CLASSES MODULE
+model LiveClass {
+  id              String          @id @default(cuid())
+  tenantId        String          @default("default")
+  title           String
+  description     String?
+  facultyId       String?
+  faculty         Faculty?        @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+  courseId        String?
+  course          Course?         @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  categoryId      String?
+  subjectId       String?
+  topicId         String?
+  subtopicId      String?
+  sessionDate     DateTime?
+  startTime       String?
+  endTime         String?
+  accessType      VideoAccessType @default(FREE)
+  status          LiveClassStatus @default(DRAFT)
+  platform        LivePlatform    @default(ZOOM)
+  joinUrl         String?
+  sessionCode     String?
+  thumbnailUrl    String?
+  notifyLearners  Boolean         @default(false)
+  recordingPolicy RecordingPolicy @default(NO_RECORD)
+  replayVideoId   String?
+  publishedAt     DateTime?
+  createdById     String
+  createdBy       User            @relation("LiveClassCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  @@index([status])
+  @@index([sessionDate])
+  @@index([courseId])
+  @@index([tenantId])
 }

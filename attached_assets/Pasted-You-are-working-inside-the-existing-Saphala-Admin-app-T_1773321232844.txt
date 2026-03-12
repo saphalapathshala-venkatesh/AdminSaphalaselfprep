@@ -1,0 +1,802 @@
+You are working inside the existing Saphala Admin app.
+This is an admin-only implementation task.
+Do not redesign unrelated modules.
+Do not change existing DB/schema/migrations unless absolutely necessary.
+Current Neon DB and Prisma schema are considered aligned and stable.
+Follow existing admin UI patterns, purple-branded Self Prep admin styling, and current auth/role protections.
+
+Goal
+
+Implement two new admin modules:
+
+Videos
+
+LIVE Classes
+
+Also add supporting analytics fields for future student dashboard metrics.
+
+Core product decisions to follow
+Videos module
+
+Videos are recorded learning assets.
+
+Required behavior:
+
+Central Video Library
+
+Videos mapped with taxonomy:
+
+categoryId
+
+courseId
+
+subjectId
+
+topicId
+
+subtopicId
+
+Each video supports:
+
+title
+
+description
+
+faculty
+
+visibility/access type
+
+status
+
+thumbnail
+
+default thumbnail fallback
+
+lesson order
+
+duration
+
+playback/stream metadata
+
+Admin can upload once and later map/reuse in course structures
+
+UI should support both:
+
+Video Library table view
+
+Course Videos arrangement view
+
+LIVE Classes module
+
+LIVE Classes are scheduled sessions, separate from recorded videos.
+
+Workflow:
+
+Admin clicks Create LIVE Class
+
+Opens form page with fields:
+
+Category dropdown
+
+Course dropdown
+
+Subject dropdown
+
+Topic dropdown
+
+Subtopic dropdown
+
+Title
+
+Description
+
+Date
+
+Start time
+
+End time
+
+Faculty
+
+Access type (Free / Paid)
+
+Platform (Zoom / YouTube Live / Other)
+
+Join URL
+
+Meeting reference / session code
+
+Thumbnail / poster
+
+Default thumbnail fallback if missing
+
+Status (Draft / Scheduled / Published / Completed / Cancelled)
+
+Notify learners boolean
+
+Recording policy
+
+LIVE Classes should later be able to connect to replay videos, but keep replay conversion lightweight for now
+
+Student dashboard metrics to support
+
+Prepare backend/data support for future student dashboard metrics:
+
+Videos watched → display in hours and minutes
+
+Tests attempted
+
+Flashcard decks completed
+
+Purchased content completion percentage only
+
+Do not build full student dashboard UI here unless already shared in the codebase, but structure admin/backend cleanly so those metrics can be supported later without rework.
+
+Sidebar updates
+
+Add two sidebar items in this order near content modules:
+
+Videos
+
+LIVE Classes
+
+Videos subpages
+
+Overview
+
+Video Library
+
+Course Videos
+
+Upload Video
+
+Encoding Queue
+
+LIVE Classes subpages
+
+Sessions
+
+Schedule Calendar
+
+Create Session
+
+Faculty / Hosts
+
+Attendance / Join Logs
+
+Recordings
+
+If full calendar/attendance/recordings implementation is too large for this prompt, create pages/skeletons with clean navigation and implement the main working pages first:
+
+Sessions list
+
+Create Session
+
+Edit Session
+
+Faculty/Hosts basic support
+
+Non-negotiable implementation rules
+
+Reuse existing admin layout, page shell, buttons, cards, filters, tables, forms
+
+Maintain current Self Prep/Saphala admin branding
+
+Avoid unnecessary schema changes
+
+If a schema addition is unavoidable, keep it minimal and production-safe
+
+Do not break existing modules
+
+Protect all pages and APIs with existing admin auth/role guard patterns
+
+Follow existing form validation style
+
+Handle empty states, errors, loading states, and success toasts
+
+Do not leave placeholder buttons with no behavior on implemented pages
+
+Videos module — required pages
+1) Videos Overview
+
+Create /admin/videos
+
+Show:
+
+total videos
+
+published videos
+
+draft videos
+
+total duration
+
+recent activity list if available, otherwise recent videos
+
+Add top actions:
+
+Upload New Video
+
+Open Queue
+
+Drafts
+
+Published
+
+2) Video Library
+
+Create /admin/videos/library
+
+Main working table with:
+
+checkbox
+
+thumbnail
+
+title
+
+taxonomy summary
+
+duration
+
+faculty
+
+access type
+
+status
+
+created/updated date
+
+actions
+
+Required filters:
+
+category
+
+course
+
+subject
+
+topic
+
+subtopic
+
+faculty
+
+access type
+
+status
+
+search by title
+
+Required bulk actions:
+
+publish
+
+unpublish
+
+change taxonomy
+
+delete
+
+Row actions:
+
+edit
+
+preview
+
+duplicate
+
+delete
+
+3) Upload Video
+
+Create /admin/videos/new
+
+Form fields:
+
+title
+
+description
+
+faculty
+
+categoryId
+
+courseId
+
+subjectId
+
+topicId
+
+subtopicId
+
+visibility/access type
+
+status
+
+lesson order
+
+thumbnail upload
+
+use default thumbnail if none uploaded
+
+video source/upload metadata fields
+
+Important:
+
+Since full Bunny integration may not yet be wired, create abstraction-friendly form structure:
+
+upload status
+
+provider
+
+external video id
+
+playback URL / manifest URL
+
+duration
+
+thumbnail URL
+
+If direct uploader is already available, integrate it
+
+If not, allow admin to save metadata cleanly and mark source/provider
+
+Encoding queue can initially use stored upload/processing status fields
+
+4) Edit Video
+
+Create /admin/videos/[id]
+
+Show:
+
+preview player area if playback URL exists
+
+editable metadata form
+
+taxonomy fields
+
+status/access
+
+faculty
+
+thumbnail management
+
+quick actions:
+
+publish/unpublish
+
+duplicate
+
+delete
+
+replace video metadata/source
+
+5) Course Videos
+
+Create /admin/videos/course-videos
+
+Goal:
+Show a course-wise structured arrangement:
+
+course
+
+modules/sections
+
+lessons
+
+attached video assets
+
+If full module/lesson entity does not exist yet, create a simplified arrangement UI that groups videos by:
+
+course
+
+topic
+
+subtopic
+
+lesson order
+
+Add:
+
+Add existing video
+
+Upload new video
+
+Reorder lessons
+
+Keep this page useful even with current schema limitations.
+
+6) Encoding Queue
+
+Create /admin/videos/queue
+
+Table columns:
+
+title
+
+provider
+
+upload status
+
+processing status
+
+progress if available
+
+created by
+
+updated at
+
+actions
+
+Statuses to support:
+
+uploading
+
+processing
+
+ready
+
+failed
+
+Actions:
+
+refresh
+
+retry metadata sync if relevant
+
+open video
+
+LIVE Classes module — required pages
+7) LIVE Classes Sessions List
+
+Create /admin/live-classes
+
+Table columns:
+
+thumbnail/poster
+
+title
+
+taxonomy summary
+
+faculty
+
+session date
+
+start time
+
+end time
+
+platform
+
+access type
+
+status
+
+actions
+
+Required filters:
+
+category
+
+course
+
+subject
+
+topic
+
+subtopic
+
+faculty
+
+status
+
+date range
+
+search by title
+
+Actions:
+
+edit
+
+preview
+
+duplicate
+
+mark completed
+
+cancel
+
+delete
+
+Top actions:
+
+Create LIVE Session
+
+Upcoming
+
+Past Sessions
+
+Recordings
+
+8) Create LIVE Session
+
+Create /admin/live-classes/new
+
+This is the main workflow page.
+
+Required fields:
+
+title
+
+description
+
+categoryId
+
+courseId
+
+subjectId
+
+topicId
+
+subtopicId
+
+sessionDate
+
+startTime
+
+endTime
+
+faculty
+
+accessType (Free / Paid)
+
+platform (Zoom / YouTube Live / Other)
+
+joinUrl
+
+sessionCode / meetingRef
+
+thumbnail/poster upload
+
+default thumbnail fallback
+
+notifyLearners boolean
+
+recordingPolicy
+
+status (Draft / Scheduled / Published)
+
+Behavior:
+
+save draft
+
+schedule session
+
+publish session
+
+validate start/end time properly
+
+show clean date/time UI
+
+9) Edit LIVE Session
+
+Create /admin/live-classes/[id]
+
+Allow:
+
+all fields editable
+
+status transitions
+
+mark completed
+
+attach recording/replay metadata if available
+
+duplicate
+
+cancel session
+
+delete
+
+10) Faculty / Hosts
+
+Create /admin/live-classes/faculty
+
+If faculty entity already exists, reuse it.
+If not, create a minimal manageable structure for session assignment:
+
+display name
+
+role/title
+
+status
+
+optional avatar
+
+optional notes
+
+This can be lightweight but must be usable from LIVE session forms.
+
+11) Calendar page
+
+Create /admin/live-classes/calendar
+
+Even if simple, render upcoming sessions in a clean calendar/list hybrid or grouped date view.
+Do not leave it blank.
+
+12) Attendance / Join Logs
+
+Create skeleton page with usable structure:
+/admin/live-classes/attendance
+
+At minimum:
+
+explain that this page is for future join tracking
+
+prepare filters and empty-state layout
+
+if schema/events exist, show them
+
+otherwise make it a stable placeholder page, not broken UI
+
+13) Recordings
+
+Create /admin/live-classes/recordings
+
+Purpose:
+
+list completed sessions
+
+show whether replay exists
+
+allow linking session to video asset if schema supports it
+
+otherwise show clean status and future-ready UI
+
+Thumbnail behavior
+
+Apply for both videos and live classes:
+
+Allow thumbnail upload
+
+If thumbnail absent, use a default branded fallback thumbnail
+
+Create one reusable helper/component for fallback thumbnails
+
+Keep visual output consistent in tables, cards, and edit pages
+
+Taxonomy behavior
+
+For both Videos and LIVE Classes:
+
+Category selection should drive available courses/subjects/topics/subtopics as applicable
+
+Reuse existing taxonomy selection patterns from Question Bank / Content Library where possible
+
+Do not hardcode taxonomy labels
+
+Ensure selected child items remain consistent with selected parent items
+
+Backend / API requirements
+
+Create clean admin APIs or route handlers for:
+
+list videos
+
+create video
+
+update video
+
+delete video
+
+bulk update video status/taxonomy
+
+list encoding queue items if separate, otherwise derive from video status
+
+list live classes
+
+create live class
+
+update live class
+
+delete live class
+
+list faculty/hosts if needed
+
+Add validation and safe error handling.
+
+Minimal schema guidance
+
+Do not perform broad schema redesign.
+
+Only if truly necessary, add minimal safe fields/entities to support:
+
+videos metadata
+
+live class metadata
+
+thumbnails
+
+session scheduling
+
+status fields
+
+faculty reference
+
+upload/encoding status
+
+If recording linkage is needed, keep it optional.
+
+If there is already a content/material model that can be extended cleanly, prefer that over introducing fragmented parallel structures.
+
+Student dashboard metrics support
+
+Prepare or expose backend-friendly aggregate logic for future dashboard usage:
+
+Required metrics
+
+videosWatchedMinutes → frontend can render as hours + minutes
+
+testsAttemptedCount
+
+flashcardDecksCompletedCount
+
+purchasedContentCompletionPercent
+
+Important:
+
+purchased completion percent must consider only purchased products/content
+
+do not mix free-only or non-owned content into completion percentage
+
+If tables for watch progress / flashcard progress already exist, reuse them.
+If not, add TODO-safe aggregation hooks or service helpers without forcing a full student-side implementation now.
+
+UX expectations
+
+Pages should look production-ready:
+
+same admin shell
+
+strong spacing
+
+clean tables
+
+purple primary CTAs
+
+visible filter bars
+
+clear empty states
+
+mobile-friendly enough for admin inspection, but desktop-first
+
+no messy placeholder text
+
+Deliverables expected from this task
+
+Working admin sidebar entries for Videos and LIVE Classes
+
+Working page routes
+
+Working CRUD for Videos
+
+Working CRUD for LIVE Classes
+
+Useful table/filter UX
+
+Thumbnail fallback support
+
+Course Videos arrangement page
+
+Encoding Queue page
+
+Backend structure ready for future student dashboard metrics
+
+No regressions in existing admin modules
+
+Final instruction
+
+Implement this module in a way that feels like it was built by a senior product-minded admin systems team, not as a demo. Prefer practical completeness over overengineering. Where a feature cannot be fully completed because of current schema limitations, build the cleanest stable version that fits the current architecture and clearly prepares for the next step without hacks.
