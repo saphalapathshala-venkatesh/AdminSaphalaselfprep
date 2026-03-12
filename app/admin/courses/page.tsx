@@ -20,12 +20,16 @@ type Course = ProductTypes & {
   id: string; name: string; description: string | null;
   courseType: CourseType; isActive: boolean; createdAt: string;
   thumbnailUrl?: string | null;
+  xpRedemptionEnabled?: boolean;
+  xpRedemptionMaxPercent?: number;
   _count?: { videos: number; liveClasses: number };
 };
 
 type FormData = {
   name: string; description: string; courseType: CourseType;
   isActive: boolean; thumbnailUrl: string;
+  xpRedemptionEnabled: boolean;
+  xpRedemptionMaxPercent: number;
 } & ProductTypes;
 
 // ─── Product type config ──────────────────────────────────────────────────────
@@ -41,6 +45,7 @@ const TYPE_CONFIG = [
 const defaultForm = (): FormData => ({
   name: "", description: "", courseType: "STANDARD", isActive: true, thumbnailUrl: "",
   hasHtmlCourse: false, hasVideoCourse: false, hasPdfCourse: false, hasTestSeries: false, hasFlashcardDecks: false,
+  xpRedemptionEnabled: false, xpRedemptionMaxPercent: 1,
 });
 
 function courseToForm(c: Course): FormData {
@@ -50,6 +55,8 @@ function courseToForm(c: Course): FormData {
     hasHtmlCourse: c.hasHtmlCourse, hasVideoCourse: c.hasVideoCourse,
     hasPdfCourse: c.hasPdfCourse, hasTestSeries: c.hasTestSeries,
     hasFlashcardDecks: c.hasFlashcardDecks,
+    xpRedemptionEnabled: c.xpRedemptionEnabled || false,
+    xpRedemptionMaxPercent: c.xpRedemptionMaxPercent || 1,
   };
 }
 
@@ -170,6 +177,30 @@ function CourseForm({ form, onChange, error, isEdit }: {
           <input type="checkbox" checked={form.isActive} onChange={e => set({ isActive: e.target.checked })} style={{ width: 16, height: 16, accentColor: PURPLE }} />
           <span style={{ fontSize: "0.875rem", fontWeight: 500, color: "#374151" }}>Active (visible in dropdowns)</span>
         </label>
+      </div>
+
+      {/* XP Redemption */}
+      <div style={{ padding: "0.875rem", background: "#f0f9ff", borderRadius: "8px", border: "1px solid #bae6fd" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", marginBottom: form.xpRedemptionEnabled ? "0.75rem" : 0 }}>
+          <input type="checkbox" checked={form.xpRedemptionEnabled} onChange={e => set({ xpRedemptionEnabled: e.target.checked })} style={{ width: 16, height: 16, accentColor: "#0369a1" }} />
+          <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "#0369a1" }}>XP Redemption Enabled</span>
+        </label>
+        {form.xpRedemptionEnabled && (
+          <div>
+            <label style={{ ...labelSt, color: "#0369a1" }}>Max discount via XP (1–3% of course price)</label>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              {[1, 2, 3].map(pct => (
+                <label key={pct} style={{ display: "flex", alignItems: "center", gap: "0.3rem", padding: "0.375rem 0.75rem", borderRadius: "6px", border: `2px solid ${form.xpRedemptionMaxPercent === pct ? "#0369a1" : "#e2e8f0"}`, background: form.xpRedemptionMaxPercent === pct ? "#e0f2fe" : "#f8fafc", cursor: "pointer", fontSize: "0.8125rem", fontWeight: form.xpRedemptionMaxPercent === pct ? 700 : 400 }}>
+                  <input type="radio" checked={form.xpRedemptionMaxPercent === pct} onChange={() => set({ xpRedemptionMaxPercent: pct })} style={{ accentColor: "#0369a1" }} />
+                  {pct}%
+                </label>
+              ))}
+            </div>
+            <div style={{ marginTop: "0.5rem", fontSize: "0.75rem", color: "#64748b" }}>
+              Students with ≥25,000 lifetime XP can redeem up to {form.xpRedemptionMaxPercent}% of the course price. Rate: 100 XP = ₹1.
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -23,11 +23,26 @@ interface AuditEntry {
 }
 
 const KEY_LABELS: Record<string, string> = {
-  LOGIN_XP: "Login XP",
-  TEST_XP: "Test XP",
-  IMPROVEMENT_BONUS_XP: "Improvement Bonus",
-  FLASHCARD_XP: "Flashcard XP",
-  RR_XP: "Rapid Revision XP",
+  LOGIN_XP:                    "Daily Login XP",
+  TEST_XP:                     "Test XP (legacy global)",
+  IMPROVEMENT_BONUS_XP:        "Improvement Bonus XP",
+  FLASHCARD_XP:                "Flashcard XP (legacy global)",
+  RR_XP:                       "Rapid Revision XP",
+  VIDEO_SHORT_XP:              "Video XP — short (≤45 min)",
+  VIDEO_LONG_XP:               "Video XP — long (>45 min)",
+  HTML_XP:                     "HTML Lesson XP (global default)",
+  STREAK_7_BONUS:              "Streak Bonus — 7 days",
+  STREAK_30_BONUS:             "Streak Bonus — 30 days",
+  STREAK_50_BONUS:             "Streak Bonus — 50 days",
+  STREAK_100_BONUS:            "Streak Bonus — 100 days",
+  REDEMPTION_UNLOCK_THRESHOLD: "Redemption Unlock Threshold (XP)",
+  REDEMPTION_CONVERSION_RATE:  "Redemption Conversion (XP per ₹1)",
+};
+
+const KEY_GROUPS: Record<string, string[]> = {
+  "Daily Login & Streaks": ["LOGIN_XP", "STREAK_7_BONUS", "STREAK_30_BONUS", "STREAK_50_BONUS", "STREAK_100_BONUS"],
+  "Content XP": ["VIDEO_SHORT_XP", "VIDEO_LONG_XP", "HTML_XP", "TEST_XP", "FLASHCARD_XP", "RR_XP", "IMPROVEMENT_BONUS_XP"],
+  "Redemption": ["REDEMPTION_UNLOCK_THRESHOLD", "REDEMPTION_CONVERSION_RATE"],
 };
 
 export default function XpRulesPage() {
@@ -131,29 +146,40 @@ export default function XpRulesPage() {
               </tr>
             </thead>
             <tbody>
-              {rules.map(r => (
-                <tr key={r.id}>
-                  <td style={{ ...tdStyle, fontWeight: 600 }}>{KEY_LABELS[r.key] || r.key}</td>
-                  <td style={tdStyle}>{r.value}</td>
-                  <td style={tdStyle}>
-                    <span style={{ padding: "0.125rem 0.5rem", borderRadius: "9999px", fontSize: "0.75rem", fontWeight: 500, background: r.isEnabled ? "#dcfce7" : "#fee2e2", color: r.isEnabled ? "#166534" : "#991b1b" }}>
-                      {r.isEnabled ? "Yes" : "No"}
-                    </span>
-                  </td>
-                  <td style={tdStyle}>{r.dailyCap !== null ? r.dailyCap : "None"}</td>
-                  <td style={tdStyle}>{r.multiplier}x</td>
-                  <td style={{ ...tdStyle, fontSize: "0.75rem", color: "#6b7280" }}>
-                    {new Date(r.updatedAt).toLocaleString()}
-                    {r.updatedBy && <span style={{ display: "block", fontSize: "0.7rem" }}>by {r.updatedBy.name || r.updatedBy.email}</span>}
-                  </td>
-                  <td style={tdStyle}>
-                    <div style={{ display: "flex", gap: "0.375rem" }}>
-                      <button onClick={() => openEdit(r)} style={btnSecondary}>Edit</button>
-                      <button onClick={() => openHistory(r.key)} style={btnSecondary}>History</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {Object.entries(KEY_GROUPS).map(([groupName, keys]) => {
+                const groupRules = keys.map(k => rules.find(r => r.key === k)).filter(Boolean) as typeof rules;
+                if (groupRules.length === 0) return null;
+                return [
+                  <tr key={`group-${groupName}`}>
+                    <td colSpan={7} style={{ padding: "0.5rem 0.75rem", background: "#f1f5f9", fontWeight: 700, fontSize: "0.75rem", color: "#475569", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      {groupName}
+                    </td>
+                  </tr>,
+                  ...groupRules.map(r => (
+                    <tr key={r.id}>
+                      <td style={{ ...tdStyle, fontWeight: 600 }}>{KEY_LABELS[r.key] || r.key}</td>
+                      <td style={tdStyle}>{r.value}</td>
+                      <td style={tdStyle}>
+                        <span style={{ padding: "0.125rem 0.5rem", borderRadius: "9999px", fontSize: "0.75rem", fontWeight: 500, background: r.isEnabled ? "#dcfce7" : "#fee2e2", color: r.isEnabled ? "#166534" : "#991b1b" }}>
+                          {r.isEnabled ? "Yes" : "No"}
+                        </span>
+                      </td>
+                      <td style={tdStyle}>{r.dailyCap !== null ? r.dailyCap : "None"}</td>
+                      <td style={tdStyle}>{r.multiplier}x</td>
+                      <td style={{ ...tdStyle, fontSize: "0.75rem", color: "#6b7280" }}>
+                        {new Date(r.updatedAt).toLocaleString()}
+                        {r.updatedBy && <span style={{ display: "block", fontSize: "0.7rem" }}>by {r.updatedBy.name || r.updatedBy.email}</span>}
+                      </td>
+                      <td style={tdStyle}>
+                        <div style={{ display: "flex", gap: "0.375rem" }}>
+                          <button onClick={() => openEdit(r)} style={btnSecondary}>Edit</button>
+                          <button onClick={() => openHistory(r.key)} style={btnSecondary}>History</button>
+                        </div>
+                      </td>
+                    </tr>
+                  )),
+                ];
+              })}
             </tbody>
           </table>
         </div>

@@ -69,6 +69,26 @@ enum XpRuleKey {
   IMPROVEMENT_BONUS_XP
   FLASHCARD_XP
   RR_XP
+  VIDEO_SHORT_XP
+  VIDEO_LONG_XP
+  HTML_XP
+  STREAK_7_BONUS
+  STREAK_30_BONUS
+  STREAK_50_BONUS
+  STREAK_100_BONUS
+  REDEMPTION_UNLOCK_THRESHOLD
+  REDEMPTION_CONVERSION_RATE
+}
+
+enum XpSourceType {
+  VIDEO
+  TEST
+  FLASHCARD
+  HTML
+  DAILY_LOGIN
+  STREAK_BONUS
+  REDEMPTION
+  ADMIN_ADJUSTMENT
 }
 // CONTENT FLOW ENUM
 enum FlowContentType {
@@ -143,6 +163,9 @@ model User {
   pdfAssets      PdfAsset[]
   coupons        Coupon[]
   xpRules        XpRule[]
+  xpWallet       UserXpWallet?
+  xpSourceProgress UserXpSourceProgress[]
+  achievements   UserAchievement[]
   purchases      Purchase[]
   videos         Video[]       @relation("VideoCreatedBy")
   liveClasses    LiveClass[]   @relation("LiveClassCreatedBy")
@@ -328,6 +351,8 @@ model Test {
   shuffleOptions       Boolean  @default(false)
   shuffleGroups        Boolean  @default(false)
   shuffleGroupChildren Boolean  @default(false)
+  xpEnabled            Boolean  @default(false)
+  xpValue              Int      @default(0)
   isPublished          Boolean  @default(false)
   publishedAt    DateTime?
   createdById    String
@@ -410,6 +435,8 @@ model FlashcardDeck {
   subjectId   String?
   topicId     String?
   subtopicId  String?
+  xpEnabled   Boolean @default(false)
+  xpValue     Int     @default(0)
   isPublished Boolean @default(false)
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Restrict)
@@ -443,6 +470,8 @@ model ContentPage {
   subtopicId  String?
   subtopic    Subtopic? @relation(fields: [subtopicId], references: [id], onDelete: SetNull)
   body        String
+  xpEnabled   Boolean @default(false)
+  xpValue     Int     @default(0)
   isPublished Boolean @default(false)
   publishedAt DateTime?
   createdById String
@@ -541,6 +570,51 @@ model XpLedgerEntry {
   createdAt   DateTime @default(now())
   @@index([userId, createdAt])
 }
+
+model UserXpWallet {
+  id                      String    @id @default(cuid())
+  userId                  String    @unique
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentXpBalance        Int       @default(0)
+  lifetimeXpEarned        Int       @default(0)
+  lifetimeXpRedeemed      Int       @default(0)
+  currentLevel            Int       @default(0)
+  currentStreakDays        Int       @default(0)
+  longestStreakDays        Int       @default(0)
+  lastLoginDate           DateTime?
+  xpRedemptionUnlockedAt  DateTime?
+  updatedAt               DateTime  @updatedAt
+}
+
+model UserXpSourceProgress {
+  id               String       @id @default(cuid())
+  userId           String
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceType       XpSourceType
+  sourceId         String
+  completionCount  Int          @default(0)
+  totalXpAwarded   Int          @default(0)
+  updatedAt        DateTime     @updatedAt
+  @@unique([userId, sourceType, sourceId])
+  @@index([userId])
+}
+
+model UserAchievement {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementType String
+  badgeCode       String
+  badgeName       String
+  levelNumber     Int?
+  xpThreshold     Int?
+  title           String
+  message         String
+  unlockedAt      DateTime @default(now())
+  @@index([userId])
+  @@unique([userId, badgeCode])
+}
+
 // REVENUE + ANALYTICS (minimal storage; charts computed)
 model Purchase {
   id           String @id @default(cuid())
@@ -594,9 +668,11 @@ model Course {
   hasVideoCourse    Boolean    @default(false)
   hasPdfCourse      Boolean    @default(false)
   hasTestSeries     Boolean    @default(false)
-  hasFlashcardDecks Boolean    @default(false)
-  thumbnailUrl      String?
-  createdAt         DateTime   @default(now())
+  hasFlashcardDecks       Boolean    @default(false)
+  thumbnailUrl            String?
+  xpRedemptionEnabled     Boolean    @default(false)
+  xpRedemptionMaxPercent  Int        @default(1)
+  createdAt               DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   videos         Video[]
   liveClasses    LiveClass[]

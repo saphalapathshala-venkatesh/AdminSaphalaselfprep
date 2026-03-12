@@ -52,7 +52,7 @@ export default function ContentLibraryPage() {
 
   const [showPageModal, setShowPageModal] = useState(false);
   const [editingPage, setEditingPage] = useState<ContentPage | null>(null);
-  const [pageForm, setPageForm] = useState({ title: "", body: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "", isPublished: false });
+  const [pageForm, setPageForm] = useState({ title: "", body: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "", isPublished: false, xpEnabled: false, xpValue: "0" });
   const [showPreview, setShowPreview] = useState(false);
 
   const [showPdfModal, setShowPdfModal] = useState(false);
@@ -156,13 +156,15 @@ export default function ContentLibraryPage() {
         categoryId: catId, subjectId: subId, topicId: topId,
         subtopicId: p.subtopicId || "",
         isPublished: p.isPublished,
+        xpEnabled: !!(p as any).xpEnabled,
+        xpValue: (p as any).xpValue != null ? String((p as any).xpValue) : "0",
       });
       if (catId) setSubjects(await loadTax("subject", catId));
       if (subId) setTopics(await loadTax("topic", subId));
       if (topId) setSubtopics(await loadTax("subtopic", topId));
     } else {
       setEditingPage(null);
-      setPageForm({ title: "", body: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "", isPublished: false });
+      setPageForm({ title: "", body: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "", isPublished: false, xpEnabled: false, xpValue: "0" });
       setSubjects([]); setTopics([]); setSubtopics([]);
     }
     setShowPreview(false);
@@ -179,6 +181,8 @@ export default function ContentLibraryPage() {
         body: pageForm.body,
         subtopicId: pageForm.subtopicId || null,
         isPublished: pageForm.isPublished,
+        xpEnabled: pageForm.xpEnabled,
+        xpValue: parseInt(pageForm.xpValue) || 0,
       };
       let res;
       if (editingPage) {
@@ -531,11 +535,24 @@ export default function ContentLibraryPage() {
               {renderTaxDropdowns(pageForm, "page", subjects, topics, subtopics)}
             </div>
 
-            <div style={{ marginBottom: "16px" }}>
+            <div style={{ marginBottom: "12px" }}>
               <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
                 <input type="checkbox" checked={pageForm.isPublished} onChange={(e) => setPageForm({ ...pageForm, isPublished: e.target.checked })} />
                 <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Published</span>
               </label>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", background: "#f0f9ff", borderRadius: "8px", border: "1px solid #bae6fd", marginBottom: "16px" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.8125rem", fontWeight: 700, color: "#0369a1", cursor: "pointer", whiteSpace: "nowrap" }}>
+                <input type="checkbox" checked={pageForm.xpEnabled} onChange={(e) => setPageForm({ ...pageForm, xpEnabled: e.target.checked })} />
+                XP Reward
+              </label>
+              {pageForm.xpEnabled && (
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <input type="number" min="0" value={pageForm.xpValue} onChange={(e) => setPageForm({ ...pageForm, xpValue: e.target.value })} style={{ border: "1px solid #d1d5db", borderRadius: "6px", padding: "4px 8px", fontSize: "0.875rem", width: "80px" }} placeholder="XP" />
+                  <span style={{ fontSize: "0.72rem", color: "#0369a1" }}>XP on completion</span>
+                </div>
+              )}
             </div>
 
             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>

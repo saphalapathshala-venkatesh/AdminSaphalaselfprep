@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 
 interface FlashcardDeck {
+  xpEnabled?: boolean;
+  xpValue?: number;
   id: string;
   title: string;
   description: string | null;
@@ -50,7 +52,7 @@ export default function FlashcardsPage() {
 
   const [selectedDeck, setSelectedDeck] = useState<FlashcardDeck | null>(null);
   const [editingDeck, setEditingDeck] = useState(false);
-  const [deckForm, setDeckForm] = useState({ title: "", description: "", categoryId: "", subjectId: "", topicId: "" });
+  const [deckForm, setDeckForm] = useState({ title: "", description: "", categoryId: "", subjectId: "", topicId: "", xpEnabled: false, xpValue: "0" });
 
   const [cards, setCards] = useState<FlashcardCard[]>([]);
   const [loadingCards, setLoadingCards] = useState(false);
@@ -63,7 +65,7 @@ export default function FlashcardsPage() {
   const [cardForm, setCardForm] = useState({ front: "", back: "", imageUrl: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "" });
 
   const [showNewDeck, setShowNewDeck] = useState(false);
-  const [newDeckForm, setNewDeckForm] = useState({ title: "", description: "", categoryId: "", subjectId: "", topicId: "" });
+  const [newDeckForm, setNewDeckForm] = useState({ title: "", description: "", categoryId: "", subjectId: "", topicId: "", xpEnabled: false, xpValue: "0" });
 
   const [categories, setCategories] = useState<TaxItem[]>([]);
   const [subjects, setSubjects] = useState<TaxItem[]>([]);
@@ -152,6 +154,8 @@ export default function FlashcardsPage() {
       categoryId: d.categoryId || "",
       subjectId: d.subjectId || "",
       topicId: d.topicId || "",
+      xpEnabled: d.xpEnabled || false,
+      xpValue: d.xpValue != null ? String(d.xpValue) : "0",
     });
     if (d.categoryId) loadTax("subject", d.categoryId).then(setDeckSubjects);
     else setDeckSubjects([]);
@@ -172,13 +176,15 @@ export default function FlashcardsPage() {
           categoryId: newDeckForm.categoryId || null,
           subjectId: newDeckForm.subjectId || null,
           topicId: newDeckForm.topicId || null,
+          xpEnabled: newDeckForm.xpEnabled,
+          xpValue: parseInt(newDeckForm.xpValue) || 0,
         }),
       });
       const json = await res.json();
       if (!res.ok) { showToast(json.error || "Failed", "error"); return; }
       showToast("Deck created", "success");
       setShowNewDeck(false);
-      setNewDeckForm({ title: "", description: "", categoryId: "", subjectId: "", topicId: "" });
+      setNewDeckForm({ title: "", description: "", categoryId: "", subjectId: "", topicId: "", xpEnabled: false, xpValue: "0" });
       loadDecks();
       selectDeck(json.data);
     } catch { showToast("Failed to create deck", "error"); }
@@ -198,6 +204,8 @@ export default function FlashcardsPage() {
           categoryId: deckForm.categoryId || null,
           subjectId: deckForm.subjectId || null,
           topicId: deckForm.topicId || null,
+          xpEnabled: deckForm.xpEnabled,
+          xpValue: parseInt(deckForm.xpValue) || 0,
         }),
       });
       const json = await res.json();
@@ -556,6 +564,18 @@ export default function FlashcardsPage() {
                       </select>
                     </div>
                   </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", background: "#f0f9ff", borderRadius: "8px", border: "1px solid #bae6fd", marginBottom: "8px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.8125rem", fontWeight: 700, color: "#0369a1", cursor: "pointer", whiteSpace: "nowrap" }}>
+                      <input type="checkbox" checked={deckForm.xpEnabled} onChange={(e) => setDeckForm({ ...deckForm, xpEnabled: e.target.checked })} />
+                      XP Reward
+                    </label>
+                    {deckForm.xpEnabled && (
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <input type="number" min="0" value={deckForm.xpValue} onChange={(e) => setDeckForm({ ...deckForm, xpValue: e.target.value })} style={{ ...inputStyle, width: "80px" }} placeholder="XP" />
+                        <span style={{ fontSize: "0.72rem", color: "#0369a1" }}>XP on completion</span>
+                      </div>
+                    )}
+                  </div>
                   <div style={{ display: "flex", gap: "8px" }}>
                     <button style={btnPrimary} onClick={handleUpdateDeck} disabled={saving}>{saving ? "Saving..." : "Save"}</button>
                     <button style={btnSecondary} onClick={() => setEditingDeck(false)}>Cancel</button>
@@ -694,6 +714,18 @@ export default function FlashcardsPage() {
                   {newDeckTopics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
               </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", background: "#f0f9ff", borderRadius: "8px", border: "1px solid #bae6fd", marginBottom: "12px" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.8125rem", fontWeight: 700, color: "#0369a1", cursor: "pointer", whiteSpace: "nowrap" }}>
+                <input type="checkbox" checked={newDeckForm.xpEnabled} onChange={(e) => setNewDeckForm({ ...newDeckForm, xpEnabled: e.target.checked })} />
+                XP Reward
+              </label>
+              {newDeckForm.xpEnabled && (
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <input type="number" min="0" value={newDeckForm.xpValue} onChange={(e) => setNewDeckForm({ ...newDeckForm, xpValue: e.target.value })} style={{ ...inputStyle, width: "80px" }} placeholder="XP" />
+                  <span style={{ fontSize: "0.72rem", color: "#0369a1" }}>XP on completion</span>
+                </div>
+              )}
             </div>
             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
               <button style={btnSecondary} onClick={() => setShowNewDeck(false)}>Cancel</button>

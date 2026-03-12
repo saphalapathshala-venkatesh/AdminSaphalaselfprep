@@ -937,7 +937,7 @@ export default function TestsPage() {
 
   const [testId, setTestId] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(false);
-  const [form, setForm] = useState({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "" });
+  const [form, setForm] = useState({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", xpEnabled: false, xpValue: "0" });
   const [hasSectionsManual, setHasSectionsManual] = useState(false);
   const [sectionPresetOpen, setSectionPresetOpen] = useState<number | null>(null);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
@@ -980,7 +980,7 @@ export default function TestsPage() {
 
   function openCreate() {
     setTestId(null); setIsPublished(false);
-    setForm({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "" });
+    setForm({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", xpEnabled: false, xpValue: "0" });
     setHasSectionsManual(false);
     setSections([]); setTestQuestions([]); setValidation(null);
     setView("builder");
@@ -993,7 +993,7 @@ export default function TestsPage() {
       if (!res.ok) { showToast(d.error || "Failed", "error"); return; }
       const t: TestDetail = d.data;
       setTestId(t.id); setIsPublished(t.isPublished);
-      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(t.durationSec) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, shuffleQuestions: t.shuffleQuestions, shuffleOptions: t.shuffleOptions, shuffleGroups: t.shuffleGroups, shuffleGroupChildren: t.shuffleGroupChildren, seriesId: t.seriesId || "", categoryId: (t as any).categoryId || "" });
+      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(t.durationSec) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, shuffleQuestions: t.shuffleQuestions, shuffleOptions: t.shuffleOptions, shuffleGroups: t.shuffleGroups, shuffleGroupChildren: t.shuffleGroupChildren, seriesId: t.seriesId || "", categoryId: (t as any).categoryId || "", xpEnabled: !!(t as any).xpEnabled, xpValue: (t as any).xpValue != null ? String((t as any).xpValue) : "0" });
       setHasSectionsManual(t.sections.length > 0 || ["SECTIONAL", "MULTI_SECTION"].includes(t.mode));
       const flatSecs: SectionState[] = t.sections.map((s, i) => {
         const parentIndex = s.parentSectionId ? t.sections.findIndex(p => p.id === s.parentSectionId) : null;
@@ -1022,6 +1022,7 @@ export default function TestsPage() {
         shuffleQuestions: form.shuffleQuestions, shuffleOptions: form.shuffleOptions,
         shuffleGroups: form.shuffleGroups, shuffleGroupChildren: form.shuffleGroupChildren,
         seriesId: form.seriesId || null, categoryId: form.categoryId || null,
+        xpEnabled: form.xpEnabled, xpValue: parseInt(form.xpValue) || 0,
         sections: sections.map(s => ({ title: s.title, durationSec: s.durationSec || null, targetCount: s.targetCount || null, parentIndex: s.parentIndex })),
         questions: testQuestions.map(q => ({ questionId: q.questionId, sectionIndex: q.sectionIndex, marks: q.marks, negativeMarks: q.negativeMarks })),
       };
@@ -1271,6 +1272,18 @@ export default function TestsPage() {
                   }
                   return null;
                 })()}
+                <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "0.75rem", alignItems: "center", background: "#f0f9ff", borderRadius: "8px", padding: "0.75rem", border: "1px solid #bae6fd" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.8125rem", fontWeight: 700, color: "#0369a1", cursor: "pointer", whiteSpace: "nowrap" }}>
+                    <input type="checkbox" checked={form.xpEnabled} onChange={e => setForm({ ...form, xpEnabled: e.target.checked })} />
+                    XP Reward
+                  </label>
+                  {form.xpEnabled && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <input type="number" min="0" value={form.xpValue} onChange={e => setForm({ ...form, xpValue: e.target.value })} style={{ ...inp, width: "90px" }} placeholder="XP" />
+                      <span style={{ fontSize: "0.75rem", color: "#0369a1" }}>XP awarded on completion (1st attempt = 100%, 2nd = 50%, 3rd+ = 0)</span>
+                    </div>
+                  )}
+                </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem" }}>
                   <div>
                     <label style={lbl}>Mode</label>

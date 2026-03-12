@@ -5,13 +5,28 @@ import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 
-const ALL_KEYS = ["LOGIN_XP", "TEST_XP", "IMPROVEMENT_BONUS_XP", "FLASHCARD_XP", "RR_XP"] as const;
+const ALL_KEYS = [
+  "LOGIN_XP", "TEST_XP", "IMPROVEMENT_BONUS_XP", "FLASHCARD_XP", "RR_XP",
+  "VIDEO_SHORT_XP", "VIDEO_LONG_XP", "HTML_XP",
+  "STREAK_7_BONUS", "STREAK_30_BONUS", "STREAK_50_BONUS", "STREAK_100_BONUS",
+  "REDEMPTION_UNLOCK_THRESHOLD", "REDEMPTION_CONVERSION_RATE",
+] as const;
+
 const DEFAULTS: Record<string, { value: number; dailyCap: number | null; multiplier: number }> = {
-  LOGIN_XP: { value: 5, dailyCap: 5, multiplier: 1 },
-  TEST_XP: { value: 10, dailyCap: null, multiplier: 1 },
-  IMPROVEMENT_BONUS_XP: { value: 5, dailyCap: null, multiplier: 1 },
-  FLASHCARD_XP: { value: 1, dailyCap: 50, multiplier: 1 },
-  RR_XP: { value: 5, dailyCap: null, multiplier: 1 },
+  LOGIN_XP:                    { value: 5,     dailyCap: 5,    multiplier: 1 },
+  TEST_XP:                     { value: 10,    dailyCap: null, multiplier: 1 },
+  IMPROVEMENT_BONUS_XP:        { value: 5,     dailyCap: null, multiplier: 1 },
+  FLASHCARD_XP:                { value: 1,     dailyCap: 50,   multiplier: 1 },
+  RR_XP:                       { value: 5,     dailyCap: null, multiplier: 1 },
+  VIDEO_SHORT_XP:              { value: 25,    dailyCap: null, multiplier: 1 },
+  VIDEO_LONG_XP:               { value: 50,    dailyCap: null, multiplier: 1 },
+  HTML_XP:                     { value: 10,    dailyCap: null, multiplier: 1 },
+  STREAK_7_BONUS:              { value: 15,    dailyCap: null, multiplier: 1 },
+  STREAK_30_BONUS:             { value: 50,    dailyCap: null, multiplier: 1 },
+  STREAK_50_BONUS:             { value: 100,   dailyCap: null, multiplier: 1 },
+  STREAK_100_BONUS:            { value: 150,   dailyCap: null, multiplier: 1 },
+  REDEMPTION_UNLOCK_THRESHOLD: { value: 25000, dailyCap: null, multiplier: 1 },
+  REDEMPTION_CONVERSION_RATE:  { value: 100,   dailyCap: null, multiplier: 1 },
 };
 
 export async function GET(req: NextRequest) {
@@ -52,7 +67,7 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     const { key, value, isEnabled, dailyCap, multiplier } = body;
 
-    if (!key || !ALL_KEYS.includes(key)) return NextResponse.json({ error: "Invalid rule key" }, { status: 400 });
+    if (!key || !(ALL_KEYS as readonly string[]).includes(key)) return NextResponse.json({ error: "Invalid rule key" }, { status: 400 });
     if (value !== undefined && (isNaN(Number(value)) || Number(value) < 0)) return NextResponse.json({ error: "value must be >= 0" }, { status: 400 });
     if (dailyCap !== undefined && dailyCap !== null && (isNaN(Number(dailyCap)) || Number(dailyCap) < 0)) return NextResponse.json({ error: "dailyCap must be >= 0 or null" }, { status: 400 });
     if (multiplier !== undefined && (isNaN(Number(multiplier)) || Number(multiplier) <= 0)) return NextResponse.json({ error: "multiplier must be > 0" }, { status: 400 });

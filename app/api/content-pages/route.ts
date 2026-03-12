@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title, body: pageBody, categoryId, subjectId, topicId, subtopicId, isPublished } = body;
+    const { title, body: pageBody, categoryId, subjectId, topicId, subtopicId, isPublished, xpEnabled, xpValue } = body;
 
     if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
     if (!pageBody?.trim()) return NextResponse.json({ error: "Body content is required" }, { status: 400 });
@@ -81,6 +81,8 @@ export async function POST(req: NextRequest) {
         subtopicId: subtopicId || null,
         isPublished: isPublished ?? false,
         publishedAt: isPublished ? new Date() : null,
+        xpEnabled: xpEnabled === true,
+        xpValue: xpValue !== undefined ? Math.max(0, parseInt(xpValue) || 0) : 0,
         createdById: user.id,
       },
       include: {

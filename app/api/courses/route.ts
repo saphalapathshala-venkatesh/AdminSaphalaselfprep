@@ -97,7 +97,11 @@ export async function POST(req: NextRequest) {
         categoryId:   categoryId || null,
         courseType,
         isActive:     isActive !== undefined ? Boolean(isActive) : true,
-        thumbnailUrl: body.thumbnailUrl?.trim() || null,
+        thumbnailUrl:           body.thumbnailUrl?.trim() || null,
+        xpRedemptionEnabled:    Boolean(body.xpRedemptionEnabled),
+        xpRedemptionMaxPercent: body.xpRedemptionMaxPercent
+          ? Math.min(3, Math.max(1, parseInt(body.xpRedemptionMaxPercent) || 1))
+          : 1,
         ...productTypes,
       },
     });

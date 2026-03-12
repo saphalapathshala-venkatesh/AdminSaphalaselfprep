@@ -1,0 +1,742 @@
+You are working inside the existing Saphala Admin app.
+
+Current state:
+
+Admin app is already heavily built
+
+Courses, packages, content builder, videos, live classes, tests, flashcards, users, device limits, etc. already exist
+
+XP was intentionally deferred until other architecture stabilized
+
+Now implement the final XP system for admin/backend scope
+
+Do not redesign unrelated modules
+
+Keep schema changes minimal but correct
+
+Build this as a real transaction-safe XP architecture, not a demo
+
+Important scope clarification
+
+This app is the admin app.
+
+Out of scope for this prompt
+
+Do not build student dashboard Achievements UI in this admin app.
+
+The following should be built later in the Saphala Self Prep student frontend, not here:
+
+Achievements menu
+
+badge cards
+
+level progress card
+
+congratulations cards
+
+redemption unlock UI in student dashboard
+
+In scope here
+
+This prompt should implement:
+
+backend XP engine
+
+admin XP rules/configuration
+
+admin content-level XP settings
+
+course-level XP redemption configuration
+
+ledger/wallet/achievement data structures
+
+APIs/services needed so the student frontend can consume them later
+
+So this prompt should make the XP system ready for future student frontend integration, but should not build student dashboard UI in this admin app.
+
+Goal
+
+Implement the complete XP system with:
+
+XP earning rules
+
+XP wallet + transaction ledger
+
+Repeat-attempt/watch rules
+
+Daily login + streak rewards
+
+Level thresholds
+
+Badge/achievement unlock data
+
+XP redemption rules at checkout
+
+Admin-configurable XP for Tests, Flashcards, and HTML materials
+
+Verification and implementation of course-level XP redemption settings
+
+Backend/API readiness for later Achievements UI in Saphala Self Prep app
+
+Locked XP business rules
+A. LIVE classes
+
+No XP
+
+Do not award XP for LIVE attendance or LIVE class videos/replays in this prompt
+
+B. Recorded Videos
+Base XP by video duration
+
+video duration up to 45 minutes → 25 XP
+
+video duration above 45 minutes → 50 XP
+
+Award method
+
+XP must be awarded proportionally based on valid watch-time percentage.
+
+Repeat rule
+
+1st watch cycle → up to 100% of original XP
+
+2nd watch cycle → up to 50% of original XP
+
+3rd watch cycle and beyond → 0 XP
+
+Anti-abuse rule
+
+Do not award XP from raw replay time.
+Use validated unique progress / sensible watch-progress tracking.
+
+C. Tests
+
+Each test should support admin-defined XP.
+
+Add fields such as:
+
+xpEnabled
+
+xpValue
+
+Repeat rule
+
+1st valid completed/submitted attempt → 100% XP
+
+2nd valid completed/submitted attempt → 50% of original XP
+
+3rd attempt onward → 0 XP
+
+D. Flashcard Decks
+
+Each flashcard deck should support admin-defined XP.
+
+Add fields such as:
+
+xpEnabled
+
+xpValue
+
+Repeat rule
+
+1st full completion → 100% XP
+
+2nd full completion → 50% of original XP
+
+3rd completion onward → 0 XP
+
+E. HTML Materials / HTML Lessons
+
+Each HTML material/lesson should support admin-defined XP.
+
+Add fields such as:
+
+xpEnabled
+
+xpValue
+
+Repeat rule
+
+1st valid completion → 100% XP
+
+2nd valid completion → 50% of original XP
+
+3rd completion onward → 0 XP
+
+F. PDF
+
+No XP
+
+Do not build PDF XP
+
+G. Daily login
+
+award 5 XP once per valid day
+
+H. Sadhana streak bonus
+
+Milestone bonus rewards:
+
+7-day streak → +15 XP
+
+30-day streak → +50 XP
+
+50-day streak → +100 XP
+
+100-day streak → +150 XP
+
+These are bonus milestone rewards, in addition to daily login XP.
+
+I. XP Redemption
+
+Locked rules:
+
+XP redemption becomes available only after user reaches 25,000 XP
+
+conversion rate = 100 XP = ₹1
+
+redemption is available during course purchase/checkout
+
+minimum redemption = 1% of actual price
+
+maximum redemption = configurable 1–3% of actual price per course
+
+max % must be set in course create/edit configuration if not already implemented
+
+Important
+
+Check whether redemption logic is already implemented.
+If not, implement it fully in this prompt.
+
+J. Levels
+
+Use these thresholds:
+
+1,000 XP
+
+5,000 XP
+
+10,000 XP
+
+25,000 XP
+
+50,000 XP
+
+75,000 XP
+
+100,000 XP
+
+150,000 XP
+
+after that, every additional 50,000 XP
+
+K. Badges + achievement data
+
+Every level should unlock:
+
+a badge
+
+an achievement entry
+
+a congratulation message record
+
+Important
+
+Build the data/backend side only in this admin app.
+Do not build student-facing dashboard UI here.
+
+The system should store enough structured data so the Saphala Self Prep student frontend can later show:
+
+current XP
+
+current level
+
+next threshold
+
+earned badges
+
+achievement cards
+
+redemption unlock state
+
+Architecture requirements
+1. XP must use a ledger
+
+Do not use only a single mutable XP number.
+
+Implement a proper XP transaction ledger.
+
+Recommended model:
+
+XpTransaction
+
+Fields may include:
+
+id
+
+tenantId
+
+userId
+
+sourceType
+
+sourceId nullable
+
+xpDelta
+
+reason / label
+
+meta JSON/string nullable
+
+createdAt
+
+Suggested source types:
+
+VIDEO
+
+TEST
+
+FLASHCARD
+
+HTML
+
+DAILY_LOGIN
+
+STREAK_BONUS
+
+REDEMPTION
+
+ADMIN_ADJUSTMENT
+
+LEVEL_UNLOCK
+
+BADGE_UNLOCK if needed
+
+2. User wallet / summary
+
+User should have summary fields such as:
+
+currentXpBalance
+
+lifetimeXpEarned
+
+lifetimeXpRedeemed
+
+currentLevel
+
+currentStreakDays
+
+longestStreakDays
+
+lastLoginDate
+
+xpRedemptionUnlockedAt nullable
+
+3. Repeat-attempt tracking
+
+The system must track how many times a user has already earned XP from a given source.
+
+Recommended concept:
+
+UserXpSourceProgress
+
+Fields may include:
+
+id
+
+userId
+
+sourceType
+
+sourceId
+
+completionCountForXp
+
+xpAwardedFirstCycle
+
+xpAwardedSecondCycle
+
+totalXpAwarded
+
+lastProgressMeta
+
+updatedAt
+
+This is required to implement:
+
+first time = 100%
+
+second time = 50%
+
+third time = 0%
+
+4. Achievements / badges data
+
+Recommended model:
+
+UserAchievement
+
+Fields may include:
+
+id
+
+userId
+
+achievementType
+
+badgeCode
+
+badgeName
+
+levelNumber nullable
+
+xpThreshold nullable
+
+title
+
+message
+
+unlockedAt
+
+This powers the future Achievements menu in the student frontend.
+
+5. XP rules config
+
+Do not hardcode everything deep inside business logic.
+
+Create a clean global XP settings source.
+
+At minimum, make these values centrally configurable:
+
+daily login XP = 5
+
+streak milestones and rewards
+
+video XP thresholds:
+
+<=45 mins = 25
+
+45 mins = 50
+
+second cycle multiplier = 50%
+
+third cycle onward = 0
+
+redemption unlock = 25,000
+
+conversion = 100 XP = ₹1
+
+If admin XP Rules page already exists, wire this into it.
+If XP Rules page is still basic/placeholder, build or upgrade it enough to manage these settings.
+
+Content-level admin fields
+Tests
+
+Add or confirm:
+
+xpEnabled
+
+xpValue
+
+Flashcard Decks
+
+Add or confirm:
+
+xpEnabled
+
+xpValue
+
+HTML Materials
+
+Add or confirm:
+
+xpEnabled
+
+xpValue
+
+No XP fields needed for:
+
+PDFs
+
+LIVE classes
+
+Course-level redemption settings
+
+Each course should support redemption configuration.
+
+If not already present, add:
+
+xpRedemptionEnabled boolean or equivalent
+
+xpRedemptionMaxPercent with allowed values in range 1 to 3
+
+Use existing course create/edit UI.
+
+Student frontend readiness only
+
+Do not build student UI here, but do provide backend/API readiness for the future Saphala Self Prep frontend.
+
+If helpful, expose clean APIs or service methods for future student frontend usage, such as:
+
+current XP summary
+
+achievements list
+
+badge list
+
+level progress
+
+redemption eligibility
+
+Only do this if it fits cleanly into the existing architecture.
+Do not start building the student app in this prompt.
+
+Event hooks to implement
+
+Integrate XP awarding into existing flows where appropriate.
+
+Required hooks
+
+student daily login
+
+video progress completion updates
+
+test valid submission/completion
+
+flashcard completion
+
+HTML material completion
+
+checkout redemption
+
+Must enforce
+
+1st time → 100%
+
+2nd time → 50%
+
+3rd+ → 0%
+for:
+
+videos
+
+tests
+
+flashcards
+
+HTML materials
+
+Anti-abuse / correctness rules
+Videos
+
+award based on valid unique progress, not naive replay time
+
+do not grant 3rd-cycle XP
+
+Daily login
+
+once per day only
+
+Tests
+
+valid submitted/completed attempt only
+
+third attempt onward earns no XP
+
+Flashcards
+
+full completion only
+
+third completion onward earns no XP
+
+HTML
+
+valid completion only
+
+third completion onward earns no XP
+
+Redemption
+
+cannot redeem before 25,000 XP unlocked
+
+cannot exceed current XP balance
+
+cannot exceed course redemption cap
+
+must generate negative XP ledger entry on successful purchase usage
+
+Admin UI requirements
+XP Rules page
+
+Create or upgrade admin XP Rules page to manage:
+
+daily login XP
+
+streak bonus thresholds/rewards
+
+video XP thresholds
+
+repeat multipliers / cycle rules
+
+redemption unlock threshold
+
+XP→₹ conversion
+
+Test create/edit
+
+Show XP enabled + XP value
+
+Flashcard create/edit
+
+Show XP enabled + XP value
+
+HTML material create/edit
+
+Show XP enabled + XP value
+
+Course create/edit
+
+Show redemption configuration if not already present:
+
+redemption enabled
+
+max redemption percent
+
+Implementation boundaries
+
+Do not:
+
+add XP for PDFs
+
+add XP for LIVE classes
+
+build student dashboard UI in this admin app
+
+redesign unrelated commerce flows
+
+redesign the full student frontend
+
+Deliverables expected
+
+At the end, return:
+
+schema changes made
+
+files created/updated
+
+hooks where XP is awarded
+
+how repeat rules are tracked
+
+whether redemption was already present or newly implemented
+
+what admin UI was added/updated
+
+which APIs/services were made ready for future student frontend achievements integration
+
+any deferred parts
+
+Final business rules summary to follow exactly
+Earn rules
+
+LIVE classes → 0 XP
+
+Recorded videos:
+
+up to 45 min → 25 XP
+
+above 45 min → 50 XP
+
+proportional to valid watch %
+
+1st time → 100%
+
+2nd time → 50%
+
+3rd+ → 0%
+
+Tests:
+
+admin-defined XP
+
+1st time → 100%
+
+2nd time → 50%
+
+3rd+ → 0%
+
+Flashcards:
+
+admin-defined XP
+
+1st time → 100%
+
+2nd time → 50%
+
+3rd+ → 0%
+
+HTML materials:
+
+admin-defined XP
+
+1st time → 100%
+
+2nd time → 50%
+
+3rd+ → 0%
+
+PDF → 0 XP
+
+Daily login → 5 XP
+
+Streak bonus:
+
+7 days → +15
+
+30 days → +50
+
+50 days → +100
+
+100 days → +150
+
+Redeem rules
+
+unlock at 25,000 XP
+
+100 XP = ₹1
+
+minimum use = 1% of actual price
+
+maximum use = configurable 1–3% of actual price per course
+
+Level rules
+
+1,000
+
+5,000
+
+10,000
+
+25,000
+
+50,000
+
+75,000
+
+100,000
+
+150,000
+
+then every 50,000
+
+Achievement rules
+
+badge per level
+
+congratulation record per level
+
+stored now for future student frontend Achievements menu
+
+Final principle
+
+Build this as a ledger-backed gamification and redemption system that is strict, auditable, scalable, commerce-safe, and ready for later student frontend achievement rendering.
