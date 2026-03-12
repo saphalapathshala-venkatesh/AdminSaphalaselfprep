@@ -1,0 +1,322 @@
+Task: Finalize the Content Library / learning materials management flow in Saphala Admin based on the locked product decisions below.
+
+CRITICAL CONSTRAINTS
+- Do NOT include or rework already completed tasks
+- Do NOT touch completed login/logout improvements
+- Do NOT rework already completed Tests / Question Bank / Settings flows except where tiny safe integration is required for this menu
+- Keep scope limited to Content Library, HTML materials/decks, PDF materials/courses, flashcard taxonomy alignment, and material-level controls
+- FULL XP implementation is intentionally OUT OF SCOPE for this task
+- Video module is also OUT OF SCOPE for this task (only keep structure compatible for future extension)
+- LIVE Neon DB and Prisma schema must remain in exact sync
+- Before any DB-related change, inspect current Prisma schema and current live usage carefully
+- Do NOT introduce schema drift
+- Do NOT run speculative or unnecessary migrations
+- If schema change is absolutely required, make only the minimum safe change after verifying current live DB alignment
+- Preserve current auth, role guards, admin protections, and working admin flows
+- Do NOT modify unrelated menus/modules
+
+HIGH-LEVEL GOAL
+Turn Content Library into a clean, taxonomy-driven learning materials management system that supports:
+1. HTML Decks (instead of weak generic HTML pages)
+2. PDF Library / PDF Courses with download controls
+3. Structured taxonomy dropdowns for content classification
+4. Course linkage for easier filtering and organization
+5. Flashcards alignment to the same taxonomy logic where practical
+6. Future compatibility for videos, without implementing videos now
+
+==================================================
+PART 1 — CONTENT LIBRARY INFORMATION ARCHITECTURE
+==================================================
+
+Content Library should support two primary content types in this phase:
+
+1. HTML Decks
+2. PDF Library / PDF materials
+
+Current “HTML Pages” concept should be upgraded conceptually into HTML Decks where practical.
+
+Preferred structure:
+- HTML Decks tab
+- PDF Library tab
+
+Do not over-engineer beyond current safe scope, but move the product direction away from weak generic “HTML Pages” and toward structured learning decks/materials.
+
+==================================================
+PART 2 — HTML DECKS INSTEAD OF GENERIC HTML PAGES
+==================================================
+
+Refine the current HTML content model so it behaves more like HTML Decks.
+
+Desired conceptual structure:
+Deck
+→ Card 1
+→ Card 2
+→ Card 3
+...
+
+Examples:
+- Polity – Fundamental Rights
+  - Card 1 Intro
+  - Card 2 Article 14
+  - Card 3 Article 15
+
+Implementation expectations:
+- If current architecture already stores one HTML page at a time, improve UI/UX and structure toward deck/card thinking as safely as possible
+- If full deck-card relational modeling is too large for this phase, at minimum make the admin experience ready/scaffolded for structured HTML learning content, not just isolated pages
+- Rename/admin wording should reflect HTML Decks / HTML Material rather than generic “pages” where practical
+
+Common metadata for HTML material should include:
+- Title
+- Category
+- Course
+- Subject
+- Topic
+- Subtopic
+- Status (Draft/Published)
+- optional deck/card count visibility if practical
+
+==================================================
+PART 3 — PDF LIBRARY / PDF COURSES
+==================================================
+
+Strengthen PDF material management.
+
+Requirements:
+- Support PDF materials / PDF course resources clearly
+- Ensure upload/storage behavior is production-safe and not fragile
+- If current production storage is weak, improve it safely
+- Admin should be able to manage PDFs as proper content assets, not raw files only
+
+Each PDF item should support structured metadata:
+- Title
+- Category
+- Course
+- Subject
+- Topic
+- Subtopic
+- Status
+- File reference / upload
+- Downloadable setting
+
+==================================================
+PART 4 — DOWNLOADABLE CONTROL FOR PDF COURSES AND INDIVIDUAL PDFS
+==================================================
+
+Implement download control at two levels:
+
+A. Course-level PDF download control
+- When creating/configuring a PDF course, admin must be able to choose:
+  - Downloadable = Yes
+  - Downloadable = No
+- This should control whether PDFs in that course are intended to be downloadable by learners
+
+B. Individual PDF-level download control
+- Each individual PDF should also have its own Downloadable Yes/No control
+- This allows finer control per document
+- Example:
+  - Course may be protected overall
+  - But one specific PDF may still be allowed or blocked
+- Or vice versa if your current architecture resolves effective access this way
+
+Important:
+- The system should clearly allow/prevent download based on admin settings
+- Implement admin-side data/control now; student-side enforcement should remain compatible with this rule
+- Avoid ambiguous mixed behavior
+
+==================================================
+PART 5 — STRUCTURED TAXONOMY DROPDOWNS FOR MATERIALS
+==================================================
+
+Add structured dropdowns instead of weak generic tags for learning materials.
+
+For relevant material creation/edit forms, add dropdowns for:
+- Category
+- Course
+- Subject
+- Topic
+- Subtopic
+
+Apply this structured taxonomy logic to:
+- PDF materials
+- PDF courses where relevant
+- HTML materials / HTML decks
+- Flashcards (align where practical in this phase)
+- Future videos later (do NOT implement videos now, just keep structure compatible)
+
+Goal:
+Admin should be able to classify content consistently and filter easily.
+
+==================================================
+PART 6 — CONTENT FILTERING / SEARCH
+==================================================
+
+Strengthen Content Library filtering/search.
+
+At minimum support:
+- Search by title/name
+- Filter by content type (HTML / PDF)
+- Filter by status (Draft / Published)
+- Filter by Category
+- Filter by Course
+- Filter by Subject
+- Filter by Topic
+- Filter by Subtopic
+
+The current generic search + weak filter is not enough.
+Upgrade the filtering to match taxonomy-driven admin workflows.
+
+==================================================
+PART 7 — STATUS / PUBLISH WORKFLOW
+==================================================
+
+Each material/content item should support clear state handling.
+
+Preferred states:
+- Draft
+- Published
+- Archived (optional only if practical/safe)
+
+At minimum:
+- Draft
+- Published
+
+Admin should be able to clearly understand whether content is ready for student-facing use.
+
+==================================================
+PART 8 — PREVIEW / VERIFY MATERIALS
+==================================================
+
+Improve admin confidence in stored materials.
+
+Where practical:
+- allow PDF preview or file verification
+- allow HTML material preview
+- show useful file info for PDFs (file name/size/upload state if practical)
+
+Main goal:
+Admin should be able to verify that uploaded/stored material actually exists and is usable.
+
+==================================================
+PART 9 — FLASHCARDS TAXONOMY ALIGNMENT
+==================================================
+
+Do not redesign the entire Flashcards module in this task, but align it to the same structured taxonomy logic where safely possible.
+
+For flashcards, ensure or improve support for:
+- Category
+- Course
+- Subject
+- Topic
+- Subtopic
+
+This should improve filtering and consistency across the ecosystem.
+
+Do not expand into XP logic here.
+
+==================================================
+PART 10 — FUTURE VIDEO COMPATIBILITY, BUT NO VIDEO IMPLEMENTATION NOW
+==================================================
+
+Do NOT implement the video feature in this task.
+
+However:
+- keep the taxonomy/content structure compatible with future videos
+- do not hardcode Content Library in a way that blocks a future Videos module
+- future video work may involve storage, encoding, playback, and possibly Zoom/live architecture, but that is intentionally out of scope now
+
+==================================================
+PART 11 — XP IS EXPLICITLY DEFERRED
+==================================================
+
+FULL XP modification/redemption logic is intentionally deferred until all other major features are completed.
+
+Do NOT implement XP redemption in this task.
+
+However, product requirements to remember for future XP phase:
+- user can redeem XP only after accumulating 25,000 XP
+- 100 XP = ₹1
+- redemption shown during checkout in a dedicated card
+- minimum usage = 1% of actual price
+- maximum usage = configurable 1% to 3% of actual price
+- course creation will later need per-course config for max redemption %
+
+For this task:
+- do not implement checkout XP logic
+- do not implement XP redemption engine
+- do not mix XP changes into Content Library finalization
+
+==================================================
+PART 12 — UX / ADMIN EXPERIENCE EXPECTATIONS
+==================================================
+
+Content Library should feel like a premium internal content-management tool.
+
+Desired admin experience:
+1. Choose tab: HTML Decks or PDF Library
+2. Create/Edit content
+3. Classify using structured dropdowns:
+   - Category
+   - Course
+   - Subject
+   - Topic
+   - Subtopic
+4. Set Draft/Published state
+5. For PDFs, configure Downloadable Yes/No
+6. Search and filter content cleanly
+7. Preview/verify content if practical
+
+Also improve naming where needed:
+- “+ New HTML Page” should move toward “+ New HTML Deck” or equivalent structured naming if architecture safely allows it
+
+==================================================
+PART 13 — LIVE DB / SCHEMA SAFETY
+==================================================
+
+Again:
+- LIVE DB and Prisma schema must remain exactly aligned
+- inspect current schema and live usage before touching models
+- do not create unnecessary migrations
+- if no schema change is needed, do not make one
+- if a schema change is absolutely necessary, keep it minimal and safe
+- do not break current content records or existing admin flows
+
+==================================================
+EXPECTED OUTPUT FROM REPLIT
+==================================================
+
+1. Finalize Content Library into a stronger materials-management menu
+2. Improve HTML content direction toward HTML Decks / structured HTML materials
+3. Strengthen PDF Library / PDF material handling
+4. Add Downloadable Yes/No controls at:
+   - PDF course level where relevant
+   - individual PDF level
+5. Add structured dropdowns for:
+   - Category
+   - Course
+   - Subject
+   - Topic
+   - Subtopic
+   across PDFs / HTML materials / flashcards where practical
+6. Improve taxonomy-based filtering and search
+7. Add/strengthen Draft/Published material status
+8. Add preview/verification where practical
+9. Keep video support out of current scope but future-compatible
+10. Keep XP implementation out of current scope
+11. Keep schema and LIVE DB in exact sync
+12. Briefly report:
+   - exact files changed
+   - whether any schema change was actually required
+   - how live DB/schema safety was preserved
+   - any staged limitations kept intentionally for safety
+
+ACCEPTANCE CRITERIA
+- Content Library is stronger than a basic HTML page / PDF upload screen
+- HTML content is moved toward structured HTML Deck / material thinking
+- PDF materials support Downloadable Yes/No controls
+- Taxonomy dropdowns exist for content classification
+- Filtering is taxonomy-driven and practical
+- Flashcards are aligned to the same taxonomy logic where practical
+- XP logic is NOT implemented here
+- Videos are NOT implemented here
+- Schema and LIVE DB remain exactly aligned
+- No unrelated completed tasks are reworked

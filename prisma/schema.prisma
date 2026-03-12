@@ -350,6 +350,7 @@ model FlashcardDeck {
   categoryId  String?
   subjectId   String?
   topicId     String?
+  subtopicId  String?
   isPublished Boolean @default(false)
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Restrict)
@@ -377,6 +378,9 @@ model FlashcardCard {
 model ContentPage {
   id          String @id @default(cuid())
   title       String
+  categoryId  String?
+  subjectId   String?
+  topicId     String?
   subtopicId  String?
   subtopic    Subtopic? @relation(fields: [subtopicId], references: [id], onDelete: SetNull)
   body        String
@@ -388,24 +392,27 @@ model ContentPage {
   updatedAt   DateTime @updatedAt
   @@index([isPublished])
   @@index([subtopicId])
+  @@index([categoryId])
 }
 model PdfAsset {
-  id          String @id @default(cuid())
-  title       String
-  fileUrl     String
-  fileSize    Int?
-  mimeType    String? @default("application/pdf")
-  categoryId  String?
-  subjectId   String?
-  topicId     String?
-  subtopicId  String?
-  isPublished Boolean @default(false)
-  publishedAt DateTime?
-  createdById String
-  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String @id @default(cuid())
+  title          String
+  fileUrl        String
+  fileSize       Int?
+  mimeType       String? @default("application/pdf")
+  categoryId     String?
+  subjectId      String?
+  topicId        String?
+  subtopicId     String?
+  isDownloadable Boolean @default(true)
+  isPublished    Boolean @default(false)
+  publishedAt    DateTime?
+  createdById    String
+  createdBy      User   @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
   @@index([isPublished])
+  @@index([categoryId])
 }
 // PRODUCT BUILDER (packages → entitlements)
 model ProductPackage {

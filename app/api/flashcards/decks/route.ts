@@ -17,18 +17,17 @@ export async function GET(req: NextRequest) {
   const categoryId = searchParams.get("categoryId");
   const subjectId = searchParams.get("subjectId");
   const topicId = searchParams.get("topicId");
+  const subtopicId = searchParams.get("subtopicId");
 
   try {
     const where: any = {};
-
-    if (search) {
-      where.title = { contains: search, mode: "insensitive" };
-    }
+    if (search) where.title = { contains: search, mode: "insensitive" };
     if (isPublished === "true") where.isPublished = true;
     if (isPublished === "false") where.isPublished = false;
     if (categoryId) where.categoryId = categoryId;
     if (subjectId) where.subjectId = subjectId;
     if (topicId) where.topicId = topicId;
+    if (subtopicId) where.subtopicId = subtopicId;
 
     const [items, total] = await Promise.all([
       prisma.flashcardDeck.findMany({
@@ -57,11 +56,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title, description, categoryId, subjectId, topicId } = body;
+    const { title, description, categoryId, subjectId, topicId, subtopicId } = body;
 
-    if (!title?.trim()) {
-      return NextResponse.json({ error: "Title is required" }, { status: 400 });
-    }
+    if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
 
     const deck = await prisma.flashcardDeck.create({
       data: {
@@ -70,6 +67,7 @@ export async function POST(req: NextRequest) {
         categoryId: categoryId || null,
         subjectId: subjectId || null,
         topicId: topicId || null,
+        subtopicId: subtopicId || null,
         createdById: user.id,
       },
       include: {
@@ -83,7 +81,7 @@ export async function POST(req: NextRequest) {
       action: "FLASHCARD_DECK_CREATE",
       entityType: "FlashcardDeck",
       entityId: deck.id,
-      after: { title: deck.title, description: deck.description },
+      after: { title: deck.title, categoryId: deck.categoryId, subtopicId: deck.subtopicId },
     });
 
     return NextResponse.json({ data: deck }, { status: 201 });

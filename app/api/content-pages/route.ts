@@ -14,20 +14,20 @@ export async function GET(req: NextRequest) {
   const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get("pageSize") || "20")));
   const search = searchParams.get("search")?.trim();
   const isPublished = searchParams.get("isPublished");
-  const subtopicId = searchParams.get("subtopicId");
-  const topicId = searchParams.get("topicId");
-  const subjectId = searchParams.get("subjectId");
   const categoryId = searchParams.get("categoryId");
+  const subjectId = searchParams.get("subjectId");
+  const topicId = searchParams.get("topicId");
+  const subtopicId = searchParams.get("subtopicId");
 
   try {
     const where: any = {};
     if (search) where.title = { contains: search, mode: "insensitive" };
     if (isPublished === "true") where.isPublished = true;
     if (isPublished === "false") where.isPublished = false;
+    if (categoryId) where.categoryId = categoryId;
+    if (subjectId) where.subjectId = subjectId;
+    if (topicId) where.topicId = topicId;
     if (subtopicId) where.subtopicId = subtopicId;
-    if (topicId) where.subtopic = { topicId };
-    if (subjectId) where.subtopic = { ...where.subtopic, topic: { subjectId } };
-    if (categoryId) where.subtopic = { ...where.subtopic, topic: { ...where.subtopic?.topic, subject: { categoryId } } };
 
     const [items, total] = await Promise.all([
       prisma.contentPage.findMany({
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title, body: pageBody, subtopicId } = body;
+    const { title, body: pageBody, categoryId, subjectId, topicId, subtopicId, isPublished } = body;
 
     if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
     if (!pageBody?.trim()) return NextResponse.json({ error: "Body content is required" }, { status: 400 });
@@ -75,7 +75,12 @@ export async function POST(req: NextRequest) {
       data: {
         title: title.trim(),
         body: pageBody.trim(),
+        categoryId: categoryId || null,
+        subjectId: subjectId || null,
+        topicId: topicId || null,
         subtopicId: subtopicId || null,
+        isPublished: isPublished ?? false,
+        publishedAt: isPublished ? new Date() : null,
         createdById: user.id,
       },
       include: {
@@ -89,7 +94,7 @@ export async function POST(req: NextRequest) {
       action: "CONTENTPAGE_CREATE",
       entityType: "ContentPage",
       entityId: page.id,
-      after: { title: page.title, subtopicId: page.subtopicId },
+      after: { title: page.title, categoryId: page.categoryId, subtopicId: page.subtopicId, isPublished: page.isPublished },
     });
 
     return NextResponse.json({ data: page }, { status: 201 });
