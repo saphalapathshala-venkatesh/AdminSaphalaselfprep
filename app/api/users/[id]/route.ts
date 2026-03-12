@@ -46,7 +46,15 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
     if (body.isActive !== undefined) data.isActive = Boolean(body.isActive);
 
-    const updated = await prisma.user.update({ where: { id: params.id }, data });
+    const updated = await prisma.user.update({
+      where: { id: params.id },
+      data,
+      select: {
+        id: true, name: true, email: true, mobile: true, role: true,
+        isActive: true, isBlocked: true, blockedReason: true,
+        maxWebDevices: true, deletedAt: true, createdAt: true, updatedAt: true,
+      },
+    });
 
     writeAuditLog({ actorId: admin.id, action: "USER_EDIT", entityType: "User", entityId: params.id });
     writeUserActivity({ userId: params.id, activityType: "USER_EDITED", meta: { editedBy: admin.id } });

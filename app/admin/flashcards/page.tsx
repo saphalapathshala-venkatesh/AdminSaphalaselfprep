@@ -52,7 +52,7 @@ export default function FlashcardsPage() {
 
   const [selectedDeck, setSelectedDeck] = useState<FlashcardDeck | null>(null);
   const [editingDeck, setEditingDeck] = useState(false);
-  const [deckForm, setDeckForm] = useState({ title: "", description: "", categoryId: "", subjectId: "", topicId: "", xpEnabled: false, xpValue: "0" });
+  const [deckForm, setDeckForm] = useState({ title: "", description: "", categoryId: "", subjectId: "", topicId: "", xpEnabled: false, xpValue: "" });
 
   const [cards, setCards] = useState<FlashcardCard[]>([]);
   const [loadingCards, setLoadingCards] = useState(false);
@@ -65,7 +65,7 @@ export default function FlashcardsPage() {
   const [cardForm, setCardForm] = useState({ front: "", back: "", imageUrl: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "" });
 
   const [showNewDeck, setShowNewDeck] = useState(false);
-  const [newDeckForm, setNewDeckForm] = useState({ title: "", description: "", categoryId: "", subjectId: "", topicId: "", xpEnabled: false, xpValue: "0" });
+  const [newDeckForm, setNewDeckForm] = useState({ title: "", description: "", categoryId: "", subjectId: "", topicId: "", xpEnabled: false, xpValue: "" });
 
   const [categories, setCategories] = useState<TaxItem[]>([]);
   const [subjects, setSubjects] = useState<TaxItem[]>([]);
@@ -184,7 +184,7 @@ export default function FlashcardsPage() {
       if (!res.ok) { showToast(json.error || "Failed", "error"); return; }
       showToast("Deck created", "success");
       setShowNewDeck(false);
-      setNewDeckForm({ title: "", description: "", categoryId: "", subjectId: "", topicId: "", xpEnabled: false, xpValue: "0" });
+      setNewDeckForm({ title: "", description: "", categoryId: "", subjectId: "", topicId: "", xpEnabled: false, xpValue: "" });
       loadDecks();
       selectDeck(json.data);
     } catch { showToast("Failed to create deck", "error"); }
@@ -463,7 +463,7 @@ export default function FlashcardsPage() {
       <div style={{ width: "320px", minWidth: "320px", borderRight: "1px solid #e5e7eb", paddingRight: "16px", display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
           <h1 style={{ fontSize: "1.25rem", fontWeight: 600, color: "#111" }}>Flashcard Decks</h1>
-          <button style={btnPrimary} onClick={() => { setShowNewDeck(true); setNewDeckForm({ title: "", description: "", categoryId: "", subjectId: "", topicId: "" }); setNewDeckSubjects([]); setNewDeckTopics([]); }}>
+          <button style={btnPrimary} onClick={() => { setShowNewDeck(true); setNewDeckForm({ title: "", description: "", categoryId: "", subjectId: "", topicId: "", xpEnabled: false, xpValue: "" }); setNewDeckSubjects([]); setNewDeckTopics([]); }}>
             + New Deck
           </button>
         </div>
