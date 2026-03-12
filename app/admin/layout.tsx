@@ -1,23 +1,54 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useCallback } from "react";
 
-const navItems = [
-  { label: "Dashboard", href: "/admin/dashboard" },
-  { label: "Taxonomy", href: "/admin/taxonomy" },
-  { label: "Question Bank", href: "/admin/question-bank" },
-  { label: "Imports", href: "/admin/imports" },
-  { label: "Test Series", href: "/admin/test-series" },
-  { label: "Tests", href: "/admin/tests" },
-  { label: "Flashcards", href: "/admin/flashcards" },
-  { label: "Content Library", href: "/admin/content-library" },
-  { label: "Products", href: "/admin/products" },
-  { label: "Coupons", href: "/admin/coupons" },
-  { label: "XP Rules", href: "/admin/xp-rules" },
-  { label: "Learners", href: "/admin/learners" },
-  { label: "Analytics", href: "/admin/analytics" },
-  { label: "Settings", href: "/admin/settings" },
+const navSections = [
+  {
+    heading: "OVERVIEW",
+    items: [
+      { label: "Dashboard", href: "/admin/dashboard" },
+    ],
+  },
+  {
+    heading: "CONTENT",
+    items: [
+      { label: "Taxonomy", href: "/admin/taxonomy" },
+      { label: "Question Bank", href: "/admin/question-bank" },
+      { label: "Imports", href: "/admin/imports" },
+      { label: "Test Series", href: "/admin/test-series" },
+      { label: "Tests", href: "/admin/tests" },
+      { label: "Flashcards", href: "/admin/flashcards" },
+      { label: "Content Library", href: "/admin/content-library" },
+    ],
+  },
+  {
+    heading: "COMMERCE",
+    items: [
+      { label: "Products", href: "/admin/products" },
+      { label: "Coupons", href: "/admin/coupons" },
+    ],
+  },
+  {
+    heading: "ENGAGEMENT",
+    items: [
+      { label: "XP Rules", href: "/admin/xp-rules" },
+      { label: "Learners", href: "/admin/learners" },
+    ],
+  },
+  {
+    heading: "REPORTING",
+    items: [
+      { label: "Analytics", href: "/admin/analytics" },
+    ],
+  },
+  {
+    heading: "SYSTEM",
+    items: [
+      { label: "Settings", href: "/admin/settings", comingSoon: true },
+    ],
+  },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -34,17 +65,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <aside style={styles.sidebar}>
         <div style={styles.brand}>Saphala Admin</div>
         <nav style={styles.nav}>
-          {navItems.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              style={{
-                ...styles.navLink,
-                ...(pathname === item.href ? styles.navLinkActive : {}),
-              }}
-            >
-              {item.label}
-            </a>
+          {navSections.map((section) => (
+            <div key={section.heading}>
+              <div style={styles.sectionHeading}>{section.heading}</div>
+              {section.items.map((item) => {
+                const isActive = pathname === item.href;
+                const isComingSoon = (item as any).comingSoon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    style={{
+                      ...styles.navLink,
+                      ...(isActive ? styles.navLinkActive : {}),
+                      ...(isComingSoon ? styles.navLinkDimmed : {}),
+                    }}
+                  >
+                    {item.label}
+                    {isComingSoon && (
+                      <span style={styles.comingSoonBadge}>Soon</span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
           ))}
         </nav>
         <button onClick={handleLogout} style={styles.logoutBtn}>
@@ -63,7 +107,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: "system-ui, sans-serif",
   },
   sidebar: {
-    width: "240px",
+    width: "220px",
     backgroundColor: "#1e293b",
     color: "#fff",
     display: "flex",
@@ -81,9 +125,19 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "0.5rem 0",
     overflowY: "auto",
   },
+  sectionHeading: {
+    padding: "0.75rem 1rem 0.25rem",
+    fontSize: "0.625rem",
+    fontWeight: 700,
+    letterSpacing: "0.08em",
+    color: "#64748b",
+    textTransform: "uppercase" as const,
+  },
   navLink: {
-    display: "block",
-    padding: "0.5rem 1rem",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "0.4rem 1rem",
     color: "#cbd5e1",
     textDecoration: "none",
     fontSize: "0.875rem",
@@ -93,6 +147,19 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: "#334155",
     color: "#fff",
     borderLeftColor: "#3b82f6",
+  },
+  navLinkDimmed: {
+    opacity: 0.5,
+  },
+  comingSoonBadge: {
+    fontSize: "0.55rem",
+    fontWeight: 600,
+    letterSpacing: "0.04em",
+    color: "#94a3b8",
+    backgroundColor: "#334155",
+    padding: "0.1rem 0.35rem",
+    borderRadius: "3px",
+    textTransform: "uppercase" as const,
   },
   logoutBtn: {
     margin: "0.5rem 1rem 1rem",
