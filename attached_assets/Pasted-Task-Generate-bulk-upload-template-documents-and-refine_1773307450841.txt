@@ -1,0 +1,205 @@
+Task: Generate bulk upload template documents and refine question upload workflow rules for Saphala Admin based on updated product decisions.
+
+IMPORTANT
+- Do NOT modify database schema
+- Do NOT change existing admin pages
+- Do NOT implement application code yet
+- This task is only to generate DOWNLOADABLE BULK UPLOAD DOCUMENTS and update workflow rules
+- Templates must be usable by a real content team
+
+GOAL
+Create clean downloadable templates and rule documents for bulk question uploads used in the Add Questions workflow.
+
+==================================================
+
+CRITICAL PRODUCT RULES
+
+1. Questions will NOT contain Section or Subsection columns in bulk templates.
+   Reason: Admin selects section/subsection before uploading questions.
+
+2. Upload workflow must work like this:
+   Admin selects a Section
+   → If subsection exists, selects Subsection
+   → Clicks "Add Questions"
+   → Options appear:
+      - Add Single Question
+      - Bulk Upload Questions
+
+3. Bulk upload templates must therefore NOT contain fields:
+   - Section
+   - Subsection
+
+4. Marks must remain configurable per question.
+   Different questions may carry different marks.
+
+5. Negative marks remain optional per question.
+
+6. Timer configuration in tests should be entered in MINUTES (not seconds).
+
+7. During the exam runtime, the timer display must be formatted as:
+
+   HH:MM:SS
+
+   Example:
+   90 minutes input → displayed as 01:30:00
+
+==================================================
+
+FILES TO GENERATE
+
+1. CSV TEMPLATE — SINGLE QUESTIONS
+
+File name:
+saphala_bulk_upload_single_questions.csv
+
+Columns should include:
+
+- question_text
+- option_a
+- option_b
+- option_c
+- option_d
+- correct_answer
+- explanation
+- category
+- subject
+- topic
+- subtopic
+- question_type
+- difficulty
+- source_tag
+- marks
+- negative_marks
+
+Important:
+Do NOT include section or subsection columns.
+
+Include 3 realistic example rows.
+
+==================================================
+
+2. DOCX TEMPLATE — SINGLE QUESTIONS
+
+File name:
+saphala_single_question_template.docx
+
+Include structured format for:
+
+Question
+Options
+Correct Answer
+Explanation
+Category
+Subject
+Topic
+Subtopic
+Question Type
+Difficulty
+Source Tag
+Marks
+Negative Marks
+
+Include 3 example questions.
+
+Important:
+No Section/Subsection fields.
+
+==================================================
+
+3. DOCX TEMPLATE — PARAGRAPH / GROUP QUESTIONS
+
+File name:
+saphala_group_question_template.docx
+
+Purpose:
+Support grouped questions such as:
+
+- English comprehension
+- reasoning puzzles
+- seating arrangement
+- data interpretation
+
+Rules:
+- Paragraph typed once
+- Child questions follow
+- Explicit group start marker
+- Explicit group end marker
+
+Example structure required.
+
+Include:
+- one paragraph group with 3 questions
+- one standalone question after the group
+
+==================================================
+
+4. IMPORT RULES DOCUMENT
+
+File name:
+saphala_import_rules.docx
+
+Explain clearly:
+
+• how CSV template works
+• how single-question DOCX template works
+• how group-question DOCX template works
+
+Also document:
+
+Mandatory fields
+Optional fields
+Valid values
+Marks rules
+Negative marking rules
+Taxonomy rules
+
+Important:
+Explain that section/subsection are selected in the admin UI BEFORE uploading questions.
+
+Add explanation of:
+
+Add Questions workflow:
+
+Select Section
+→ Select Subsection (if exists)
+→ Add Questions
+→ Single or Bulk upload
+
+Explain blocking errors and warnings.
+
+==================================================
+
+5. QUICK REFERENCE CHEAT SHEET
+
+File name:
+saphala_quick_reference.docx
+
+1-page guide including:
+
+• correct formatting
+• grouped question structure
+• correct answer format
+• marks usage
+• negative marks usage
+• common upload mistakes
+
+==================================================
+
+OUTPUT EXPECTATION
+
+Provide:
+
+1. List of generated files
+2. Download links or file contents
+3. Short explanation of how each template should be used
+
+QUALITY EXPECTATION
+
+Templates must be:
+
+• strict
+• parser friendly
+• realistic
+• ready for real content teams
+
+Do not produce vague examples.
