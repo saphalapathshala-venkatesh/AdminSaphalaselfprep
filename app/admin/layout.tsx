@@ -26,6 +26,7 @@ const navSections = [
   {
     heading: "MEDIA",
     items: [
+      { label: "Courses", href: "/admin/courses" },
       { label: "Videos", href: "/admin/videos" },
       { label: "Live Classes", href: "/admin/live-classes" },
       { label: "Content Flow", href: "/admin/content-flow" },

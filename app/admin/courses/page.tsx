@@ -1,0 +1,393 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
+
+const PURPLE = "#7c3aed";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+type ProductTypes = {
+  hasHtmlCourse:  boolean;
+  hasVideoCourse: boolean;
+  hasPdfCourse:   boolean;
+  hasTestSeries:  boolean;
+};
+
+type Course = ProductTypes & {
+  id: string; name: string; description: string | null;
+  isActive: boolean; createdAt: string;
+  _count?: { videos: number; liveClasses: number };
+};
+
+type FormData = {
+  name: string; description: string; isActive: boolean;
+} & ProductTypes;
+
+// ─── Product type config ──────────────────────────────────────────────────────
+const TYPE_CONFIG = [
+  { key: "hasHtmlCourse"  as const, label: "HTML Course",  short: "HTML",  bg: "#dbeafe", color: "#1d4ed8" },
+  { key: "hasVideoCourse" as const, label: "Video Course", short: "Video", bg: "#f3e8ff", color: PURPLE    },
+  { key: "hasPdfCourse"   as const, label: "PDF Course",   short: "PDF",   bg: "#fef3c7", color: "#b45309" },
+  { key: "hasTestSeries"  as const, label: "Test Series",  short: "Tests", bg: "#dcfce7", color: "#15803d" },
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const defaultForm = (): FormData => ({
+  name: "", description: "", isActive: true,
+  hasHtmlCourse: false, hasVideoCourse: false, hasPdfCourse: false, hasTestSeries: false,
+});
+
+function courseToForm(c: Course): FormData {
+  return {
+    name: c.name, description: c.description || "", isActive: c.isActive,
+    hasHtmlCourse: c.hasHtmlCourse, hasVideoCourse: c.hasVideoCourse,
+    hasPdfCourse: c.hasPdfCourse, hasTestSeries: c.hasTestSeries,
+  };
+}
+
+function hasAnyType(f: FormData | ProductTypes) {
+  return f.hasHtmlCourse || f.hasVideoCourse || f.hasPdfCourse || f.hasTestSeries;
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+function TypeBadges({ course }: { course: ProductTypes }) {
+  const active = TYPE_CONFIG.filter(t => course[t.key]);
+  if (active.length === 0) return <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>None</span>;
+  return (
+    <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
+      {active.map(t => (
+        <span key={t.key} style={{ padding: "2px 7px", borderRadius: "10px", fontSize: "0.7rem", fontWeight: 700, background: t.bg, color: t.color, whiteSpace: "nowrap" }}>
+          {t.short}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+const inputSt: React.CSSProperties = { width: "100%", padding: "0.4375rem 0.75rem", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "0.875rem", outline: "none", background: "#fff", boxSizing: "border-box" };
+const labelSt: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "0.25rem" };
+
+// ─── Course form (shared for create + edit) ───────────────────────────────────
+function CourseForm({ form, onChange, error }: {
+  form: FormData;
+  onChange: (f: FormData) => void;
+  error: string | null;
+}) {
+  const set = (patch: Partial<FormData>) => onChange({ ...form, ...patch });
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      {error && (
+        <div style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: "6px", padding: "0.625rem 0.875rem", fontSize: "0.875rem", color: "#991b1b" }}>
+          {error}
+        </div>
+      )}
+
+      <div>
+        <label style={labelSt}>Course Name <span style={{ color: "#dc2626" }}>*</span></label>
+        <input value={form.name} onChange={e => set({ name: e.target.value })} placeholder="e.g. NEET 2026 Foundation" style={inputSt} />
+      </div>
+
+      <div>
+        <label style={labelSt}>Description</label>
+        <textarea value={form.description} onChange={e => set({ description: e.target.value })} rows={3}
+          placeholder="Optional short description…"
+          style={{ ...inputSt, resize: "vertical", lineHeight: 1.5 }} />
+      </div>
+
+      {/* Product type checkboxes */}
+      <div>
+        <label style={{ ...labelSt, marginBottom: "0.5rem" }}>
+          Product Types <span style={{ color: "#dc2626" }}>*</span>
+          <span style={{ marginLeft: "0.5rem", fontSize: "0.75rem", fontWeight: 400, color: "#94a3b8" }}>(select at least one)</span>
+        </label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+          {TYPE_CONFIG.map(t => {
+            const checked = form[t.key];
+            return (
+              <label key={t.key} style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.625rem 0.875rem", borderRadius: "8px", border: `2px solid ${checked ? t.color : "#e2e8f0"}`, background: checked ? t.bg : "#f8fafc", cursor: "pointer", userSelect: "none", transition: "border-color 0.15s, background 0.15s" }}>
+                <input type="checkbox" checked={checked} onChange={e => set({ [t.key]: e.target.checked } as any)} style={{ width: 16, height: 16, accentColor: t.color, cursor: "pointer" }} />
+                <span style={{ fontSize: "0.8125rem", fontWeight: checked ? 700 : 500, color: checked ? t.color : "#374151" }}>{t.label}</span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+          <input type="checkbox" checked={form.isActive} onChange={e => set({ isActive: e.target.checked })} style={{ width: 16, height: 16, accentColor: PURPLE }} />
+          <span style={{ fontSize: "0.875rem", fontWeight: 500, color: "#374151" }}>Active (visible in dropdowns)</span>
+        </label>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+export default function CoursesPage() {
+  const [courses,  setCourses]  = useState<Course[]>([]);
+  const [total,    setTotal]    = useState(0);
+  const [page,     setPage]     = useState(1);
+  const [search,   setSearch]   = useState("");
+  const [loading,  setLoading]  = useState(true);
+  const [toast,    setToast]    = useState<{ msg: string; ok: boolean } | null>(null);
+
+  // Modal state
+  const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
+  const [editTarget, setEditTarget] = useState<Course | null>(null);
+  const [form, setForm] = useState<FormData>(defaultForm());
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Delete confirmation
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Active filter
+  const [activeFilter, setActiveFilter] = useState<"" | "true" | "false">("");
+
+  const pageSize = 20;
+
+  const showToast = (msg: string, ok = true) => { setToast({ msg, ok }); setTimeout(() => setToast(null), 3200); };
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const p = new URLSearchParams({ page: String(page), pageSize: String(pageSize), search });
+    if (activeFilter) p.set("isActive", activeFilter);
+    const res  = await fetch(`/api/courses?${p}`);
+    const json = await res.json();
+    setCourses(json.data || []);
+    setTotal(json.pagination?.total || 0);
+    setLoading(false);
+  }, [page, search, activeFilter]);
+
+  useEffect(() => { load(); }, [load]);
+
+  // ─── Create ──────────────────────────────────────────────────────────────────
+  function openCreate() {
+    setForm(defaultForm());
+    setFormError(null);
+    setEditTarget(null);
+    setModalMode("create");
+  }
+
+  // ─── Edit ────────────────────────────────────────────────────────────────────
+  function openEdit(course: Course) {
+    setForm(courseToForm(course));
+    setFormError(null);
+    setEditTarget(course);
+    setModalMode("edit");
+  }
+
+  // ─── Save (create or edit) ────────────────────────────────────────────────────
+  async function handleSave() {
+    if (!form.name.trim()) { setFormError("Course name is required"); return; }
+    if (!hasAnyType(form)) { setFormError("Select at least one product type"); return; }
+    setSaving(true); setFormError(null);
+
+    const isEdit = modalMode === "edit" && editTarget;
+    const url    = isEdit ? `/api/courses/${editTarget!.id}` : "/api/courses";
+    const method = isEdit ? "PUT" : "POST";
+
+    const res  = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const json = await res.json();
+    setSaving(false);
+
+    if (!res.ok) { setFormError(json.error || "Failed to save"); return; }
+
+    setModalMode(null);
+    showToast(isEdit ? "Course updated" : "Course created");
+    load();
+  }
+
+  // ─── Toggle active ────────────────────────────────────────────────────────────
+  async function handleToggleActive(course: Course) {
+    const res  = await fetch(`/api/courses/${course.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive: !course.isActive }) });
+    const json = await res.json();
+    if (res.ok) { showToast(`Course ${json.data.isActive ? "activated" : "deactivated"}`); load(); }
+    else showToast(json.error || "Failed to update", false);
+  }
+
+  // ─── Delete ───────────────────────────────────────────────────────────────────
+  async function handleDelete() {
+    if (!confirmDeleteId) return;
+    setDeleting(true);
+    const res  = await fetch(`/api/courses/${confirmDeleteId}`, { method: "DELETE" });
+    const json = await res.json();
+    setDeleting(false);
+    if (res.ok) { setConfirmDeleteId(null); showToast("Course deleted"); load(); }
+    else showToast(json.error || "Failed to delete", false);
+  }
+
+  const totalPages = Math.ceil(total / pageSize);
+
+  // ─── Render ──────────────────────────────────────────────────────────────────
+  return (
+    <div>
+      {/* Toast */}
+      {toast && (
+        <div style={{ position: "fixed", top: 20, right: 24, zIndex: 9999, background: toast.ok ? "#15803d" : "#991b1b", color: "#fff", padding: "0.625rem 1.25rem", borderRadius: "8px", fontSize: "0.875rem", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
+          {toast.msg}
+        </div>
+      )}
+
+      {/* ── Create/Edit modal ────────────────────────────────────────────────── */}
+      {modalMode && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 8000, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
+          <div style={{ background: "#fff", borderRadius: "14px", width: "100%", maxWidth: 520, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}>
+            <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <h2 style={{ margin: 0, fontSize: "1.0625rem", fontWeight: 700, color: "#0f172a" }}>
+                {modalMode === "create" ? "New Course" : `Edit: ${editTarget?.name}`}
+              </h2>
+              <button onClick={() => setModalMode(null)} style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", fontSize: "1.125rem", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>×</button>
+            </div>
+            <div style={{ padding: "1.5rem" }}>
+              <CourseForm form={form} onChange={setForm} error={formError} />
+            </div>
+            <div style={{ padding: "1rem 1.5rem", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "flex-end", gap: "0.625rem" }}>
+              <button onClick={() => setModalMode(null)} style={{ padding: "0.5rem 1.25rem", borderRadius: "7px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: "0.875rem", color: "#374151", fontWeight: 600 }}>Cancel</button>
+              <button onClick={handleSave} disabled={saving} style={{ padding: "0.5rem 1.5rem", borderRadius: "7px", border: "none", background: PURPLE, color: "#fff", cursor: saving ? "not-allowed" : "pointer", fontSize: "0.875rem", fontWeight: 700, opacity: saving ? 0.7 : 1 }}>
+                {saving ? "Saving…" : modalMode === "create" ? "Create Course" : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete confirmation ───────────────────────────────────────────────── */}
+      {confirmDeleteId && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 8000, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
+          <div style={{ background: "#fff", borderRadius: "14px", width: "100%", maxWidth: 420, padding: "2rem", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <div style={{ fontSize: "2rem", marginBottom: "0.75rem" }}>🗑️</div>
+            <div style={{ fontWeight: 700, fontSize: "1.0625rem", marginBottom: "0.5rem", color: "#0f172a" }}>Delete this course?</div>
+            <div style={{ color: "#64748b", fontSize: "0.875rem", marginBottom: "1.5rem" }}>
+              This will permanently delete the course and unlink all associated videos and live classes.
+            </div>
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
+              <button onClick={() => setConfirmDeleteId(null)} style={{ padding: "0.5rem 1.25rem", borderRadius: "7px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}>Cancel</button>
+              <button onClick={handleDelete} disabled={deleting} style={{ padding: "0.5rem 1.25rem", borderRadius: "7px", border: "none", background: "#dc2626", color: "#fff", cursor: deleting ? "not-allowed" : "pointer", fontWeight: 700, fontSize: "0.875rem", opacity: deleting ? 0.7 : 1 }}>
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Page header ──────────────────────────────────────────────────────────── */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "1.5rem" }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#0f172a" }}>Courses</h1>
+          <p style={{ margin: "0.25rem 0 0", color: "#64748b", fontSize: "0.875rem" }}>
+            Define courses and their product type mix — Videos, HTML, PDF, Test Series, or any combination.
+          </p>
+        </div>
+        <button onClick={openCreate} style={{ padding: "0.5rem 1.25rem", borderRadius: "8px", background: PURPLE, color: "#fff", border: "none", fontWeight: 700, fontSize: "0.875rem", cursor: "pointer" }}>
+          + New Course
+        </button>
+      </div>
+
+      {/* ── Product type legend ──────────────────────────────────────────────────── */}
+      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1.25rem" }}>
+        {TYPE_CONFIG.map(t => (
+          <span key={t.key} style={{ display: "flex", alignItems: "center", gap: "0.375rem", padding: "4px 10px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: 600, background: t.bg, color: t.color }}>
+            {t.label}
+          </span>
+        ))}
+        <span style={{ fontSize: "0.75rem", color: "#94a3b8", display: "flex", alignItems: "center", marginLeft: "0.25rem" }}>— product type badges</span>
+      </div>
+
+      {/* ── Filters ──────────────────────────────────────────────────────────────── */}
+      <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+        <input
+          value={search}
+          onChange={e => { setSearch(e.target.value); setPage(1); }}
+          placeholder="Search courses…"
+          style={{ flex: "1 1 200px", padding: "0.4375rem 0.75rem", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "0.875rem", outline: "none", minWidth: 160 }}
+        />
+        <select value={activeFilter} onChange={e => { setActiveFilter(e.target.value as any); setPage(1); }} style={{ padding: "0.4375rem 0.75rem", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "0.875rem", outline: "none", background: "#fff" }}>
+          <option value="">All statuses</option>
+          <option value="true">Active only</option>
+          <option value="false">Inactive only</option>
+        </select>
+      </div>
+
+      {/* ── Table ────────────────────────────────────────────────────────────────── */}
+      <div style={{ background: "#fff", borderRadius: "12px", boxShadow: "0 1px 3px rgba(0,0,0,0.07)", overflow: "hidden" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ background: "#f8fafc" }}>
+              {["Course Name", "Product Types", "Videos", "Live Classes", "Status", "Actions"].map(h => (
+                <th key={h} style={{ padding: "0.625rem 1rem", textAlign: "left", fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "2px solid #e2e8f0", whiteSpace: "nowrap" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i}>
+                  {Array.from({ length: 6 }).map((_, j) => (
+                    <td key={j} style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
+                      <div style={{ height: 16, borderRadius: 4, background: `linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%)`, backgroundSize: "200% 100%", animation: "shimmer 1.5s infinite", width: j === 0 ? "60%" : j === 1 ? "80%" : "40%" }} />
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : courses.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ padding: "4rem", textAlign: "center", color: "#94a3b8" }}>
+                  {search ? `No courses matching "${search}"` : "No courses yet. Create the first one."}
+                </td>
+              </tr>
+            ) : courses.map(course => (
+              <tr key={course.id} style={{ transition: "background 0.1s" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#f8fafc")}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                <td style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
+                  <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a" }}>{course.name}</div>
+                  {course.description && <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.125rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 260 }}>{course.description}</div>}
+                </td>
+                <td style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
+                  <TypeBadges course={course} />
+                </td>
+                <td style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9", fontSize: "0.875rem", color: "#475569" }}>
+                  {course._count ? (
+                    <Link href={`/admin/videos?courseId=${course.id}`} style={{ color: PURPLE, textDecoration: "none", fontWeight: 600 }}>{course._count.videos}</Link>
+                  ) : "—"}
+                </td>
+                <td style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9", fontSize: "0.875rem", color: "#475569" }}>
+                  {course._count?.liveClasses ?? "—"}
+                </td>
+                <td style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
+                  <button onClick={() => handleToggleActive(course)} style={{ padding: "2px 10px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: 700, border: "none", cursor: "pointer", background: course.isActive ? "#dcfce7" : "#f1f5f9", color: course.isActive ? "#15803d" : "#64748b" }}>
+                    {course.isActive ? "Active" : "Inactive"}
+                  </button>
+                </td>
+                <td style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
+                  <div style={{ display: "flex", gap: "0.375rem" }}>
+                    <button onClick={() => openEdit(course)} style={{ padding: "0.25rem 0.75rem", borderRadius: "5px", border: `1px solid ${PURPLE}`, color: PURPLE, background: "#fff", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 }}>Edit</button>
+                    <button onClick={() => setConfirmDeleteId(course.id)} style={{ padding: "0.25rem 0.625rem", borderRadius: "5px", border: "1px solid #fca5a5", color: "#dc2626", background: "#fff", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 }}>Del</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* ── Pagination ────────────────────────────────────────────────────────── */}
+        {totalPages > 1 && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.875rem 1rem", borderTop: "1px solid #f1f5f9" }}>
+            <span style={{ fontSize: "0.8125rem", color: "#64748b" }}>
+              {total} course{total !== 1 ? "s" : ""} · page {page} of {totalPages}
+            </span>
+            <div style={{ display: "flex", gap: "0.375rem" }}>
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: "0.3125rem 0.75rem", borderRadius: "6px", border: "1px solid #e2e8f0", background: "#fff", cursor: page === 1 ? "not-allowed" : "pointer", opacity: page === 1 ? 0.5 : 1, fontSize: "0.8125rem" }}>← Prev</button>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: "0.3125rem 0.75rem", borderRadius: "6px", border: "1px solid #e2e8f0", background: "#fff", cursor: page === totalPages ? "not-allowed" : "pointer", opacity: page === totalPages ? 0.5 : 1, fontSize: "0.8125rem" }}>Next →</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <style>{`@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
+    </div>
+  );
+}

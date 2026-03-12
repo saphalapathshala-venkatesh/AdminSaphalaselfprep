@@ -569,16 +569,20 @@ model AuditLog {
 
 // VIDEO MODULE
 model Course {
-  id          String    @id @default(cuid())
-  tenantId    String    @default("default")
-  name        String
-  description String?
-  categoryId  String?
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  videos      Video[]
-  liveClasses LiveClass[]
+  id             String    @id @default(cuid())
+  tenantId       String    @default("default")
+  name           String
+  description    String?
+  categoryId     String?
+  isActive       Boolean   @default(true)
+  hasHtmlCourse  Boolean   @default(false)
+  hasVideoCourse Boolean   @default(false)
+  hasPdfCourse   Boolean   @default(false)
+  hasTestSeries  Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  videos         Video[]
+  liveClasses    LiveClass[]
   @@index([categoryId])
   @@index([tenantId])
 }
