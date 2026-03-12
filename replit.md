@@ -71,3 +71,25 @@ The console utilizes a consistent brand palette with purple (`#7c3aed`) as the p
 - "In Tests" column — shows N tests badge or "—"
 - Delete flow: usage-warning modal before force-delete
 - Bulk Delete button — with confirmation modal showing force-delete implications
+
+## Settings Menu (March 2026)
+
+### Schema Changes
+- **None required.** `AuditLog`, `User`, and `Session` models already contained everything needed.
+
+### API Routes Added (`app/api/settings/`)
+- `profile/route.ts` — GET current admin profile (name, email, role, lastLogin, activeSessions); PATCH to update display name
+- `password/route.ts` — POST to change password (verifies current password via bcrypt, validates new ≥ 8 chars, hashes with bcryptjs)
+- `audit-logs/route.ts` — GET with filters (action, actorId, entityType, date range, pagination 50/page); returns distinct actor list and action list for filter dropdowns
+- `admins/route.ts` — GET list of admin users; POST create new admin (SUPER_ADMIN only); PATCH toggle isActive status (SUPER_ADMIN only, cannot self-modify)
+- `payment/route.ts` — GET Razorpay config status from env vars (masked keys, live/test/not_configured mode)
+- `sessions/route.ts` — DELETE to revoke all OTHER active sessions for current user (keeps current session alive)
+
+### Settings Page (`app/admin/settings/page.tsx`)
+Fully tabbed client component with 6 sections:
+1. **Profile & Security** — display name edit (inline), read-only email/role/joined, last login, active sessions, change password form (current + new + confirm, bcrypt-verified)
+2. **Payments** — Razorpay status badge (live/test/not_configured), masked keyId/secret/webhook, guidance text; Cashfree staged placeholder
+3. **Audit Logs** — filterable table (action, admin, module, date range); paginated 50/page; color-coded action badges (red=delete, green=create, blue=auth, yellow=update, purple=publish)
+4. **Admin Access** — list all admins with role/status/joined; SUPER_ADMIN can enable/disable others and create new accounts with temporary password
+5. **Platform** — read-only environment overview; contact details env var guidance
+6. **Danger Zone** — Revoke All Other Sessions with two-step confirmation; red-themed isolation from other sections

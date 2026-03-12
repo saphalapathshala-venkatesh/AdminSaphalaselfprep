@@ -1,0 +1,206 @@
+Task: Finalize the Settings menu in Saphala Admin so it becomes a real admin operations/control center instead of a placeholder.
+
+CRITICAL CONSTRAINTS
+- Do NOT include or rework already completed tasks
+- Keep scope limited to Settings menu finalization only
+- Preserve current auth, role guards, admin protections, and working flows
+- LIVE Neon DB and Prisma schema must remain in exact sync
+- Before any DB-related change, inspect current Prisma schema and current live usage carefully
+- Do NOT introduce schema drift
+- Do NOT run speculative or unnecessary migrations
+- If schema change is absolutely required, make only the minimum safe change after verifying current live DB alignment
+- Do NOT modify unrelated menus/modules
+
+GOAL
+Turn Settings into a clean, useful, premium admin control center with practical sections such as:
+1. Profile & Security
+2. Payment Settings
+3. Audit Logs
+4. Admin Access / Admin Management (only if current architecture safely supports it)
+5. Platform / Business Settings (lightweight only if practical)
+6. Danger Zone for sensitive/destructive actions
+
+Do NOT bloat Settings with random future ideas. Keep it disciplined and operational.
+
+==================================================
+PART 1 — PROFILE & SECURITY
+==================================================
+
+Implement a real Profile & Security section.
+
+Must include:
+- current admin profile details
+- display name
+- email
+- role (read-only if appropriate)
+- change password flow
+
+If practical and already supported safely, also show:
+- last login info
+- basic session/security info
+
+Requirements for Change Password:
+- clean and trustworthy UX
+- current password field if needed by current security model
+- new password
+- confirm new password
+- proper validation
+- clear success/error messages
+- do not weaken auth security
+- continue using current safe password hashing approach already in system
+
+==================================================
+PART 2 — PAYMENT SETTINGS
+==================================================
+
+Add a Payment Settings section inside Settings.
+
+At minimum, support operational settings/visibility for Razorpay.
+
+Goals:
+- make it clear whether Razorpay is configured
+- show masked/safe configuration state
+- support relevant payment settings UI if current architecture already has backing support
+- avoid exposing secrets/raw credentials in unsafe ways
+
+If current system supports test/live environment distinction, reflect that clearly.
+
+If practical, structure the code so future payment providers (like Cashfree) can be added later without redesigning the Settings page, but do not over-engineer beyond current safe scope.
+
+This section should feel like payment gateway/admin configuration status, not a developer-only raw config dump.
+
+==================================================
+PART 3 — AUDIT LOG VIEWER
+==================================================
+
+Implement a usable Audit Logs section.
+
+Must support:
+- viewing important admin activity logs
+- filtering by action type
+- filtering by admin user if supported
+- filtering by date range if practical
+- module/entity visibility if practical
+
+Important action examples to surface if available:
+- test create/edit/delete
+- test series delete attempts / blocked deletes
+- question single delete / bulk delete
+- taxonomy changes
+- product/coupon changes
+- publish/unpublish actions
+- learner/admin management actions
+- settings changes
+
+If the log model already exists, build a real viewer around it.
+If it does not exist, add only the safest minimal support needed after verifying schema/live DB alignment.
+
+Audit log viewer should be useful, not just a placeholder table.
+
+==================================================
+PART 4 — ADMIN ACCESS / ADMIN MANAGEMENT
+==================================================
+
+If safely supported by the existing role model/architecture, add a controlled Admin Access section.
+
+Possible scope:
+- list admin users
+- show their roles/status
+- enable/disable admin access if architecture already supports it safely
+- optionally add admin/editor management only if role logic already exists and can be used safely
+
+Important:
+- do NOT introduce risky role/security redesigns
+- do NOT mix admin management with learner management
+- if this is not safely ready, keep this section minimal and clearly staged
+
+==================================================
+PART 5 — PLATFORM / BUSINESS SETTINGS
+==================================================
+
+Add only lightweight, practical platform-level settings if already relevant and safe.
+
+Possible examples:
+- support contact email
+- business display/contact details
+- default currency display
+- small admin-side informational settings
+
+Do NOT turn this into a giant miscellaneous settings dump.
+Only add what is clearly useful and supported.
+
+==================================================
+PART 6 — DANGER ZONE
+==================================================
+
+Sensitive or destructive settings/actions must be isolated in a separate Danger Zone area.
+
+Examples:
+- destructive access changes
+- irreversible resets if any exist
+- sensitive admin actions
+
+Requirements:
+- strong confirmation
+- clear warning text
+- do not place destructive actions casually alongside normal form settings
+
+==================================================
+PART 7 — UX / IA EXPECTATIONS
+==================================================
+
+The Settings menu should feel premium and organized.
+
+Recommended structure:
+- tabbed sections, or
+- stacked cards/sections with strong grouping
+
+Suggested grouping:
+- Profile & Security
+- Payments
+- Audit Logs
+- Admin Access
+- Platform
+- Danger Zone
+
+The page should be easy to scan and should not feel like a placeholder or a developer dump page.
+
+==================================================
+PART 8 — LIVE DB / SCHEMA SAFETY
+==================================================
+
+Again:
+- LIVE DB and Prisma schema must remain exactly aligned
+- inspect current schema and live usage before touching models
+- do not create unnecessary migrations
+- if no schema change is needed, do not make one
+- if a schema change is absolutely necessary, keep it minimal and safe
+
+==================================================
+EXPECTED OUTPUT FROM REPLIT
+==================================================
+
+1. Finalize Settings into a real working admin menu
+2. Add Profile & Security section with Change Password
+3. Add Razorpay/payment settings section with safe configuration visibility
+4. Add usable Audit Log Viewer
+5. Add Admin Access section only if current architecture safely supports it
+6. Add lightweight Platform/Business settings only if practical
+7. Add separate Danger Zone for destructive/sensitive actions
+8. Keep schema and LIVE DB in exact sync
+9. Briefly report:
+   - exact files changed
+   - whether any schema change was actually required
+   - how live DB/schema safety was preserved
+   - any staged limitations kept intentionally for safety
+
+ACCEPTANCE CRITERIA
+- Settings is no longer a placeholder
+- Profile & Security section exists
+- Change Password works safely
+- Razorpay/payment settings are represented in a safe operational way
+- Audit Log Viewer is usable
+- Admin Access is added only if safely supported
+- Sensitive actions are isolated in Danger Zone
+- Schema and LIVE DB remain exactly aligned
+- No unrelated menus are modified
