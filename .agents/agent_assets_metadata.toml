@@ -30,3 +30,39 @@ id = "1lXNbNg9N1JBXb6TlJvdS"
 uri = "file://public/downloads/saphala_quick_reference.docx"
 type = "word_document"
 title = "Quick Reference Cheat Sheet"
+
+[[outputs]]
+id = "-DDEHHhrVvxrKDaOg2jEy"
+uri = "file://public/downloads/saphala_bulk_upload_single_questions_UPDATED.csv"
+type = "table"
+title = "CSV Template — Single Questions (UPDATED)"
+
+[[outputs]]
+id = "FUTw_QO-QLcFSLnciPnaL"
+uri = "file://public/downloads/saphala_single_question_template_UPDATED.docx"
+type = "word_document"
+title = "DOCX Template — Single Questions (UPDATED)"
+
+[[outputs]]
+id = "826j8HQc78STGiMIo-ZP2"
+uri = "file://public/downloads/saphala_group_question_template_UPDATED.docx"
+type = "word_document"
+title = "DOCX Template — Group / Paragraph Questions (UPDATED)"
+
+[[outputs]]
+id = "HS5aspRAE_SZqRtamJS6X"
+uri = "file://public/downloads/saphala_import_rules_UPDATED.docx"
+type = "word_document"
+title = "Import Rules Document (UPDATED)"
+
+[[outputs]]
+id = "yVZSDtyjGGIhvY-g3rg_g"
+uri = "file://public/downloads/saphala_quick_reference_UPDATED.docx"
+type = "word_document"
+title = "Quick Reference Cheat Sheet (UPDATED)"
+
+[[outputs]]
+id = "bnfulBHHx_zilDR2pgNF2"
+uri = "file://public/downloads/saphala_image_equation_guide_UPDATED.docx"
+type = "word_document"
+title = "Image & Equation Reference Guide (UPDATED)"

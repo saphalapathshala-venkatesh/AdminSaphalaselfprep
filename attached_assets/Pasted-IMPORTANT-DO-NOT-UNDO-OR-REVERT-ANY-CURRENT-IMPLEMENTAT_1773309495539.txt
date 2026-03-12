@@ -1,0 +1,268 @@
+IMPORTANT: DO NOT UNDO OR REVERT ANY CURRENT IMPLEMENTATION
+
+You must NOT revert or replace any work already done.
+
+If text fields are being upgraded to Rich Text editors, that change is GOOD and must remain.
+
+Your task is ONLY to generate UPDATED bulk upload documentation/templates that match the new Rich Text + Image + Equation capabilities.
+
+Do NOT modify application code.
+Do NOT revert the rich text editor upgrade.
+Do NOT change schema.
+Do NOT run migrations.
+Do NOT perform security/code audits.
+
+This task is PURE DOCUMENT AND TEMPLATE GENERATION.
+
+------------------------------------------------
+
+GOAL
+
+Generate NEW UPDATED bulk upload formats and documentation that support:
+
+• Rich text content
+• Images
+• Screenshots
+• Equations/math expressions
+
+These must match the new system capabilities where question fields support rich content.
+
+The updated documentation must assume that the system now allows rich content in:
+
+- Question
+- Paragraph / shared passage
+- Option A/B/C/D
+- Explanation / Solution
+
+Rich content may include:
+- formatted text
+- images
+- screenshots
+- equations
+
+------------------------------------------------
+
+CRITICAL PRODUCT RULES
+
+1. Section and Subsection must NOT appear in bulk upload templates.
+
+Reason:
+Admin selects Section first → then Subsection (if applicable) → then Add Questions → then uploads.
+
+2. Upload workflow must be documented as:
+
+Select Section
+→ Select Subsection (if exists)
+→ Click Add Questions
+→ Choose:
+   • Add Single Question
+   • Bulk Upload Questions
+
+3. Marks are PER QUESTION and may vary.
+
+4. Negative marks are OPTIONAL.
+
+5. Rich content is allowed in:
+   • Question
+   • Paragraph
+   • Options
+   • Explanation
+
+6. Images and screenshots must be supported.
+
+Screenshots must NOT be rejected simply because they are screenshots.
+
+7. Equations must also be supported.
+
+Equations may appear as:
+• typed math expressions
+• rendered math
+• equation images if needed.
+
+------------------------------------------------
+
+FILES TO GENERATE
+
+Create the following UPDATED files.
+
+All filenames must include the word UPDATED.
+
+------------------------------------------------
+
+1️⃣ CSV TEMPLATE — SINGLE QUESTIONS
+
+Filename:
+
+saphala_bulk_upload_single_questions_UPDATED.csv
+
+Columns must include:
+
+question_rich_text
+question_image_ref
+question_equation
+
+option_a_rich_text
+option_a_image_ref
+option_a_equation
+
+option_b_rich_text
+option_b_image_ref
+option_b_equation
+
+option_c_rich_text
+option_c_image_ref
+option_c_equation
+
+option_d_rich_text
+option_d_image_ref
+option_d_equation
+
+correct_answer
+
+explanation_rich_text
+explanation_image_ref
+explanation_equation
+
+category
+subject
+topic
+subtopic
+
+question_type
+difficulty
+source_tag
+
+marks
+negative_marks
+
+Important:
+
+• Do NOT include section/subsection columns
+• Include 3 realistic example rows
+• One row must contain image references
+• One row must contain equation example
+• One row must contain rich text formatting example
+
+------------------------------------------------
+
+2️⃣ DOCX TEMPLATE — SINGLE QUESTIONS
+
+Filename:
+
+saphala_single_question_template_UPDATED.docx
+
+Must demonstrate:
+
+• question with rich text
+• question with image/screenshot
+• question with equation
+• options with text/image/equation
+• explanation with image/equation
+
+Include 3 example questions.
+
+------------------------------------------------
+
+3️⃣ DOCX TEMPLATE — PARAGRAPH / GROUP QUESTIONS
+
+Filename:
+
+saphala_group_question_template_UPDATED.docx
+
+Must include:
+
+• explicit GROUP START marker
+• paragraph text
+• paragraph image example
+• paragraph equation example
+
+Child questions under the paragraph must include:
+
+• text
+• option images
+• equations
+
+Then include GROUP END marker.
+
+After that include one standalone question to confirm boundaries.
+
+------------------------------------------------
+
+4️⃣ IMPORT RULES DOCUMENT
+
+Filename:
+
+saphala_import_rules_UPDATED.docx
+
+Explain clearly:
+
+A. Workflow
+B. CSV upload method
+C. DOCX upload method
+D. Image usage
+E. Screenshot usage
+F. Equation usage
+G. Marks rules
+H. Negative marks rules
+I. Taxonomy fields
+J. Common errors
+K. Blocking errors vs warnings
+
+Also explain:
+
+Images may appear in:
+• question
+• paragraph
+• options
+• explanation
+
+------------------------------------------------
+
+5️⃣ QUICK REFERENCE CHEAT SHEET
+
+Filename:
+
+saphala_quick_reference_UPDATED.docx
+
+One-page guide including:
+
+• correct format
+• group question structure
+• image usage
+• screenshot usage
+• equation usage
+• marks reminder
+• most common mistakes
+
+------------------------------------------------
+
+6️⃣ IMAGE & EQUATION GUIDE
+
+Filename:
+
+saphala_image_equation_guide_UPDATED.docx
+
+Explain:
+
+• how to use screenshots
+• how to add images
+• where images are allowed
+• where equations are allowed
+• best practices for readability
+• examples of good vs bad formatting
+
+------------------------------------------------
+
+OUTPUT REQUIREMENTS
+
+You must produce the ACTUAL files.
+
+Return:
+
+1️⃣ List of files generated
+2️⃣ Download links or attached files
+3️⃣ If file generation is not possible, output the FULL file contents clearly labeled
+
+Do NOT return engineering summaries.
+
+The task is only complete when the six UPDATED files exist.
