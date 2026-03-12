@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
+import { isAdminRole, validateNewPassword } from "@/lib/safetyChecks";
 
 export async function GET(req: NextRequest) {
   const user = await getSessionUserFromRequest(req);
@@ -33,10 +34,10 @@ export async function POST(req: NextRequest) {
 
   if (!email || !name || !password)
     return NextResponse.json({ error: "Email, name, and password are required" }, { status: 400 });
-  if (!["ADMIN", "SUPER_ADMIN"].includes(role))
+  if (!isAdminRole(role))
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
-  if (password.length < 8)
-    return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
+  const pwError = validateNewPassword(password);
+  if (pwError) return NextResponse.json({ error: pwError }, { status: 400 });
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 });

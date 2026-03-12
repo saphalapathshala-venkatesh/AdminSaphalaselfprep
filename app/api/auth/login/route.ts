@@ -8,6 +8,7 @@ import { loginSchema } from "@/lib/validators/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { ensureDbReady } from "@/lib/db-init";
+import { isAdminRole } from "@/lib/safetyChecks";
 
 export async function POST(req: NextRequest) {
   try {
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
+    if (!isAdminRole(user.role)) {
       return NextResponse.json(
         { error: "Access denied" },
         { status: 403 }

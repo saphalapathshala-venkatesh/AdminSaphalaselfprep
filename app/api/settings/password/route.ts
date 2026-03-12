@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
+import { validateNewPassword } from "@/lib/safetyChecks";
 
 export async function POST(req: NextRequest) {
   const user = await getSessionUserFromRequest(req);
@@ -17,10 +18,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "All fields are required" }, { status: 400 });
   if (newPassword !== confirmPassword)
     return NextResponse.json({ error: "New passwords do not match" }, { status: 400 });
-  if (newPassword.length < 8)
-    return NextResponse.json({ error: "New password must be at least 8 characters" }, { status: 400 });
-  if (newPassword === currentPassword)
-    return NextResponse.json({ error: "New password must differ from your current password" }, { status: 400 });
+  const pwError = validateNewPassword(newPassword, currentPassword);
+  if (pwError) return NextResponse.json({ error: pwError }, { status: 400 });
 
   const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
   if (!dbUser) return NextResponse.json({ error: "User not found" }, { status: 404 });

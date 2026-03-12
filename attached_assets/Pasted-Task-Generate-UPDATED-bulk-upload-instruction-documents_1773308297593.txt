@@ -1,0 +1,265 @@
+Task: Generate UPDATED bulk upload instruction documents and templates for Saphala Admin Add Questions workflow, including support guidance for images, screenshots, and equations.
+
+IMPORTANT
+- Do NOT implement application code in this task
+- Do NOT change schema
+- Do NOT modify database
+- Do NOT alter existing admin pages
+- This task is only to PREPARE UPDATED DOWNLOADABLE DOCUMENTS / TEMPLATES / RULES
+- Mark all new files clearly as UPDATED
+- Files must be practical for real admin/content-team use
+
+GOAL
+Create updated downloadable bulk upload documents/templates that reflect the latest locked product rules for:
+- single question upload
+- paragraph/group question upload
+- images
+- screenshots
+- equations/math content
+- marks / negative marks
+- taxonomy fields
+- section/subsection selection before upload
+- shuffle-related compatibility notes where useful
+
+CRITICAL PRODUCT RULES TO REFLECT IN DOCUMENTS
+
+1. Section and Subsection must NOT be part of bulk upload templates
+   Reason:
+   Admin first selects the target Section (and Subsection if present) in the UI, then uploads/questions are added there.
+
+2. Upload workflow to document clearly:
+   Select Section
+   → If that section has subsections, select Subsection
+   → Click Add Questions
+   → Choose:
+      - Add Single Question
+      - Bulk Upload Questions
+
+3. Marks are per-question and can vary by question.
+   Do NOT assume all questions carry equal marks.
+
+4. Negative marks are optional per question.
+
+5. Images must be supported in:
+   - question text
+   - paragraph/shared passage/set
+   - options
+   - explanation/solution
+
+6. Equations/math expressions must be supported in:
+   - question text
+   - paragraph/shared set
+   - options
+   - explanation/solution
+
+7. Screenshots must be allowed as images too, even if the quality is not ideal.
+   The instructions should explicitly say that screenshots can be used.
+   However, also include best-practice guidance for readability.
+   Do NOT reject screenshots merely because they are screenshots.
+
+8. Templates/rules should be practical and parser-friendly.
+
+FILES TO GENERATE
+
+Please generate these UPDATED files:
+
+1. UPDATED CSV TEMPLATE — SINGLE QUESTIONS
+File name:
+saphala_bulk_upload_single_questions_UPDATED.csv
+
+Columns should include:
+- question_text
+- question_image_ref
+- question_equation
+- option_a
+- option_a_image_ref
+- option_a_equation
+- option_b
+- option_b_image_ref
+- option_b_equation
+- option_c
+- option_c_image_ref
+- option_c_equation
+- option_d
+- option_d_image_ref
+- option_d_equation
+- correct_answer
+- explanation
+- explanation_image_ref
+- explanation_equation
+- category
+- subject
+- topic
+- subtopic
+- question_type
+- difficulty
+- source_tag
+- marks
+- negative_marks
+
+Important:
+- Do NOT include section/subsection columns
+- Include 3 realistic sample rows
+- At least one row should include image references
+- At least one row should include equation fields
+
+2. UPDATED DOCX TEMPLATE — SINGLE QUESTIONS
+File name:
+saphala_single_question_template_UPDATED.docx
+
+Must show strict expected format for:
+- question text
+- optional question image
+- optional question equation
+- options
+- optional option image
+- optional option equation
+- correct answer
+- explanation/solution
+- optional explanation image
+- optional explanation equation
+- category
+- subject
+- topic
+- subtopic
+- question type
+- difficulty
+- source tag
+- marks
+- negative marks
+
+Include:
+- 3 example questions
+- one normal text-only question
+- one question with image/screenshot
+- one question with equation/math content
+
+3. UPDATED DOCX TEMPLATE — PARAGRAPH / GROUP QUESTIONS
+File name:
+saphala_group_question_template_UPDATED.docx
+
+Purpose:
+Support grouped questions such as:
+- English comprehension
+- reasoning puzzle / seating arrangement
+- DI/caselet/shared set
+
+Must include:
+- explicit group start marker
+- paragraph/shared set typed once
+- optional paragraph image
+- optional paragraph equation
+- child questions under it
+- optional question images/equations inside child questions
+- explicit group end marker
+
+Include:
+- one sample group with 3 child questions
+- one standalone question after the group to prove boundary clarity
+- one example showing image/screenshot usage
+- one example showing equation/math usage if practical
+
+4. UPDATED IMPORT RULES DOCUMENT
+File name:
+saphala_import_rules_UPDATED.docx
+
+This must clearly explain:
+
+A. Overall workflow
+- Select Section
+- Select Subsection if applicable
+- Click Add Questions
+- Choose single or bulk upload
+
+B. CSV usage
+- how image_ref fields work
+- how equation fields should be written
+- how to reference screenshots/images
+- whether ZIP + image folder approach is recommended for CSV-based image uploads
+
+C. DOCX usage
+- how to place images inline
+- how screenshots can be used
+- how equations should be entered
+- how grouped question boundaries should be written
+
+D. Mandatory vs optional fields
+E. Valid values where relevant
+F. Marks rules
+G. Negative marking rules
+H. Taxonomy rules
+I. Common mistakes
+J. Blocking errors vs warnings
+
+Important instruction to include:
+- screenshots are allowed even if image quality is not perfect
+- however, the content must remain readable enough for students
+- best practice is to use clear screenshots/crops when possible
+- do not reject screenshots just because they are screenshots
+
+Also include guidance on equations:
+- how to type math expressions consistently
+- best-practice formatting for fractions, roots, powers, symbols
+- what to do if equations are inserted as images/screenshots instead of text
+
+5. UPDATED QUICK REFERENCE CHEAT SHEET
+File name:
+saphala_quick_reference_UPDATED.docx
+
+One-page quick guide including:
+- correct formatting for single questions
+- grouped question boundary example
+- image usage summary
+- screenshot usage summary
+- equation usage summary
+- correct answer format
+- marks / negative marks reminder
+- most common upload mistakes
+- file naming suggestions
+
+6. OPTIONAL EXTRA FILE — IMAGE / EQUATION REFERENCE GUIDE
+If possible, also create:
+File name:
+saphala_image_equation_guide_UPDATED.docx
+
+This should explain:
+- where images can be used
+- where screenshots can be used
+- where equations can be used
+- best practices for readability
+- sample good vs bad examples
+- naming suggestions for referenced image files in CSV workflows
+
+CONTENT REQUIREMENTS
+
+The documents must explicitly reflect these support areas:
+- question text can contain image/equation
+- paragraph/shared set can contain image/equation
+- options can contain image/equation
+- explanation/solution can contain image/equation
+
+The instructions should also mention that future implementation should aim to support:
+- DOCX inline images
+- CSV image references (likely with ZIP/folder approach)
+- screenshots treated as valid images
+- equations either as typed content or image-based fallback
+
+QUALITY EXPECTATION
+- strict
+- practical
+- realistic
+- parser-friendly
+- immediately usable by a real content team
+- not vague
+- not theoretical
+
+OUTPUT EXPECTATION
+Provide:
+1. List of generated UPDATED files
+2. Download links if possible
+3. If direct file generation is not possible, provide the full ready-to-copy contents clearly separated by file
+4. Brief explanation of how each file should be used
+
+FILE NAMING
+Make sure every generated file name clearly includes:
+UPDATED
