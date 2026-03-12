@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
-import { validateRow, parseDocxText, type RawRow } from "@/lib/importValidator";
+import { validateRow, parseDocxHtml, normalizeColumnNames, type RawRow } from "@/lib/importValidator";
 import Papa from "papaparse";
 import mammoth from "mammoth";
 
@@ -37,11 +37,20 @@ export async function POST(req: NextRequest) {
         skipEmptyLines: true,
         transformHeader: (h: string) => h.trim().toLowerCase(),
       });
-      rawRows = parsed.data as RawRow[];
+      rawRows = (parsed.data as Record<string, any>[]).map(normalizeColumnNames);
     } else {
       const buffer = Buffer.from(await file.arrayBuffer());
-      const result = await mammoth.extractRawText({ buffer });
-      rawRows = parseDocxText(result.value);
+      const result = await mammoth.convertToHtml(
+        { buffer },
+        {
+          convertImage: mammoth.images.imgElement((image) =>
+            image.read("base64").then((b64) => ({
+              src: `data:${image.contentType};base64,${b64}`,
+            }))
+          ),
+        }
+      );
+      rawRows = parseDocxHtml(result.value);
     }
 
     if (rawRows.length === 0) {

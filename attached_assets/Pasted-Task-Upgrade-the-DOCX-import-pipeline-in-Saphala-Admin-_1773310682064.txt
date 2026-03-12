@@ -1,0 +1,241 @@
+Task: Upgrade the DOCX import pipeline in Saphala Admin so Word formatting is preserved during parsing instead of being flattened to plain text.
+
+CRITICAL CONSTRAINTS
+- Do NOT undo any current rich-text editor work
+- Do NOT revert existing frontend rich-content rendering
+- Keep current completed admin work intact
+- Make only the minimum safe changes needed
+- LIVE Neon DB and Prisma schema must remain in exact sync
+- Before any DB-related change, inspect current Prisma schema and live usage carefully
+- Do NOT introduce schema drift
+- Do NOT run speculative or unnecessary migrations
+- If no schema change is needed, do not make one
+- If a schema change is absolutely required, make only the minimum safe change after verifying live DB alignment
+- Preserve current auth, role guards, admin protections, and working flows
+
+GOAL
+Make DOCX import rich-content capable so that Word-based formatting is retained after parsing and displays correctly in the frontend.
+
+Specifically, I want the DOCX import flow to preserve and correctly handle:
+
+1. Bold text
+2. Italic text
+3. Underline if possible
+4. Bullet/numbered lists
+5. Inline images/screenshots
+6. Equations/math content where practical
+7. Tables, especially for cases like matching questions, so table content can be fetched cleanly as columns/structured content without breaking parsing
+
+BACKGROUND
+Current analysis found that:
+- the extraction layer is using plain-text extraction
+- formatting is stripped before storage
+- parser logic is plain-text oriented
+- validator logic is still too plain-text dependent for rich content
+
+This task is to safely upgrade that import pipeline.
+
+==================================================
+PART 1 — DOCX EXTRACTION MUST PRESERVE FORMATTING
+==================================================
+
+Inspect the current DOCX preview/import extraction flow and replace the plain-text extraction approach with a formatting-preserving approach.
+
+Requirements:
+- preserve bold/italic formatting from Word
+- preserve underline if practical
+- preserve lists if practical
+- preserve inline images/screenshots where feasible
+- preserve tables in a usable way
+- preserve equations/math content where practical
+
+Preferred behavior:
+- extract DOCX content into rich HTML or an equivalent rich intermediate format that the current frontend renderer can already handle safely
+
+Do NOT continue using an extraction path that intentionally strips formatting.
+
+==================================================
+PART 2 — PARSER MUST PRESERVE RICH CONTENT, NOT FLATTEN IT
+==================================================
+
+Upgrade the DOCX parser so it no longer assumes plain text only.
+
+Requirements:
+- field parsing must preserve inner rich content for:
+  - question
+  - paragraph/shared set
+  - options
+  - explanation/solution
+- do NOT flatten everything via plain trim-based parsing
+- do NOT destroy HTML/rich fragments during field extraction
+- preserve valid formatting fragments so they can render later in the frontend
+
+The parser must still identify field boundaries safely, but it must not destroy formatting while doing so.
+
+==================================================
+PART 3 — VALIDATOR MUST SUPPORT RICH CONTENT
+==================================================
+
+Upgrade validation so rich content is treated correctly.
+
+Requirements:
+- fields containing valid rich content should not be rejected just because plain text trim() looks empty
+- image-only content should not be treated as blank if that is valid for the field
+- rich text with formatting tags should validate correctly
+- validation should be compatible with the existing rich-content rendering strategy
+
+If there is already a helper like hasVisibleText() or equivalent, use the canonical safe utility rather than duplicating logic.
+
+==================================================
+PART 4 — WORD BOLD / ITALIC MUST SURVIVE IMPORT
+==================================================
+
+Concrete expected behavior:
+
+If a DOCX contains:
+The ratio of A and B is bold 3:5
+and options with italics/bold
+
+then after import:
+- stored content must retain formatting
+- admin preview must retain formatting
+- frontend/student rendering must display formatting correctly
+
+I do NOT want bold/italic flattened into plain text.
+
+==================================================
+PART 5 — IMAGES / SCREENSHOTS IN DOCX
+==================================================
+
+The DOCX importer should handle inline images/screenshots where practical.
+
+Requirements:
+- screenshots embedded in Word should be treated as valid images
+- question/paragraph/option/explanation images should survive import where practical
+- do not reject images merely because they are screenshots
+- preserve image references/content in a way the frontend can render
+
+If full perfect handling is difficult, implement the safest practical version and clearly document limitations, but the direction must be rich-image capable, not plain-text only.
+
+==================================================
+PART 6 — EQUATIONS / MATH CONTENT
+==================================================
+
+Support equations from DOCX as far as practical.
+
+Goal:
+- preserve math content in a usable/renderable form
+- if native equation extraction has limitations, use the safest practical fallback and clearly report it
+
+Preferred outcome:
+- typed equations survive as renderable rich content where possible
+- if some equation objects must degrade to images or simpler representations, explain that clearly
+
+Do not silently strip math content.
+
+==================================================
+PART 7 — TABLE SUPPORT (IMPORTANT)
+==================================================
+
+This is especially important.
+
+If a Word document contains tables, I want them to be fetched and preserved in a usable structured way.
+
+Examples:
+- matching questions
+- column-based data interpretation
+- comparison tables
+- option sets presented as columns
+
+Requirements:
+- table content should not be collapsed into unusable plain text
+- table rows and columns should remain interpretable
+- if possible, convert tables into structured HTML tables or an equivalent safe structure
+- parsing must not break when tables are present
+- matching-style questions should remain readable and usable after import
+
+If some highly complex tables require limits, implement practical safe handling and clearly report boundaries, but standard tables must be supported.
+
+==================================================
+PART 8 — ADMIN PREVIEW / REVIEW MUST SHOW RICH IMPORTED CONTENT
+==================================================
+
+After DOCX preview/import parsing:
+- admin preview should show preserved formatting
+- bold/italic should appear correctly
+- images should appear if imported
+- tables should appear in readable form
+- equations should appear in the best supported form
+
+The preview step is important so admin can confirm parsing quality before final commit.
+
+==================================================
+PART 9 — DO NOT BREAK EXISTING ADD QUESTIONS FLOW
+==================================================
+
+This rich DOCX import upgrade must integrate into the current Add Questions flow without breaking it.
+
+Existing product rules still apply:
+- section/subsection are selected before upload
+- templates may still omit section/subsection fields
+- per-question marks can vary
+- negative marks optional
+- grouped/paragraph questions still supported
+
+This task is about making DOCX import richer, not rewriting the whole product flow.
+
+==================================================
+PART 10 — TEST CAREFULLY WITH REALISTIC CASES
+==================================================
+
+Please test the upgraded parser with at least these cases:
+
+1. Simple text question with bold and italic
+2. Question containing inline screenshot/image
+3. Paragraph/group question with rich formatting
+4. Equation-based question
+5. Table-based question (especially matching/column style)
+6. Explanation containing rich formatting
+7. Options containing rich formatting and/or images if supported
+
+==================================================
+PART 11 — LIVE DB / SCHEMA SAFETY
+==================================================
+
+Again:
+- LIVE DB and Prisma schema must remain exactly aligned
+- inspect current schema and live usage before touching models
+- do not create unnecessary migrations
+- if no schema change is needed, do not make one
+- if a schema change is absolutely necessary, keep it minimal and safe
+
+==================================================
+EXPECTED OUTPUT FROM REPLIT
+==================================================
+
+1. Upgrade DOCX extraction so formatting is preserved
+2. Upgrade parsing so rich content survives field extraction
+3. Upgrade validation so rich content is accepted correctly
+4. Preserve Word bold/italic formatting after import
+5. Handle inline images/screenshots practically
+6. Preserve equations/math content as far as practical
+7. Support standard DOCX tables in a usable structured way
+8. Ensure admin preview reflects preserved rich content
+9. Keep schema and LIVE DB in exact sync
+10. Briefly report:
+   - exact files changed
+   - whether any schema change was required
+   - how DB/schema safety was preserved
+   - what formatting types are now fully supported
+   - any remaining limitations, especially around equations or complex tables
+
+ACCEPTANCE CRITERIA
+- DOCX bold text survives import and displays as bold in frontend/admin preview
+- DOCX italic text survives import and displays as italic
+- Rich content is no longer flattened into plain text during import
+- Inline screenshots/images are handled in a practical supported way
+- Standard tables remain usable/readable after import
+- Matching-style table questions do not break parsing
+- Rich validation works correctly
+- Existing Add Questions flow is not broken
+- Schema and LIVE DB remain exactly aligned
