@@ -78,6 +78,17 @@ export default function DashboardPage() {
   const tdStyle: React.CSSProperties = { padding: "0.5rem 0.75rem", borderBottom: "1px solid #f3f4f6", fontSize: "0.8rem" };
   const card: React.CSSProperties = { background: "#fff", borderRadius: "0.5rem", padding: "1rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" };
 
+  const chartTitle: React.CSSProperties = { fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.75rem", color: "#374151", textTransform: "uppercase", letterSpacing: "0.04em" };
+
+  const skeletonLine = ({ w, h, mb }: { w: string; h: string; mb?: string }): React.CSSProperties => ({
+    width: w, height: h, borderRadius: "4px",
+    background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)",
+    backgroundSize: "200% 100%",
+    animation: "shimmer 1.4s infinite",
+    marginBottom: mb || 0,
+    flexShrink: 0,
+  });
+
   const maxVal = (arr: number[]) => Math.max(...arr, 1);
 
   const MiniBar = ({ items, valKey, labelKey, color }: { items: any[]; valKey: string; labelKey: string; color: string }) => {
@@ -108,6 +119,12 @@ export default function DashboardPage() {
 
   return (
     <div>
+      <style>{`
+        @keyframes shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+      `}</style>
       {/* ── Branded Hero ── */}
       <div style={{
         background: `linear-gradient(135deg, ${BRAND.purpleDeep} 0%, ${BRAND.purpleDark} 45%, ${BRAND.purple} 100%)`,
@@ -172,49 +189,87 @@ export default function DashboardPage() {
         </select>
       </div>
 
-      {loading ? (
-        <p style={{ color: "#999", padding: "2rem 0" }}>Loading dashboard...</p>
-      ) : !data ? (
-        <p style={{ color: "#999" }}>Failed to load dashboard.</p>
-      ) : (
-        <>
-          {/* ── KPI Cards ── */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "1rem", marginBottom: "1.75rem" }}>
-            {KPIs.map(kpi => (
-              <div key={kpi.label} style={{ background: "#fff", borderRadius: "0.5rem", padding: "1.125rem 1.25rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", borderLeft: `4px solid ${kpi.color}`, display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: "0.7rem", color: "#6b7280", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{kpi.label}</span>
-                  <span style={{ fontSize: "1rem" }}>{kpi.icon}</span>
-                </div>
-                <div style={{ fontSize: "1.375rem", fontWeight: 700, color: "#111", letterSpacing: "-0.02em" }}>{kpi.value(data)}</div>
-              </div>
-            ))}
+      {/* ── KPI Cards — render skeleton immediately, swap in real data when ready ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "1rem", marginBottom: "1.75rem" }}>
+        {loading ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} style={{ background: "#fff", borderRadius: "0.5rem", padding: "1.125rem 1.25rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", borderLeft: "4px solid #e5e7eb" }}>
+              <div style={skeletonLine({ w: "55%", h: "10px", mb: "0.6rem" })} />
+              <div style={skeletonLine({ w: "70%", h: "22px" })} />
+            </div>
+          ))
+        ) : !data ? (
+          <div style={{ gridColumn: "1/-1" }}>
+            <p style={{ color: "#999" }}>Failed to load dashboard data.</p>
           </div>
+        ) : (
+          KPIs.map(kpi => (
+            <div key={kpi.label} style={{ background: "#fff", borderRadius: "0.5rem", padding: "1.125rem 1.25rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", borderLeft: `4px solid ${kpi.color}`, display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "0.7rem", color: "#6b7280", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{kpi.label}</span>
+                <span style={{ fontSize: "1rem" }}>{kpi.icon}</span>
+              </div>
+              <div style={{ fontSize: "1.375rem", fontWeight: 700, color: "#111", letterSpacing: "-0.02em" }}>{kpi.value(data)}</div>
+            </div>
+          ))
+        )}
+      </div>
 
-          {/* ── Charts ── */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.75rem" }}>
+      {/* ── Charts ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.75rem" }}>
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} style={card}>
+              <div style={skeletonLine({ w: "45%", h: "10px", mb: "0.75rem" })} />
+              {Array.from({ length: 7 }).map((__, j) => (
+                <div key={j} style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "4px" }}>
+                  <div style={skeletonLine({ w: "60px", h: "10px" })} />
+                  <div style={{ ...skeletonLine({ w: `${40 + Math.random() * 50}%`, h: "12px" }), flex: 1 }} />
+                </div>
+              ))}
+            </div>
+          ))
+        ) : data ? (
+          <>
             <div style={card}>
-              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.75rem", color: "#374151", textTransform: "uppercase", letterSpacing: "0.04em" }}>Attempts / Day</h3>
+              <h3 style={chartTitle}>Attempts / Day</h3>
               <MiniBar items={data.charts.attemptsByDay} valKey="count" labelKey="date" color={BRAND.blue} />
             </div>
             <div style={card}>
-              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.75rem", color: "#374151", textTransform: "uppercase", letterSpacing: "0.04em" }}>Active Users / Day</h3>
+              <h3 style={chartTitle}>Active Users / Day</h3>
               <MiniBar items={data.charts.activeUsersByDay} valKey="count" labelKey="date" color={BRAND.green} />
             </div>
             <div style={card}>
-              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.75rem", color: "#374151", textTransform: "uppercase", letterSpacing: "0.04em" }}>XP / Day</h3>
+              <h3 style={chartTitle}>XP / Day</h3>
               <MiniBar items={data.charts.xpByDay} valKey="points" labelKey="date" color={BRAND.purple} />
             </div>
             <div style={card}>
-              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.75rem", color: "#374151", textTransform: "uppercase", letterSpacing: "0.04em" }}>Revenue / Day (Gross)</h3>
+              <h3 style={chartTitle}>Revenue / Day (Gross)</h3>
               <MiniBar items={data.charts.revenueByDay} valKey="grossPaise" labelKey="date" color={BRAND.cyan} />
             </div>
-          </div>
+          </>
+        ) : null}
+      </div>
 
-          {/* ── Tables ── */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.75rem" }}>
+      {/* ── Tables ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.75rem" }}>
+        {loading ? (
+          Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} style={card}>
+              <div style={skeletonLine({ w: "50%", h: "10px", mb: "0.75rem" })} />
+              {Array.from({ length: 5 }).map((__, j) => (
+                <div key={j} style={{ display: "flex", gap: "0.5rem", marginBottom: "8px" }}>
+                  <div style={skeletonLine({ w: "20px", h: "12px" })} />
+                  <div style={{ ...skeletonLine({ w: "60%", h: "12px" }), flex: 1 }} />
+                  <div style={skeletonLine({ w: "40px", h: "12px" })} />
+                </div>
+              ))}
+            </div>
+          ))
+        ) : data ? (
+          <>
             <div style={card}>
-              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.75rem", color: "#374151", textTransform: "uppercase", letterSpacing: "0.04em" }}>Top XP Earners</h3>
+              <h3 style={chartTitle}>Top XP Earners</h3>
               {data.tables.topXpEarners.length === 0 ? <p style={{ fontSize: "0.8rem", color: "#999" }}>No data.</p> : (
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead><tr><th style={thStyle}>#</th><th style={thStyle}>User</th><th style={thStyle}>XP</th></tr></thead>
@@ -231,7 +286,7 @@ export default function DashboardPage() {
               )}
             </div>
             <div style={card}>
-              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.75rem", color: "#374151", textTransform: "uppercase", letterSpacing: "0.04em" }}>Most Attempted Tests</h3>
+              <h3 style={chartTitle}>Most Attempted Tests</h3>
               {data.tables.mostAttemptedTests.length === 0 ? <p style={{ fontSize: "0.8rem", color: "#999" }}>No data.</p> : (
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead><tr><th style={thStyle}>#</th><th style={thStyle}>Test</th><th style={thStyle}>Attempts</th></tr></thead>
@@ -247,51 +302,64 @@ export default function DashboardPage() {
                 </table>
               )}
             </div>
-          </div>
+          </>
+        ) : null}
+      </div>
 
-          {/* ── Recently Published ── */}
-          <div style={{ ...card, marginBottom: "1.75rem" }}>
-            <h3 style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.75rem", color: "#374151", textTransform: "uppercase", letterSpacing: "0.04em" }}>Recently Published Content</h3>
-            {data.tables.recentlyPublishedContent.length === 0 ? <p style={{ fontSize: "0.8rem", color: "#999" }}>No published content.</p> : (
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><tr><th style={thStyle}>Type</th><th style={thStyle}>Title</th><th style={thStyle}>Published</th></tr></thead>
-                <tbody>
-                  {data.tables.recentlyPublishedContent.map(c => (
-                    <tr key={c.id}>
-                      <td style={tdStyle}>
-                        <span style={{ padding: "0.125rem 0.375rem", borderRadius: "0.25rem", fontSize: "0.65rem", fontWeight: 500, background: c.type === "HTML" ? "#dbeafe" : "#ede9fe", color: c.type === "HTML" ? "#1e40af" : BRAND.purpleText }}>{c.type}</span>
-                      </td>
-                      <td style={tdStyle}>{c.title}</td>
-                      <td style={{ ...tdStyle, fontSize: "0.75rem", color: "#6b7280" }}>{c.publishedAt ? new Date(c.publishedAt).toLocaleDateString() : "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          {/* ── Quick Actions ── */}
-          <div>
-            <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.625rem" }}>Quick Actions</div>
-            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-              {QUICK_ACTIONS.map(a => (
-                <Link key={a.label} href={a.href} style={{
-                  padding: "0.5rem 1.125rem",
-                  background: BRAND.purple,
-                  color: "#fff",
-                  borderRadius: "0.375rem",
-                  textDecoration: "none",
-                  fontSize: "0.8rem",
-                  fontWeight: 500,
-                  boxShadow: "0 1px 3px rgba(124,58,237,0.3)",
-                }}>
-                  {a.label}
-                </Link>
-              ))}
+      {/* ── Recently Published ── */}
+      {loading ? (
+        <div style={{ ...card, marginBottom: "1.75rem" }}>
+          <div style={skeletonLine({ w: "40%", h: "10px", mb: "0.75rem" })} />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} style={{ display: "flex", gap: "0.75rem", marginBottom: "8px" }}>
+              <div style={skeletonLine({ w: "40px", h: "12px" })} />
+              <div style={{ ...skeletonLine({ w: "50%", h: "12px" }), flex: 1 }} />
+              <div style={skeletonLine({ w: "70px", h: "12px" })} />
             </div>
-          </div>
-        </>
-      )}
+          ))}
+        </div>
+      ) : data ? (
+        <div style={{ ...card, marginBottom: "1.75rem" }}>
+          <h3 style={chartTitle}>Recently Published Content</h3>
+          {data.tables.recentlyPublishedContent.length === 0 ? <p style={{ fontSize: "0.8rem", color: "#999" }}>No published content.</p> : (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead><tr><th style={thStyle}>Type</th><th style={thStyle}>Title</th><th style={thStyle}>Published</th></tr></thead>
+              <tbody>
+                {data.tables.recentlyPublishedContent.map(c => (
+                  <tr key={c.id}>
+                    <td style={tdStyle}>
+                      <span style={{ padding: "0.125rem 0.375rem", borderRadius: "0.25rem", fontSize: "0.65rem", fontWeight: 500, background: c.type === "HTML" ? "#dbeafe" : "#ede9fe", color: c.type === "HTML" ? "#1e40af" : BRAND.purpleText }}>{c.type}</span>
+                    </td>
+                    <td style={tdStyle}>{c.title}</td>
+                    <td style={{ ...tdStyle, fontSize: "0.75rem", color: "#6b7280" }}>{c.publishedAt ? new Date(c.publishedAt).toLocaleDateString() : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      ) : null}
+
+      {/* ── Quick Actions — always visible, no data dependency ── */}
+      <div>
+        <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.625rem" }}>Quick Actions</div>
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          {QUICK_ACTIONS.map(a => (
+            <Link key={a.label} href={a.href} style={{
+              padding: "0.5rem 1.125rem",
+              background: BRAND.purple,
+              color: "#fff",
+              borderRadius: "0.375rem",
+              textDecoration: "none",
+              fontSize: "0.8rem",
+              fontWeight: 500,
+              boxShadow: "0 1px 3px rgba(124,58,237,0.3)",
+            }}>
+              {a.label}
+            </Link>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

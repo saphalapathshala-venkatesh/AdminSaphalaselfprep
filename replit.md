@@ -185,6 +185,14 @@ curl -X POST https://<domain>/api/admin/bootstrap -H "x-bootstrap-key: <BOOTSTRA
 - Semantic colors preserved: blue `#2563eb` for tab indicators/links, green for paid users, cyan for net revenue
 - Logo: styled "S" monogram in dashboard hero (no external image dependency)
 
+## Auth UX Performance Notes
+- Login page uses a 3-phase state machine (`idle → submitting → redirecting`) — the button NEVER reverts to "Sign In" after success
+- Login API: `writeAuditLog` is fire-and-forget (not awaited) to remove it from the critical response path
+- Logout: `fetch("/api/auth/logout", { keepalive: true })` fires without await; `router.replace("/login")` is called immediately — zero wait time
+- Dashboard: renders skeleton loaders instantly on mount; KPI cards, charts, and tables all have animated shimmer placeholders while data loads
+- Dev timing logs: `console.debug("[Auth] ...")` lines in login page + layout for diagnosing delays (removable when done)
+- Root cause of original delay: (1) `finally { setLoading(false) }` bug caused button flicker; (2) middleware HTTP fetch to `/api/auth/me` on every nav; (3) awaited audit log on login; (4) awaited logout API before redirect
+
 ## Recent Changes
 - 2026-02-21: Initial project setup with full auth, middleware, admin layout, and placeholder pages
 - 2026-02-21: Updated to full PRD schema (28 models), added API route stubs for all entities, updated audit log to match new schema fields

@@ -88,15 +88,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "SESSION_CREATE_FAILED" }, { status: 500 });
     }
 
-    try {
-      await writeAuditLog({
-        actorId: user.id,
-        action: "ADMIN_LOGIN",
-        entityType: "Session",
-      });
-    } catch (auditErr) {
+    // Fire-and-forget: audit log is non-critical, do not block the response
+    // [Auth API timing] audit log queued (not awaited)
+    writeAuditLog({
+      actorId: user.id,
+      action: "ADMIN_LOGIN",
+      entityType: "Session",
+    }).catch((auditErr) => {
       console.error("AuditLog write failed (non-fatal):", auditErr);
-    }
+    });
+
+    console.debug("[Auth API] Session created, sending response");
 
     const response = NextResponse.json({
       ok: true,

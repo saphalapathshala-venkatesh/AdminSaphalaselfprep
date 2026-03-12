@@ -55,9 +55,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const pathname = usePathname();
 
-  const handleLogout = useCallback(async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
+  const handleLogout = useCallback(() => {
+    // [Auth timing] logout start
+    console.debug("[Auth] Logout start", new Date().toISOString());
+
+    // Fire-and-forget: keepalive ensures the request completes even after navigation.
+    // Do NOT await — redirect immediately so the user never sees a frozen UI.
+    fetch("/api/auth/logout", { method: "POST", keepalive: true })
+      .then(() => console.debug("[Auth] Logout API complete"))
+      .catch(() => {});
+
+    router.replace("/login");
   }, [router]);
 
   return (

@@ -1,0 +1,222 @@
+Task: Improve Saphala Admin authentication UX and perceived performance (Login + Sign Out) so the product behaves like a premium-grade application.
+
+IMPORTANT CONSTRAINTS
+- Do NOT change the database schema
+- Do NOT add migrations
+- Do NOT modify unrelated admin modules or menus
+- Only work on authentication flow (login + logout) and transition UX
+- Preserve the current auth architecture and role security
+- Do NOT break middleware protection
+- Do NOT refactor the entire auth system unless absolutely necessary
+- Continue using bcryptjs for password comparison if present
+
+CURRENT PROBLEMS
+
+Login issue:
+When the admin clicks “Sign In”:
+1. Button shows “Logging in…” for about 3–8 seconds
+2. Then the “Sign In” button appears again briefly
+3. Then after another ~2–3 seconds the dashboard loads
+
+This causes:
+- Button flicker
+- Poor perceived performance
+- Non-premium UX
+
+Logout issue:
+When clicking “Sign Out”, the system also takes noticeable time before redirecting to login. The UI feels frozen or slow.
+
+GOAL
+
+Make both Login and Logout feel fast, smooth, and premium.
+
+Final expected experience:
+
+LOGIN
+• User clicks Sign In
+• Button instantly changes to: “Signing in…”
+• Button remains disabled (no flicker back)
+• On success show success message:
+  “Successfully logged in. Redirecting to dashboard…”
+• Button text becomes: “Redirecting…”
+• Immediate navigation to dashboard shell
+• Dashboard loads instantly with skeleton loaders if data is still fetching
+
+LOGOUT
+• User clicks Sign Out
+• Show instant feedback (toast or inline message):
+  “Signed out successfully.”
+• Immediately redirect to login page
+• Do NOT leave the user waiting on a blank screen
+• Logout should feel nearly instant
+
+IMPLEMENTATION REQUIREMENTS
+
+PART 1 — Fix Login State Handling
+
+Audit the login page/component.
+
+Find where loading state is being reset too early.
+
+Correct flow must be:
+
+Click Sign In
+→ setSubmitting(true)
+→ disable button
+→ call login API
+
+If success:
+→ show success message: “Successfully logged in. Redirecting to dashboard…”
+→ keep button disabled
+→ change button label to “Redirecting…”
+→ trigger immediate router navigation
+
+If error:
+→ restore button
+→ show error message
+
+IMPORTANT:
+The button must never revert to “Sign In” between success and redirect.
+
+Button states must be:
+
+Default:
+Sign In
+
+Submitting:
+Signing in…
+
+Success before redirect:
+Redirecting…
+
+PART 2 — Remove unnecessary login delays
+
+Audit login API and frontend flow.
+
+Check for:
+• duplicate session verification after login
+• unnecessary awaits
+• redundant session fetch before redirect
+• middleware checks triggered twice
+
+Correct pattern should be:
+
+login success
+→ cookie/session created
+→ immediate redirect
+→ dashboard handles session normally
+
+Avoid pattern:
+
+login success
+→ setLoading(false)
+→ re-fetch session
+→ then redirect
+
+PART 3 — Improve Dashboard Entry Experience
+
+Do NOT block route transition until dashboard analytics load.
+
+Instead:
+
+1. Navigate immediately to dashboard page
+2. Render dashboard shell instantly
+3. Show skeleton loaders for:
+   • KPI cards
+   • charts
+   • tables
+
+Then load real data asynchronously.
+
+This dramatically improves perceived performance.
+
+PART 4 — Improve Sign Out Performance
+
+Audit the logout/sign-out handler.
+
+Current symptoms indicate one of these issues:
+• logout API waiting unnecessarily
+• session revalidation before redirect
+• frontend waiting for full API response
+
+Correct logout flow:
+
+User clicks Sign Out
+→ show loading indicator or toast
+→ call logout endpoint
+→ clear session/cookie
+→ immediately redirect to login page
+
+User should see feedback:
+
+Toast:
+“Signed out successfully.”
+
+Logout should NOT wait for slow backend work before redirect.
+
+PART 5 — Add timing diagnostics (development only)
+
+Add temporary performance logs to identify real delay sources.
+
+Log timestamps for:
+
+LOGIN
+• login request start
+• API response received
+• redirect triggered
+• dashboard mounted
+
+LOGOUT
+• logout request start
+• API response received
+• redirect triggered
+
+If possible also log backend timings:
+
+• user lookup
+• password compare
+• session creation
+• session deletion
+
+These logs should be clearly commented and removable.
+
+PART 6 — Maintain Security
+
+Ensure:
+• role checks remain intact
+• admin-only protection continues to work
+• session cookie behavior unchanged
+• middleware protection unaffected
+
+Do NOT bypass auth checks to gain speed.
+
+EXPECTED OUTPUT
+
+1. Implement improvements
+2. Identify root cause of delays
+3. List exact files modified
+4. Explain whether slowdown was due to:
+   - frontend state sequencing
+   - login API latency
+   - middleware/session checks
+   - dashboard data load
+   - logout flow
+   - or combination
+
+ACCEPTANCE CRITERIA
+
+Login:
+✓ Button never flickers back to “Sign In”
+✓ Shows success message: “Successfully logged in. Redirecting to dashboard…”
+✓ Redirect begins immediately
+✓ Dashboard appears instantly (with skeletons if needed)
+
+Logout:
+✓ Clicking Sign Out shows immediate feedback
+✓ “Signed out successfully.” message appears
+✓ Redirect to login page happens quickly
+✓ No frozen UI or blank waiting state
+
+No schema changes.
+No unrelated admin modules altered.
+Authentication remains secure.
