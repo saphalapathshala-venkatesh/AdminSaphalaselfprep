@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title, description, categoryId, subjectIds, pricePaise, discountPaise, currency, scheduleJson, isPublished } = body;
+    const { title, description, categoryId, subjectIds, pricePaise, discountPaise, currency, thumbnailUrl, scheduleJson, isPublished } = body;
 
     if (!title || !title.trim()) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
         pricePaise: parseInt(pricePaise) || 0,
         discountPaise: parseInt(discountPaise) || 0,
         currency: currency || "INR",
+        thumbnailUrl: thumbnailUrl?.trim() || null,
         scheduleJson: scheduleJson || null,
         isPublished: isPublished || false,
         createdById: user.id,
@@ -91,7 +92,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { id, title, description, categoryId, subjectIds, pricePaise, discountPaise, currency, scheduleJson, isPublished } = body;
+    const { id, title, description, categoryId, subjectIds, pricePaise, discountPaise, currency, thumbnailUrl, scheduleJson, isPublished } = body;
 
     if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
 
@@ -108,6 +109,7 @@ export async function PUT(req: NextRequest) {
         pricePaise: pricePaise !== undefined ? parseInt(pricePaise) || 0 : existing.pricePaise,
         discountPaise: discountPaise !== undefined ? parseInt(discountPaise) || 0 : existing.discountPaise,
         currency: currency || existing.currency,
+        thumbnailUrl: thumbnailUrl !== undefined ? (thumbnailUrl?.trim() || null) : existing.thumbnailUrl,
         scheduleJson: scheduleJson !== undefined ? scheduleJson : existing.scheduleJson,
         isPublished: isPublished !== undefined ? isPublished : existing.isPublished,
       },

@@ -77,6 +77,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         hasPdfCourse:      body.hasPdfCourse      !== undefined ? Boolean(body.hasPdfCourse)      : existing.hasPdfCourse,
         hasTestSeries:     body.hasTestSeries     !== undefined ? Boolean(body.hasTestSeries)     : existing.hasTestSeries,
         hasFlashcardDecks: body.hasFlashcardDecks !== undefined ? Boolean(body.hasFlashcardDecks) : existing.hasFlashcardDecks,
+        thumbnailUrl:      body.thumbnailUrl      !== undefined ? (body.thumbnailUrl?.trim() || null) : existing.thumbnailUrl,
       },
     });
 

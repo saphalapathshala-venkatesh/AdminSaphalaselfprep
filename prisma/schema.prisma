@@ -299,9 +299,10 @@ model TestSeries {
   description  String?
   categoryId   String?
   subjectIds   String[] @default([])
-  pricePaise   Int      @default(0)
-  discountPaise Int     @default(0)
-  currency     String   @default("INR")
+  pricePaise    Int      @default(0)
+  discountPaise Int      @default(0)
+  currency      String   @default("INR")
+  thumbnailUrl  String?
   scheduleJson Json?
   isPublished  Boolean  @default(false)
   createdById  String
@@ -594,6 +595,7 @@ model Course {
   hasPdfCourse      Boolean    @default(false)
   hasTestSeries     Boolean    @default(false)
   hasFlashcardDecks Boolean    @default(false)
+  thumbnailUrl      String?
   createdAt         DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   videos         Video[]

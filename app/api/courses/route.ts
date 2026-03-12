@@ -91,12 +91,13 @@ export async function POST(req: NextRequest) {
 
     const course = await prisma.course.create({
       data: {
-        tenantId:    "default",
-        name:        name.trim(),
-        description: description?.trim() || null,
-        categoryId:  categoryId || null,
+        tenantId:     "default",
+        name:         name.trim(),
+        description:  description?.trim() || null,
+        categoryId:   categoryId || null,
         courseType,
-        isActive:    isActive !== undefined ? Boolean(isActive) : true,
+        isActive:     isActive !== undefined ? Boolean(isActive) : true,
+        thumbnailUrl: body.thumbnailUrl?.trim() || null,
         ...productTypes,
       },
     });

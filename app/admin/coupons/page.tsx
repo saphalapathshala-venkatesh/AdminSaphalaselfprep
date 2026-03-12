@@ -71,7 +71,7 @@ export default function CouponsPage() {
     setForm({
       code: c.code,
       discountType: c.discountType,
-      discountValue: String(c.discountValue),
+      discountValue: c.discountType === "FLAT" ? String(c.discountValue / 100) : String(c.discountValue),
       validFrom: c.validFrom ? c.validFrom.slice(0, 16) : "",
       validUntil: c.validUntil ? c.validUntil.slice(0, 16) : "",
       usageLimit: c.usageLimit ? String(c.usageLimit) : "",
@@ -88,7 +88,9 @@ export default function CouponsPage() {
       const payload: any = {
         code: form.code,
         discountType: form.discountType,
-        discountValue: parseInt(form.discountValue) || 0,
+        discountValue: form.discountType === "FLAT"
+          ? Math.round(parseFloat(form.discountValue || "0") * 100)
+          : parseInt(form.discountValue) || 0,
         validFrom: form.validFrom || null,
         validUntil: form.validUntil || null,
         usageLimit: form.usageLimit ? parseInt(form.usageLimit) : null,
@@ -257,11 +259,11 @@ export default function CouponsPage() {
                   <label style={{ fontSize: "0.75rem", color: "#374151", display: "block", marginBottom: "0.25rem" }}>Discount Type *</label>
                   <select value={form.discountType} onChange={e => setForm(f => ({ ...f, discountType: e.target.value as "PERCENT" | "FLAT" }))} style={inputStyle}>
                     <option value="PERCENT">Percent (%)</option>
-                    <option value="FLAT">Flat (Paise)</option>
+                    <option value="FLAT">Flat (₹)</option>
                   </select>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: "0.75rem", color: "#374151", display: "block", marginBottom: "0.25rem" }}>Value * {form.discountType === "PERCENT" ? "(1-100)" : "(paise)"}</label>
+                  <label style={{ fontSize: "0.75rem", color: "#374151", display: "block", marginBottom: "0.25rem" }}>Value * {form.discountType === "PERCENT" ? "(1–100)" : "(₹)"}</label>
                   <input type="number" value={form.discountValue} onChange={e => setForm(f => ({ ...f, discountValue: e.target.value }))} style={inputStyle} />
                 </div>
               </div>

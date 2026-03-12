@@ -1,0 +1,342 @@
+You are working inside the existing Saphala Admin app.
+
+Current state:
+
+Pricing fields in some admin forms are shown as paise
+
+User wants all admin-facing pricing inputs and labels to be shown in Rupees (₹ / INR), not paise
+
+Thumbnails are needed for:
+
+Test Series
+
+Courses
+
+Thumbnails are not required for individual/single tests
+
+Existing admin branding and module structure should remain intact
+
+Do not redesign unrelated modules
+
+Keep DB/schema changes minimal and safe
+
+Goal
+
+Implement two improvements:
+
+All admin pricing UI should use Rupees instead of paise
+
+Add thumbnail upload/support for:
+
+Test Series
+
+Courses
+
+Do not add thumbnail requirement for individual tests.
+
+Locked product requirements
+1. Pricing must be shown in Rupees in admin UI
+
+Anywhere admin currently sees labels or inputs like:
+
+Price (paise)
+
+Discount (paise)
+
+change the admin experience so it is shown in:
+
+Price (₹)
+
+Discount (₹)
+or equivalent Rupees wording
+
+Important:
+
+if backend/database currently stores money in paise, keep that storage model if it is already used elsewhere
+
+only change the admin-facing input/output experience to Rupees
+
+convert safely between UI Rupees and stored paise on submit/load
+
+2. Thumbnail support required for:
+
+Test Series
+
+Courses
+
+3. Thumbnail support not required for:
+
+Single Tests / individual tests
+
+Pricing implementation rules
+If DB stores paise already
+
+Do not break existing storage consistency.
+
+Implement this pattern:
+
+admin enters Rupees
+
+UI displays Rupees
+
+before save, convert Rupees → paise
+
+when loading existing data, convert paise → Rupees for display
+
+Example:
+
+admin enters 499
+
+backend stores 49900 if paise-based storage is the current standard
+
+Validation
+
+preserve numeric validation
+
+support integer rupees at minimum
+
+if decimal rupees are allowed, convert correctly and safely
+
+keep discount logic consistent
+
+Scope
+
+Apply this wherever relevant in admin, especially:
+
+Test Series create/edit
+
+Courses create/edit
+
+Products if they expose price in paise labels
+
+any other core pricing forms that still visibly show paise to admin
+
+At minimum, fix the obvious modules currently exposing paise labels in the admin UI.
+
+Thumbnail implementation rules
+A. Test Series thumbnails
+
+Add thumbnail support to Test Series.
+
+Required behavior:
+
+admin can upload or set a thumbnail for each test series
+
+show thumbnail in:
+
+create/edit form
+
+list/table/card view where useful
+
+if no thumbnail is uploaded, use a clean default fallback thumbnail
+
+thumbnail is optional, but supported
+
+Suggested fields
+
+If schema support is needed, add minimal safe fields such as:
+
+thumbnailUrl String?
+
+Reuse existing image/upload patterns from Videos or other modules if available.
+
+B. Course thumbnails
+
+Add thumbnail support to Courses.
+
+Required behavior:
+
+admin can upload or set a thumbnail for each course
+
+show thumbnail in:
+
+course create/edit form
+
+courses list/table/card view where useful
+
+package/content/course builder references where helpful
+
+if no thumbnail is uploaded, use a clean branded default fallback thumbnail
+
+Suggested fields
+
+If schema support is needed, add minimal safe fields such as:
+
+thumbnailUrl String?
+
+Reuse existing upload/display helpers if the codebase already has them.
+
+C. Single Tests
+
+Do not add thumbnail requirement for individual test records.
+
+If the schema/UI already has something test-related, leave single-test thumbnail handling untouched unless required for shared component compatibility.
+
+Upload/storage approach
+
+If the codebase already has an existing image/file upload mechanism:
+
+reuse it
+
+If not:
+
+implement the cleanest current-compatible approach already used in admin for thumbnails/images
+
+keep it lightweight and stable
+
+do not overbuild a full media manager in this prompt
+
+If true storage integration is not yet finalized, support:
+
+image URL field or existing upload endpoint pattern
+
+fallback thumbnail display
+But prefer real upload support if the app already has it.
+
+Required pages/modules to update
+1. Test Series admin
+
+Update:
+
+create/edit modal or page
+
+list view
+
+display labels from paise to rupees
+
+thumbnail upload/input + preview/fallback
+
+2. Courses admin
+
+Update:
+
+create/edit modal or page
+
+list view
+
+rupee labels if pricing is shown there
+
+thumbnail upload/input + preview/fallback
+
+3. Any clearly related pricing forms
+
+If there are other admin forms that still expose paise directly and are part of active commerce flow, convert them too, but do not let scope explode unnecessarily.
+
+UX expectations
+Pricing
+
+labels should be human-friendly:
+
+Price (₹)
+
+Discount (₹)
+
+remove confusing “paise” wording from admin
+
+show sensible placeholders/examples
+
+Thumbnails
+
+include preview
+
+include remove/replace option if practical
+
+use consistent fallback image/card
+
+keep forms clean and not cluttered
+
+API/backend expectations
+
+Update APIs for:
+
+courses
+
+test series
+
+so they accept and return thumbnail fields as needed.
+
+For pricing:
+
+ensure API handling remains safe with rupee-display / paise-storage conversion if applicable
+
+do not break existing records
+
+Minimal schema guidance
+
+Only if necessary, add:
+
+thumbnailUrl on Course
+
+thumbnailUrl on TestSeries
+
+Keep changes minimal and production-safe.
+
+Do not make thumbnails mandatory.
+
+List/table rendering
+
+Where practical:
+
+show thumbnail column or thumbnail chip/card in:
+
+Courses list
+
+Test Series list
+
+Do this cleanly without overcrowding the table.
+
+Fallback behavior
+
+If thumbnail is missing:
+
+use a reusable default thumbnail component/helper
+
+branding should feel consistent with Saphala admin
+
+Important scope boundaries
+
+Do not implement in this prompt:
+
+thumbnails for single tests
+
+Bunny integration
+
+Zoom integration
+
+student frontend rendering changes unless absolutely required by shared models
+
+large media library redesign
+
+This prompt is only for:
+
+rupees-based admin pricing UI
+
+thumbnail support for courses and test series
+
+Deliverables expected
+
+At the end, return:
+
+files created/updated
+
+schema changes made
+
+which forms were changed from paise to rupees
+
+whether DB still stores paise internally
+
+where thumbnail upload/display was added
+
+fallback behavior used
+
+any assumptions/limitations
+
+Final architecture principle
+
+Admin sees and enters prices in Rupees
+
+Backend may still store paise if that is the current stable storage model
+
+Courses and Test Series support thumbnails
+
+Single Tests do not need thumbnails

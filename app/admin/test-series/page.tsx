@@ -11,6 +11,7 @@ interface TestSeries {
   pricePaise: number;
   discountPaise: number;
   currency: string;
+  thumbnailUrl: string | null;
   scheduleJson: any;
   isPublished: boolean;
   createdAt: string;
@@ -42,7 +43,8 @@ export default function TestSeriesPage() {
 
   const [form, setForm] = useState({
     title: "", description: "", categoryId: "", subjectIds: [] as string[],
-    pricePaise: "0", discountPaise: "0", currency: "INR", scheduleJson: "", isPublished: false,
+    priceRupees: "0", discountRupees: "0", currency: "INR",
+    thumbnailUrl: "", scheduleJson: "", isPublished: false,
   });
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -91,7 +93,7 @@ export default function TestSeriesPage() {
 
   function openCreate() {
     setEditing(null);
-    setForm({ title: "", description: "", categoryId: "", subjectIds: [], pricePaise: "0", discountPaise: "0", currency: "INR", scheduleJson: "", isPublished: false });
+    setForm({ title: "", description: "", categoryId: "", subjectIds: [], priceRupees: "0", discountRupees: "0", currency: "INR", thumbnailUrl: "", scheduleJson: "", isPublished: false });
     setShowForm(true);
   }
 
@@ -102,9 +104,10 @@ export default function TestSeriesPage() {
       description: item.description || "",
       categoryId: item.categoryId || "",
       subjectIds: item.subjectIds || [],
-      pricePaise: String(item.pricePaise),
-      discountPaise: String(item.discountPaise),
+      priceRupees:    String(item.pricePaise    / 100),
+      discountRupees: String(item.discountPaise / 100),
       currency: item.currency,
+      thumbnailUrl: item.thumbnailUrl || "",
       scheduleJson: item.scheduleJson ? JSON.stringify(item.scheduleJson) : "",
       isPublished: item.isPublished,
     });
@@ -124,8 +127,12 @@ export default function TestSeriesPage() {
 
       const payload: any = {
         title: form.title, description: form.description, categoryId: form.categoryId || null,
-        subjectIds: form.subjectIds, pricePaise: form.pricePaise, discountPaise: form.discountPaise,
-        currency: form.currency, scheduleJson, isPublished: form.isPublished,
+        subjectIds: form.subjectIds,
+        pricePaise:    Math.round(parseFloat(form.priceRupees    || "0") * 100),
+        discountPaise: Math.round(parseFloat(form.discountRupees || "0") * 100),
+        currency: form.currency,
+        thumbnailUrl: form.thumbnailUrl.trim() || null,
+        scheduleJson, isPublished: form.isPublished,
       };
 
       const method = editing ? "PUT" : "POST";
@@ -195,6 +202,7 @@ export default function TestSeriesPage() {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8125rem" }}>
           <thead>
             <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
+              <th style={thStyle}>Thumb</th>
               <th style={thStyle}>Title</th>
               <th style={thStyle}>Category</th>
               <th style={thStyle}>Tests</th>
@@ -206,11 +214,18 @@ export default function TestSeriesPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>Loading...</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>Loading...</td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>No test series found.</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>No test series found.</td></tr>
             ) : items.map((item) => (
               <tr key={item.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                <td style={{ ...tdStyle, width: 44 }}>
+                  {item.thumbnailUrl ? (
+                    <img src={item.thumbnailUrl} alt="" style={{ width: 38, height: 38, objectFit: "cover", borderRadius: 6, border: "1px solid #e2e8f0" }} />
+                  ) : (
+                    <div style={{ width: 38, height: 38, borderRadius: 6, background: "#f0f4ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.125rem", color: "#a5b4fc" }}>📋</div>
+                  )}
+                </td>
                 <td style={tdStyle}><strong>{item.title}</strong></td>
                 <td style={tdStyle}>
                   {item.categoryId ? (
@@ -284,17 +299,32 @@ export default function TestSeriesPage() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
                 <div>
-                  <label style={labelStyle}>Price (paise)</label>
-                  <input type="number" value={form.pricePaise} onChange={(e) => setForm({ ...form, pricePaise: e.target.value })} style={inputStyle} />
+                  <label style={labelStyle}>Price (₹)</label>
+                  <input type="number" min="0" step="0.01" placeholder="0.00" value={form.priceRupees} onChange={(e) => setForm({ ...form, priceRupees: e.target.value })} style={inputStyle} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Discount (paise)</label>
-                  <input type="number" value={form.discountPaise} onChange={(e) => setForm({ ...form, discountPaise: e.target.value })} style={inputStyle} />
+                  <label style={labelStyle}>Discount (₹)</label>
+                  <input type="number" min="0" step="0.01" placeholder="0.00" value={form.discountRupees} onChange={(e) => setForm({ ...form, discountRupees: e.target.value })} style={inputStyle} />
                 </div>
                 <div>
                   <label style={labelStyle}>Currency</label>
                   <input value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} style={inputStyle} />
                 </div>
+              </div>
+              <div>
+                <label style={labelStyle}>Thumbnail URL</label>
+                <input
+                  value={form.thumbnailUrl}
+                  onChange={(e) => setForm({ ...form, thumbnailUrl: e.target.value })}
+                  placeholder="https://..."
+                  style={inputStyle}
+                />
+                {form.thumbnailUrl && (
+                  <div style={{ marginTop: "0.375rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <img src={form.thumbnailUrl} alt="preview" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 6, border: "1px solid #e2e8f0" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                    <button type="button" onClick={() => setForm({ ...form, thumbnailUrl: "" })} style={{ fontSize: "0.75rem", color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}>Remove</button>
+                  </div>
+                )}
               </div>
               <div>
                 <label style={labelStyle}>Schedule (JSON)</label>

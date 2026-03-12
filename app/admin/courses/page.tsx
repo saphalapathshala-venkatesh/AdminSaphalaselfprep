@@ -19,11 +19,13 @@ type CourseType = "STANDARD" | "PACKAGE";
 type Course = ProductTypes & {
   id: string; name: string; description: string | null;
   courseType: CourseType; isActive: boolean; createdAt: string;
+  thumbnailUrl?: string | null;
   _count?: { videos: number; liveClasses: number };
 };
 
 type FormData = {
-  name: string; description: string; courseType: CourseType; isActive: boolean;
+  name: string; description: string; courseType: CourseType;
+  isActive: boolean; thumbnailUrl: string;
 } & ProductTypes;
 
 // ─── Product type config ──────────────────────────────────────────────────────
@@ -37,13 +39,14 @@ const TYPE_CONFIG = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const defaultForm = (): FormData => ({
-  name: "", description: "", courseType: "STANDARD", isActive: true,
+  name: "", description: "", courseType: "STANDARD", isActive: true, thumbnailUrl: "",
   hasHtmlCourse: false, hasVideoCourse: false, hasPdfCourse: false, hasTestSeries: false, hasFlashcardDecks: false,
 });
 
 function courseToForm(c: Course): FormData {
   return {
     name: c.name, description: c.description || "", courseType: c.courseType || "STANDARD", isActive: c.isActive,
+    thumbnailUrl: c.thumbnailUrl || "",
     hasHtmlCourse: c.hasHtmlCourse, hasVideoCourse: c.hasVideoCourse,
     hasPdfCourse: c.hasPdfCourse, hasTestSeries: c.hasTestSeries,
     hasFlashcardDecks: c.hasFlashcardDecks,
@@ -125,6 +128,22 @@ function CourseForm({ form, onChange, error, isEdit }: {
         <textarea value={form.description} onChange={e => set({ description: e.target.value })} rows={3}
           placeholder="Optional short description…"
           style={{ ...inputSt, resize: "vertical", lineHeight: 1.5 }} />
+      </div>
+
+      <div>
+        <label style={labelSt}>Thumbnail URL</label>
+        <input
+          value={form.thumbnailUrl}
+          onChange={e => set({ thumbnailUrl: e.target.value })}
+          placeholder="https://..."
+          style={inputSt}
+        />
+        {form.thumbnailUrl && (
+          <div style={{ marginTop: "0.375rem", display: "flex", alignItems: "center", gap: "0.625rem" }}>
+            <img src={form.thumbnailUrl} alt="preview" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+            <button type="button" onClick={() => set({ thumbnailUrl: "" })} style={{ fontSize: "0.75rem", color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}>Remove</button>
+          </div>
+        )}
       </div>
 
       {/* Product type checkboxes */}
@@ -349,7 +368,7 @@ export default function CoursesPage() {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#f8fafc" }}>
-              {["Course Name", "Type", "Product Types", "Videos", "Live Classes", "Status", "Actions"].map(h => (
+              {["", "Course Name", "Type", "Product Types", "Videos", "Live Classes", "Status", "Actions"].map(h => (
                 <th key={h} style={{ padding: "0.625rem 1rem", textAlign: "left", fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "2px solid #e2e8f0", whiteSpace: "nowrap" }}>{h}</th>
               ))}
             </tr>
@@ -358,7 +377,7 @@ export default function CoursesPage() {
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i}>
-                  {Array.from({ length: 6 }).map((_, j) => (
+                  {Array.from({ length: 8 }).map((_, j) => (
                     <td key={j} style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
                       <div style={{ height: 16, borderRadius: 4, background: `linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%)`, backgroundSize: "200% 100%", animation: "shimmer 1.5s infinite", width: j === 0 ? "60%" : j === 1 ? "80%" : "40%" }} />
                     </td>
@@ -375,6 +394,13 @@ export default function CoursesPage() {
               <tr key={course.id} style={{ transition: "background 0.1s" }}
                 onMouseEnter={e => (e.currentTarget.style.background = "#f8fafc")}
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                <td style={{ padding: "0.5rem 0.75rem", borderBottom: "1px solid #f1f5f9", width: 48 }}>
+                  {course.thumbnailUrl ? (
+                    <img src={course.thumbnailUrl} alt="" style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0", display: "block" }} />
+                  ) : (
+                    <div style={{ width: 40, height: 40, borderRadius: 8, background: "#f0f9ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.125rem" }}>📘</div>
+                  )}
+                </td>
                 <td style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
                   <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a" }}>{course.name}</div>
                   {course.description && <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.125rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 240 }}>{course.description}</div>}
