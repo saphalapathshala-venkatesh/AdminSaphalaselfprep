@@ -22,6 +22,18 @@ const CUSTOM_COLORS = [
   "#0891b2","#db2777","#475569","#0f766e","#b45309",
 ];
 
+/* ─── Keyword Tag / Chip presets ─── */
+const TAG_TYPES = [
+  { key: "Keyword",    color: "#15803d", bg: "#dcfce7", border: "#86efac" },
+  { key: "Definition", color: "#1d4ed8", bg: "#dbeafe", border: "#93c5fd" },
+  { key: "Formula",    color: "#6d28d9", bg: "#f5f3ff", border: "#c4b5fd" },
+  { key: "Article",    color: "#0f766e", bg: "#f0fdfa", border: "#5eead4" },
+  { key: "Date",       color: "#b45309", bg: "#fefce8", border: "#fde047" },
+  { key: "Concept",    color: "#7c3aed", bg: "#faf5ff", border: "#ddd6fe" },
+  { key: "Exception",  color: "#c2410c", bg: "#fff7ed", border: "#fdba74" },
+  { key: "Term",       color: "#0369a1", bg: "#f0f9ff", border: "#7dd3fc" },
+] as const;
+
 /* ─── Styles ─── */
 const TBTN: React.CSSProperties = {
   padding: "3px 7px", fontSize: "0.78rem", fontFamily: "inherit",
@@ -61,6 +73,8 @@ export default function RichTextEditor({ value, onChange, placeholder = "Write c
   const [showHighlightPicker, setShowHighlightPicker] = useState(false);
   const [showTableModal, setShowTableModal] = useState(false);
   const [showCalloutPicker, setShowCalloutPicker] = useState(false);
+  const [showTagPicker, setShowTagPicker] = useState(false);
+  const [customTagLabel, setCustomTagLabel] = useState("");
   const [tableRows, setTableRows] = useState("3");
   const [tableCols, setTableCols] = useState("3");
   const [customTitle, setCustomTitle] = useState("");
@@ -68,6 +82,7 @@ export default function RichTextEditor({ value, onChange, placeholder = "Write c
   const [customColor, setCustomColor] = useState("#7c3aed");
   const initialized = useRef(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedRange = useRef<Range | null>(null);
 
   /* Init once */
   useEffect(() => {
@@ -96,6 +111,7 @@ export default function RichTextEditor({ value, onChange, placeholder = "Write c
     setShowHighlightPicker(false);
     setShowTableModal(false);
     setShowCalloutPicker(false);
+    setShowTagPicker(false);
   }, []);
 
   const exec = useCallback((cmd: string, val?: string) => {
@@ -157,26 +173,95 @@ export default function RichTextEditor({ value, onChange, placeholder = "Write c
     if (url) insertHTML(`<img src="${url}" style="max-width:100%;border-radius:6px;margin:8px 0;" alt="" /><p><br></p>`);
   }, [insertHTML]);
 
-  /* ── Keyboard handler: Backspace on empty callout body removes whole block ── */
+  /* ── Tool 1: Cloze / Blank Maker ── */
+  const insertBlank = useCallback(() => {
+    const sel = window.getSelection();
+    const selectedText = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).toString().trim() : "";
+    const answer = selectedText || "";
+    const safeAnswer = answer.replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    insertHTML(
+      `<span data-blank="${safeAnswer}" title="${safeAnswer ? `Answer: ${safeAnswer}` : "Blank"}" `
+      + `style="display:inline-block;min-width:56px;padding:1px 8px;border-bottom:2.5px solid #7c3aed;border-radius:3px 3px 0 0;background:#f5f3ff;color:#7c3aed;font-weight:700;font-size:0.9em;cursor:default;user-select:none;"`
+      + `>_____</span>`
+    );
+  }, [insertHTML]);
+
+  /* ── Tool 2: Keyword Tag / Chip ── */
+  const openTagPicker = useCallback(() => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) savedRange.current = sel.getRangeAt(0).cloneRange();
+    setShowTagPicker(p => !p);
+    setShowColorPicker(false); setShowHighlightPicker(false); setShowTableModal(false); setShowCalloutPicker(false);
+  }, []);
+
+  const doInsertTag = useCallback((key: string, color: string, bg: string, border: string) => {
+    if (!savedRange.current) { setShowTagPicker(false); return; }
+    const text = savedRange.current.toString().trim();
+    if (!text) { setShowTagPicker(false); return; }
+    editorRef.current?.focus();
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(savedRange.current);
+    document.execCommand("insertHTML", false,
+      `<span data-tag="${key}" style="display:inline-flex;align-items:center;gap:3px;background:${bg};border:1.5px solid ${border};border-radius:10px;padding:1px 9px 1px 7px;font-size:0.78em;font-weight:700;color:${color};white-space:nowrap;vertical-align:middle;">`
+      + `<span style="font-size:0.65em;text-transform:uppercase;opacity:0.65;margin-right:2px;">${key}</span>${text}</span>`
+    );
+    savedRange.current = null;
+    setShowTagPicker(false);
+    setCustomTagLabel("");
+    emitNow();
+  }, [emitNow]);
+
+  /* ── Tool 3: Two-Column Compare Block ── */
+  const insertCompare = useCallback(() => {
+    const html =
+      `<div data-compare style="display:grid;grid-template-columns:1fr 1fr;border-radius:8px;overflow:hidden;border:1.5px solid #e2e8f0;margin:14px 0;">`
+      + `<div>`
+      +   `<div data-compare-header style="background:#dbeafe;padding:7px 12px;font-weight:700;font-size:0.78rem;text-align:center;color:#1d4ed8;">Column A</div>`
+      +   `<div data-compare-body data-ph="Add content…" style="padding:10px 12px;min-height:56px;font-size:0.875rem;line-height:1.6;color:#1f2937;"><br></div>`
+      + `</div>`
+      + `<div style="border-left:1.5px solid #e2e8f0;">`
+      +   `<div data-compare-header style="background:#dcfce7;padding:7px 12px;font-weight:700;font-size:0.78rem;text-align:center;color:#15803d;">Column B</div>`
+      +   `<div data-compare-body data-ph="Add content…" style="padding:10px 12px;min-height:56px;font-size:0.875rem;line-height:1.6;color:#1f2937;"><br></div>`
+      + `</div>`
+      + `</div><p><br></p>`;
+    insertHTML(html);
+  }, [insertHTML]);
+
+  /* ── Keyboard handler: Backspace on empty callout/compare body removes whole block ── */
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key !== "Backspace") return;
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
     const range = sel.getRangeAt(0);
-    if (!range.collapsed) return; // selection, not cursor — let browser handle
+    if (!range.collapsed) return;
 
     const node = range.startContainer;
     const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element);
-    const calloutBody = el?.closest("[data-callout-body]");
-    if (!calloutBody) return;
 
-    const bodyHtml = calloutBody.innerHTML.trim();
-    const isEmpty = bodyHtml === "" || bodyHtml === "<br>" || (calloutBody.textContent?.trim() === "");
-    if (isEmpty) {
-      e.preventDefault();
-      const callout = calloutBody.closest("[data-callout]");
-      callout?.remove();
-      emitNow();
+    /* Callout body */
+    const calloutBody = el?.closest("[data-callout-body]");
+    if (calloutBody) {
+      const bodyHtml = calloutBody.innerHTML.trim();
+      const isEmpty = bodyHtml === "" || bodyHtml === "<br>" || (calloutBody.textContent?.trim() === "");
+      if (isEmpty) {
+        e.preventDefault();
+        calloutBody.closest("[data-callout]")?.remove();
+        emitNow();
+        return;
+      }
+    }
+
+    /* Compare body */
+    const compareBody = el?.closest("[data-compare-body]");
+    if (compareBody) {
+      const bodyHtml = compareBody.innerHTML.trim();
+      const isEmpty = bodyHtml === "" || bodyHtml === "<br>" || (compareBody.textContent?.trim() === "");
+      if (isEmpty) {
+        e.preventDefault();
+        compareBody.closest("[data-compare]")?.remove();
+        emitNow();
+      }
     }
   }, [emitNow]);
 
@@ -336,10 +421,71 @@ export default function RichTextEditor({ value, onChange, placeholder = "Write c
             </div>
           )}
         </div>
+        <div style={SEP} />
+
+        {/* ── Blank / Cloze ── */}
+        <Btn title="Blank / Cloze — select text then click to convert to fill-in-the-blank" onClick={insertBlank}>
+          <span style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.01em" }}>___ Blank</span>
+        </Btn>
+
+        {/* ── Keyword Tag ── */}
+        <div style={{ position: "relative", display: "inline-block" }} onClick={(e) => e.stopPropagation()}>
+          <Btn title="Tag / Chip — select text then click to wrap as a keyword chip" on={showTagPicker} onClick={openTagPicker}>
+            <span style={{ fontSize: "0.68rem", fontWeight: 600 }}>🏷 Tag</span>
+          </Btn>
+          {showTagPicker && (
+            <div style={{
+              position: "absolute", top: "110%", left: 0, zIndex: 300,
+              background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10,
+              padding: "10px", boxShadow: "0 8px 28px rgba(0,0,0,.15)",
+              minWidth: 240,
+            }}>
+              <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Tag selected text as…</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginBottom: 8 }}>
+                {TAG_TYPES.map(t => (
+                  <button
+                    key={t.key} type="button"
+                    onMouseDown={(e) => { e.preventDefault(); doInsertTag(t.key, t.color, t.bg, t.border); }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 5, padding: "4px 8px",
+                      background: t.bg, border: `1.5px solid ${t.border}`,
+                      borderRadius: 6, cursor: "pointer", fontSize: "0.72rem", fontWeight: 700,
+                      color: t.color, textAlign: "left",
+                    }}
+                  >
+                    {t.key}
+                  </button>
+                ))}
+              </div>
+              <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: 8 }}>
+                <div style={{ display: "flex", gap: 5 }}>
+                  <input
+                    type="text" value={customTagLabel} onChange={e => setCustomTagLabel(e.target.value)}
+                    placeholder="Custom label…"
+                    style={{ flex: 1, border: "1px solid #d1d5db", borderRadius: 5, padding: "3px 7px", fontSize: "0.75rem", outline: "none" }}
+                    onMouseDown={e => e.stopPropagation()}
+                  />
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); if (customTagLabel.trim()) doInsertTag(customTagLabel.trim(), "#475569", "#f1f5f9", "#cbd5e1"); }}
+                    disabled={!customTagLabel.trim()}
+                    style={{ padding: "3px 10px", background: customTagLabel.trim() ? "#7c3aed" : "#e5e7eb", color: customTagLabel.trim() ? "#fff" : "#9ca3af", border: "none", borderRadius: 5, cursor: customTagLabel.trim() ? "pointer" : "default", fontSize: "0.72rem", fontWeight: 700 }}
+                  >Tag</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Compare Block ── */}
+        <Btn title="Insert Two-Column Compare Block" onClick={insertCompare}>
+          <span style={{ fontSize: "0.68rem", fontWeight: 600 }}>⇔ Compare</span>
+        </Btn>
+        <div style={SEP} />
 
         {/* Table */}
         <div style={{ position: "relative", display: "inline-block" }} onClick={(e) => e.stopPropagation()}>
-          <Btn title="Insert Table" onClick={() => { setShowTableModal(p => !p); setShowColorPicker(false); setShowHighlightPicker(false); setShowCalloutPicker(false); }}>
+          <Btn title="Insert Table" onClick={() => { setShowTableModal(p => !p); setShowColorPicker(false); setShowHighlightPicker(false); setShowCalloutPicker(false); setShowTagPicker(false); }}>
             <span style={{ fontSize: "0.68rem" }}>⊞ Table</span>
           </Btn>
           {showTableModal && (
@@ -439,6 +585,55 @@ export default function RichTextEditor({ value, onChange, placeholder = "Write c
         [contenteditable] [data-callout], .rte-preview [data-callout] { user-select: text; }
         [contenteditable] [data-callout-header], .rte-preview [data-callout-header] { user-select: text; }
         [contenteditable] [data-callout-body], .rte-preview [data-callout-body] { user-select: text; }
+
+        /* Compare body placeholder */
+        [data-compare-body]:has(> br:only-child)::before {
+          content: attr(data-ph);
+          color: #9ca3af;
+          font-style: italic;
+          pointer-events: none;
+          display: block;
+        }
+
+        /* Blank / Cloze chips */
+        [data-blank] {
+          display: inline-block;
+          min-width: 56px;
+          padding: 1px 8px;
+          border-bottom: 2.5px solid #7c3aed;
+          border-radius: 3px 3px 0 0;
+          background: #f5f3ff;
+          color: #7c3aed;
+          font-weight: 700;
+          font-size: 0.9em;
+          cursor: default;
+          user-select: none;
+          vertical-align: middle;
+        }
+
+        /* Keyword tag chips */
+        [data-tag] {
+          display: inline-flex;
+          align-items: center;
+          border-radius: 10px;
+          padding: 1px 9px 1px 7px;
+          font-size: 0.78em;
+          font-weight: 700;
+          white-space: nowrap;
+          vertical-align: middle;
+        }
+
+        /* Compare block */
+        [data-compare] {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          border-radius: 8px;
+          overflow: hidden;
+          border: 1.5px solid #e2e8f0;
+          margin: 14px 0;
+        }
+        [data-compare-header] { user-select: text; }
+        [data-compare-body] { user-select: text; }
       `}</style>
     </div>
   );

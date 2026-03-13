@@ -36,6 +36,10 @@ The console uses a consistent brand palette with purple as the primary CTA color
     - **Infringement Monitoring**: `InfringementEvent` model tracks copy/right-click/selection/keyboard-copy attempts on protected content. 3-strike auto-block system (WARNING_1 → WARNING_2 → AUTO_BLOCKED with session revocation). Admin review page at `/admin/users/infringement` with filters. Dashboard card with live stats.
     - **Learner Annotations**: `LearnerAnnotation` model persists text highlights and underlines on E-Books and PDFs. API at `/api/annotations` (CRUD). Annotations are reapplied via DOM Range API on each viewer open.
     - **Content Type Label**: "HTML Material"/"HTML Pages" renamed to "E-Book"/"E-Books" throughout the UI. Schema key remains `HTML_PAGE`.
+    - **Product Category**: `ProductCategory` enum added to `Course` model (nullable, backward-compatible). 8 values: `FREE_DEMO`, `COMPLETE_PREP_PACK`, `VIDEO_ONLY`, `SELF_PREP`, `PDF_ONLY`, `TEST_SERIES`, `FLASHCARDS_ONLY`, `CURRENT_AFFAIRS`. Controls student-app placement. Shown as badge in course list; selectable dropdown in course create/edit form.
+    - **Rich Editor — Cloze/Blank**: "Blank" toolbar button converts selected text into `<span data-blank="answer">_____</span>`. Answer stored in attribute; visual underline placeholder shown.
+    - **Rich Editor — Keyword Tag**: "Tag" toolbar button with type picker (Keyword/Definition/Formula/Article/Date/Concept/Exception/Term + custom). Wraps selected text as a styled inline chip `<span data-tag="...">`.
+    - **Rich Editor — Compare Block**: "Compare" toolbar button inserts a two-column side-by-side block with editable headers and bodies, placeholder CSS, and Backspace-to-delete-when-empty behavior.
 
 ## External Dependencies
 - **Database**: PostgreSQL (managed via Neon)

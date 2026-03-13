@@ -89,6 +89,13 @@ export async function POST(req: NextRequest) {
 
     const courseType = body.courseType === "PACKAGE" ? "PACKAGE" : "STANDARD";
 
+    const VALID_PRODUCT_CATEGORIES = [
+      "FREE_DEMO","COMPLETE_PREP_PACK","VIDEO_ONLY","SELF_PREP",
+      "PDF_ONLY","TEST_SERIES","FLASHCARDS_ONLY","CURRENT_AFFAIRS",
+    ];
+    const productCategory = body.productCategory && VALID_PRODUCT_CATEGORIES.includes(body.productCategory)
+      ? body.productCategory : null;
+
     const course = await prisma.course.create({
       data: {
         tenantId:     "default",
@@ -96,6 +103,7 @@ export async function POST(req: NextRequest) {
         description:  description?.trim() || null,
         categoryId:   categoryId || null,
         courseType,
+        productCategory: productCategory as any,
         isActive:     isActive !== undefined ? Boolean(isActive) : true,
         thumbnailUrl:           body.thumbnailUrl?.trim() || null,
         xpRedemptionEnabled:    Boolean(body.xpRedemptionEnabled),

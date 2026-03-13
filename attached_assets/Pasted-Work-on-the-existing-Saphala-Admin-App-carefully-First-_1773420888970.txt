@@ -1,0 +1,328 @@
+Work on the existing Saphala Admin App carefully.
+
+First inspect the current rich editor implementation used for E-Books and Flashcards. Do not rebuild the editor from scratch if it is already working. Extend it safely.
+
+Goal
+
+Add 3 new editor tools to improve content authoring speed and structure for exam-focused material:
+
+Cloze / Blank Maker
+
+Keyword Tag / Chip Tool
+
+Two-Column Compare Block
+
+Critical constraints
+
+Do not break existing editor tools
+
+Do not redesign unrelated editor behavior
+
+Do not remove already working formatting features
+
+Keep performance smooth and editing fast
+
+Keep the UI premium, simple, and intuitive
+
+Preserve backward compatibility with already saved content
+
+Avoid unnecessary schema changes unless truly required
+
+1) Cloze / Blank Maker Tool
+
+Add an editor tool that lets the admin quickly convert selected text into a blank / cloze placeholder.
+
+Purpose
+
+Useful for:
+
+fill-in-the-blank learning content
+
+revision notes
+
+flashcard practice
+
+exam-style reinforcement
+
+Expected behavior
+
+Admin selects a word or phrase in the editor
+
+Clicks Blank / Cloze tool
+
+The selected text is converted into a blank placeholder visually in the editor
+
+Original answer data should still be retained in structured form where needed for future use
+
+If implemented first only as a content-authoring helper, ensure rendering is stable and visually clear
+
+UI expectation
+
+Toolbar button label can be something like:
+
+Blank
+
+Cloze
+
+Fill Blank
+
+Example
+
+Input:
+Fundamental Rights are enforceable in courts.
+
+After selecting enforceable and clicking the tool:
+Fundamental Rights are ______ in courts.
+
+Important
+
+Do not make this fragile or purely visual if the editor can store a structured representation safely
+
+If structured representation is too risky right now, implement a safe first version that behaves predictably in stored content
+
+2) Keyword Tag / Chip Tool
+
+Add an editor tool to mark selected words/phrases as structured keyword chips/tags.
+
+Purpose
+
+Useful for marking content like:
+
+Definition
+
+Formula
+
+Article
+
+Date
+
+Keyword
+
+Exception
+
+Term
+
+Concept
+
+Expected behavior
+
+Admin selects a word or phrase
+
+Clicks Tag / Chip tool
+
+Can assign a label/type such as:
+
+Definition
+
+Formula
+
+Article
+
+Date
+
+Keyword
+
+Exception
+
+Custom label if feasible
+
+Selected text renders as a styled chip/tag inline or near-inline without disturbing readability
+
+Example
+
+Article 32 can be tagged as:
+
+Article
+
+GDP can be tagged as:
+
+Keyword
+
+Speed = Distance / Time can be tagged as:
+
+Formula
+
+UI expectation
+
+Toolbar button like Tag or Chip
+
+Small selection popup/modal is acceptable
+
+Keep it fast and clean
+
+Rendering expectation
+
+Tagged text should appear visually distinct, elegant, and consistent with Saphala styling.
+
+3) Two-Column Compare Block
+
+Add an editor tool to quickly create a two-column comparison block.
+
+Purpose
+
+Useful for:
+
+Lok Sabha vs Rajya Sabha
+
+Repo Rate vs Reverse Repo Rate
+
+Plant Cell vs Animal Cell
+
+Biotic vs Abiotic
+
+Fundamental Rights vs Directive Principles
+
+Expected behavior
+
+Admin clicks Compare tool
+
+Editor inserts a clean two-column comparison block
+
+Each column should support:
+
+title/header
+
+bullet points or short rich text content
+
+Admin can edit both sides easily
+
+Block should render cleanly in both E-Books and Flashcards
+
+Example structure
+
+Left column:
+Lok Sabha
+
+Right column:
+Rajya Sabha
+
+With editable content under each.
+
+UI expectation
+
+Toolbar button:
+
+Compare
+
+or 2-Column Compare
+
+Important
+
+Keep it simpler and faster than forcing admins to manually create a full table every time
+
+This is not a raw table replacement; it is a dedicated comparison component
+
+4) Apply these tools to both editors
+
+These 3 tools should be available in:
+
+E-Book editor
+
+Used for long-form structured content.
+
+Flashcard rich editor
+
+Used where formatted content is supported, especially:
+
+Info cards
+
+comparison cards
+
+explanation blocks
+
+title card content where relevant
+
+example blocks
+
+Do not expose them in card types/fields where they make no sense.
+
+5) Storage and compatibility
+
+Implement these tools in a way that:
+
+does not break existing saved editor content
+
+safely serializes/stores the new structures
+
+renders correctly in admin preview and student-facing output
+
+remains backward-compatible with existing content records
+
+If schema changes are not needed, avoid them.
+If a schema/content-format extension is needed, keep it minimal and safe.
+
+6) Rendering expectations
+
+All 3 tools must render properly in:
+
+admin edit mode
+
+admin preview mode
+
+student frontend reading mode
+
+Rendering should be:
+
+clean
+
+premium
+
+readable
+
+mobile-friendly
+
+consistent with Saphala styling
+
+7) Performance expectations
+
+Do not make the editor slower.
+
+The new tools must preserve:
+
+fast typing
+
+smooth selection
+
+fast insertion
+
+easy deletion/editing
+
+no laggy toolbar behavior
+
+no unnecessary full re-renders
+
+8) Non-goals
+
+Do not rebuild the whole editor from scratch
+
+Do not redesign unrelated editor tools
+
+Do not remove existing rich formatting features
+
+Do not overengineer with complex AI behavior
+
+Do not introduce fragile content structures
+
+9) Quality expectation
+
+Implement this as a premium productivity upgrade for content creation:
+
+intuitive
+
+fast
+
+reliable
+
+elegant
+
+exam-content-friendly
+
+At the end, summarize:
+
+how each of the 3 tools was implemented
+
+whether any schema/content-format change was required
+
+where these tools are available in E-Books and Flashcards
+
+any safe limitations in version 1

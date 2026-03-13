@@ -5,6 +5,22 @@ import Link from "next/link";
 
 const PURPLE = "#7c3aed";
 
+// ─── Product Category ─────────────────────────────────────────────────────────
+const PRODUCT_CATEGORY_OPTIONS = [
+  { value: "FREE_DEMO",          label: "Free (Demo) Courses and Tests",  color: "#15803d", bg: "#dcfce7" },
+  { value: "COMPLETE_PREP_PACK", label: "Complete Prep Packs",            color: "#7c3aed", bg: "#f3e8ff" },
+  { value: "VIDEO_ONLY",         label: "Video Only Courses",             color: "#0284c7", bg: "#e0f2fe" },
+  { value: "SELF_PREP",          label: "Self Prep Courses",              color: "#b45309", bg: "#fef3c7" },
+  { value: "PDF_ONLY",           label: "PDF Courses",                    color: "#c2410c", bg: "#fff7ed" },
+  { value: "TEST_SERIES",        label: "Test Series",                    color: "#0f766e", bg: "#ccfbf1" },
+  { value: "FLASHCARDS_ONLY",    label: "Flash Cards",                    color: "#9333ea", bg: "#faf5ff" },
+  { value: "CURRENT_AFFAIRS",    label: "Current Affairs",               color: "#1d4ed8", bg: "#dbeafe" },
+] as const;
+
+function getProductCategoryMeta(value: string | null | undefined) {
+  return PRODUCT_CATEGORY_OPTIONS.find(o => o.value === value) ?? null;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ProductTypes = {
   hasHtmlCourse:     boolean;
@@ -20,6 +36,7 @@ type Course = ProductTypes & {
   id: string; name: string; description: string | null;
   courseType: CourseType; isActive: boolean; createdAt: string;
   thumbnailUrl?: string | null;
+  productCategory?: string | null;
   xpRedemptionEnabled?: boolean;
   xpRedemptionMaxPercent?: number;
   _count?: { videos: number; liveClasses: number };
@@ -27,6 +44,7 @@ type Course = ProductTypes & {
 
 type FormData = {
   name: string; description: string; courseType: CourseType;
+  productCategory: string;
   isActive: boolean; thumbnailUrl: string;
   xpRedemptionEnabled: boolean;
   xpRedemptionMaxPercent: number;
@@ -43,14 +61,16 @@ const TYPE_CONFIG = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const defaultForm = (): FormData => ({
-  name: "", description: "", courseType: "STANDARD", isActive: true, thumbnailUrl: "",
+  name: "", description: "", courseType: "STANDARD", productCategory: "", isActive: true, thumbnailUrl: "",
   hasHtmlCourse: false, hasVideoCourse: false, hasPdfCourse: false, hasTestSeries: false, hasFlashcardDecks: false,
   xpRedemptionEnabled: false, xpRedemptionMaxPercent: 1,
 });
 
 function courseToForm(c: Course): FormData {
   return {
-    name: c.name, description: c.description || "", courseType: c.courseType || "STANDARD", isActive: c.isActive,
+    name: c.name, description: c.description || "", courseType: c.courseType || "STANDARD",
+    productCategory: c.productCategory || "",
+    isActive: c.isActive,
     thumbnailUrl: c.thumbnailUrl || "",
     hasHtmlCourse: c.hasHtmlCourse, hasVideoCourse: c.hasVideoCourse,
     hasPdfCourse: c.hasPdfCourse, hasTestSeries: c.hasTestSeries,
@@ -135,6 +155,32 @@ function CourseForm({ form, onChange, error, isEdit }: {
         <textarea value={form.description} onChange={e => set({ description: e.target.value })} rows={3}
           placeholder="Optional short description…"
           style={{ ...inputSt, resize: "vertical", lineHeight: 1.5 }} />
+      </div>
+
+      {/* Product Category */}
+      <div>
+        <label style={labelSt}>
+          Product Category
+          <span style={{ marginLeft: "0.5rem", fontSize: "0.73rem", fontWeight: 400, color: "#94a3b8" }}>Controls where this course appears in the student app</span>
+        </label>
+        <select
+          value={form.productCategory}
+          onChange={e => set({ productCategory: e.target.value })}
+          style={{ ...inputSt, cursor: "pointer" }}
+        >
+          <option value="">— Not set —</option>
+          {PRODUCT_CATEGORY_OPTIONS.map(o => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        {form.productCategory && (() => {
+          const meta = getProductCategoryMeta(form.productCategory);
+          return meta ? (
+            <div style={{ marginTop: "0.375rem", display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "3px 10px", borderRadius: "12px", background: meta.bg, color: meta.color, fontSize: "0.75rem", fontWeight: 700 }}>
+              {meta.label}
+            </div>
+          ) : null;
+        })()}
       </div>
 
       <div>
@@ -435,6 +481,14 @@ export default function CoursesPage() {
                 <td style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
                   <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a" }}>{course.name}</div>
                   {course.description && <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.125rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 240 }}>{course.description}</div>}
+                  {(() => {
+                    const meta = getProductCategoryMeta(course.productCategory);
+                    return meta ? (
+                      <span style={{ display: "inline-flex", alignItems: "center", marginTop: "0.25rem", padding: "1px 7px", borderRadius: "10px", background: meta.bg, color: meta.color, fontSize: "0.68rem", fontWeight: 700 }}>
+                        {meta.label}
+                      </span>
+                    ) : null;
+                  })()}
                 </td>
                 <td style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
                   {course.courseType === "PACKAGE" ? (

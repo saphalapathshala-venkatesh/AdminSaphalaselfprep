@@ -64,6 +64,16 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       courseType = newType;
     }
 
+    const VALID_PRODUCT_CATEGORIES = [
+      "FREE_DEMO","COMPLETE_PREP_PACK","VIDEO_ONLY","SELF_PREP",
+      "PDF_ONLY","TEST_SERIES","FLASHCARDS_ONLY","CURRENT_AFFAIRS",
+    ];
+    let productCategory: string | null = existing.productCategory ?? null;
+    if (body.productCategory !== undefined) {
+      productCategory = body.productCategory && VALID_PRODUCT_CATEGORIES.includes(body.productCategory)
+        ? body.productCategory : null;
+    }
+
     const updated = await prisma.course.update({
       where: { id: params.id },
       data: {
@@ -71,6 +81,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         description:    body.description   !== undefined ? (body.description?.trim() || null) : existing.description,
         categoryId:     body.categoryId    !== undefined ? (body.categoryId  || null) : existing.categoryId,
         courseType,
+        productCategory: productCategory as any,
         isActive:       body.isActive      !== undefined ? Boolean(body.isActive)     : existing.isActive,
         hasHtmlCourse:     body.hasHtmlCourse     !== undefined ? Boolean(body.hasHtmlCourse)     : existing.hasHtmlCourse,
         hasVideoCourse:    body.hasVideoCourse    !== undefined ? Boolean(body.hasVideoCourse)    : existing.hasVideoCourse,

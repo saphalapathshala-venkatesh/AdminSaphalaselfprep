@@ -1,0 +1,114 @@
+Work on the existing Saphala Admin App carefully.
+
+First inspect the current course/admin architecture before making any changes. Do not rebuild or redesign unrelated modules.
+
+Goal
+
+Add a new course-level field called Product Category that controls where a course page appears in the student frontend.
+
+Very important constraints
+
+Keep the existing meaning of Category unchanged. It must continue to mean exam category only.
+
+Do not repurpose or rename the existing Category field.
+
+Do not add this new field across every internal content/product type like videos, PDFs, tests, flashcards, bundles, etc.
+
+This field is needed only in the relevant course/page creation and edit flow.
+
+Do not redesign unrelated admin modules.
+
+Do not break existing schema/data unless absolutely required.
+
+Keep the UI simple, premium, and consistent with the current admin design.
+
+New field to add
+
+Field label: Product Category
+Help text: Controls where this course appears in the student app
+
+Product Category options
+
+Use exactly these enum/code values and display meanings:
+
+FREE_DEMO — Free (Demo) Courses and Tests
+
+COMPLETE_PREP_PACK — Complete Prep Packs
+
+VIDEO_ONLY — Video Only Courses
+
+SELF_PREP — Self Prep Courses
+
+PDF_ONLY — PDF Courses
+
+TEST_SERIES — Test Series
+
+FLASHCARDS_ONLY — Flash Cards
+
+CURRENT_AFFAIRS — Current Affairs
+
+Required implementation steps
+
+Inspect the current course schema/model, admin create/edit form, and related APIs first.
+
+Add a new single-select dropdown field called Product Category only in the relevant course creation/edit flow.
+
+Keep existing Category untouched and clearly separate from Product Category in the form.
+
+Update schema/model safely only if needed.
+
+Update create/edit APIs safely to accept and persist the new field.
+
+Update admin list/detail display only where useful and low-risk, for example showing Product Category in course detail or list filters if easy.
+
+Ensure old course records do not break.
+
+If migration or backfill is needed, handle it safely and explicitly:
+
+do not break existing rows
+
+use nullable/default-safe behavior if appropriate
+
+mention what backfill is needed and why
+
+Preserve current working behavior everywhere else.
+
+Expected behavior examples
+
+If Category = AP Police and Product Category = SELF_PREP, the student frontend can later place that course under:
+AP Police → Self Prep Courses
+
+If Category = APPSC Group 2 and Product Category = FREE_DEMO, the student frontend can later place that course under:
+APPSC Group 2 → Free (Demo) Courses and Tests
+
+Non-goals
+
+Do not change the meaning of existing Category
+
+Do not apply Product Category to every internal content type
+
+Do not redesign unrelated admin sections
+
+Do not introduce unnecessary schema complexity
+
+Quality expectation
+
+Implement this in the safest, smallest, production-quality way:
+
+premium but simple UI
+
+no overengineering
+
+no schema breakage
+
+backward-compatible handling of existing data
+
+At the end, summarize:
+
+what changed
+
+whether schema migration was required
+
+whether backfill is needed for old records
+
+any safe follow-up needed later in the student frontend
