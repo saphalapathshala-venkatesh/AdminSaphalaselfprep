@@ -1,0 +1,177 @@
+Task: Implement one isolated feature batch only for E-Books in the Saphala Admin App.
+
+Read the current architecture first before changing anything. Keep scope strictly limited.
+
+Context:
+- We have two separate apps:
+  1) Saphala Admin App
+  2) Saphala Self Prep student frontend app
+- They are separate applications but share the same database.
+- In the Admin App, Content Library currently supports creating/editing E-Books with one editor/content field.
+- We now want E-Books to support multiple ordered pages.
+- This is only for E-Books.
+- Do NOT touch flashcards, videos, PDFs, homepage logic, product logic, pricing logic, or unrelated modules.
+- XP must remain at the E-Book level only, not page level.
+
+Feature goal:
+Convert E-Books from single-content-body structure into a parent E-Book with multiple ordered pages, where:
+- one E-Book has many pages
+- each page has its own rich editor content
+- admin can add pages
+- admin can move between pages
+- student frontend can later show page navigation like:
+  - Page 5 / 25
+  - progress bar based on current page / total pages
+- XP remains attached only to the E-Book, not to individual pages
+
+Strict scope:
+- E-Books only
+- No redesign of unrelated modules
+- No flashcard changes
+- No video changes
+- No PDF changes
+- No homepage changes
+- No XP redesign
+- No broad refactors unless absolutely necessary
+
+Implementation requirements:
+
+1. Inspect first
+Please inspect the current:
+- E-Book schema/model
+- Content Library E-Book create/edit page
+- relevant E-Book APIs
+- current rendering assumptions for E-Book content
+
+2. Data model change
+Implement the safest clean architecture for multi-page E-Books.
+
+Recommended structure:
+- Keep the parent E-Book entity for overall metadata:
+  - title
+  - description
+  - taxonomy
+  - published
+  - XP reward
+  - etc.
+- Add a child E-Book Page model/table related to the parent E-Book
+
+Suggested child page fields:
+- id
+- ebookId
+- title (optional, nullable)
+- contentHtml (or equivalent content field)
+- orderIndex / pageNumber
+- timestamps if needed
+
+Important:
+- Existing E-Books must continue to work safely
+- If existing E-Books currently store one big HTML content field, do not break them
+- Safest migration approach:
+  - existing E-Books should be converted safely into a single first page, OR
+  - support fallback logic temporarily if needed
+- Explicitly state whether migration/backfill is needed
+
+3. Admin UI behavior
+Update only the E-Book create/edit experience in Content Library.
+
+Required admin behavior:
+- E-Book has a Pages section
+- first page should exist by default for new E-Books
+- Add Page button
+- page switching UI
+- each page has its own RichTextEditor
+- only one page editor visible at a time for clarity
+- show current page indicator like:
+  - Page 2 of 7
+- Previous Page / Next Page buttons in admin editor navigation
+- Previous disabled on first page
+- Next disabled on last page
+
+4. Page management
+At minimum support:
+- add page
+- switch page
+- edit page content
+- save all pages correctly
+
+If safe and easy, also support:
+- delete page
+But do not overcomplicate if it risks stability.
+
+Reordering:
+- If easy and safe, support simple up/down reorder
+- If not, keep order stable and mention reorder as future enhancement
+- Do not derail this feature for drag-and-drop complexity
+
+5. Rich editor behavior
+Each page must have its own editor instance/content.
+Do not redesign the RichTextEditor itself unless necessary for page mounting/unmounting.
+Preserve all current editor tools/features.
+
+6. API changes
+Update only the relevant E-Book APIs to:
+- create parent E-Book + pages
+- update parent E-Book + pages
+- fetch E-Book with ordered pages
+- keep validation minimal and safe
+
+Important:
+- Avoid risky over-engineering
+- Prefer straightforward nested create/update logic
+- Ensure order is persisted reliably
+
+7. Backward compatibility
+This is critical.
+
+Handle existing E-Books safely.
+If the current model has a single content field, choose the safest minimal path:
+- either migrate existing content into Page 1
+- or preserve old content and map it into one page in edit/read flow until migrated
+
+Please choose the safest production-friendly option and explain it clearly.
+
+8. Student frontend readiness
+Do NOT implement the student frontend UI in this task.
+
+But make the backend/data/API structure ready so the frontend can later support:
+- Page X / Y
+- progress bar based on current page / total pages
+- previous / next navigation
+
+For clarity, the intended future progress formula is:
+(currentPage / totalPages) * 100
+
+This is only for readiness; do not broaden scope into frontend implementation now.
+
+9. XP behavior
+Keep XP only at the E-Book level.
+Do not add page-level XP.
+Do not redesign XP logic.
+Do not modify unrelated XP systems.
+
+10. UI expectations
+Keep the admin UI clean and minimal.
+Do not redesign the full Content Library page.
+Only add the minimal page-management UI needed for E-Books.
+
+11. Safety rules
+- Do not disturb unrelated modules
+- Do not refactor other content types
+- Do not rename unrelated fields unless absolutely required
+- Avoid broad architectural changes outside E-Books
+- Build/typecheck must pass cleanly
+
+12. Deliverables
+After implementation, provide:
+1) exact files changed
+2) schema/model changes made
+3) whether migration/backfill was needed
+4) how existing E-Books were handled safely
+5) how pages are created/stored/ordered
+6) what admin page-management UI was added
+7) what API changes were made
+8) build/typecheck result
+
+Important:
+This task is only for isolated multi-page E-Book support. Nothing else.

@@ -515,9 +515,22 @@ model ContentPage {
   createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Restrict)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  ebookPages  EBookPage[]
   @@index([isPublished])
   @@index([subtopicId])
   @@index([categoryId])
+}
+
+model EBookPage {
+  id          String      @id @default(cuid())
+  ebookId     String
+  ebook       ContentPage @relation(fields: [ebookId], references: [id], onDelete: Cascade)
+  title       String?
+  contentHtml String
+  orderIndex  Int
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  @@index([ebookId, orderIndex])
 }
 model PdfAsset {
   id             String @id @default(cuid())

@@ -28,6 +28,7 @@ export async function GET(
           },
         },
         createdBy: { select: { id: true, name: true, email: true } },
+        ebookPages: { orderBy: { orderIndex: "asc" } },
       },
     });
     if (!page) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -77,8 +78,34 @@ export async function PUT(
       include: {
         subtopic: { select: { id: true, name: true } },
         createdBy: { select: { id: true, name: true, email: true } },
+        ebookPages: { orderBy: { orderIndex: "asc" } },
       },
     });
+
+    // Upsert pages if provided
+    const incomingPages: { id?: string; title?: string; contentHtml: string; orderIndex: number }[] = body.pages || [];
+    if (incomingPages.length > 0) {
+      const existingPageIds = (await prisma.eBookPage.findMany({
+        where: { ebookId: params.id }, select: { id: true },
+      })).map(p => p.id);
+
+      const incomingIds = incomingPages.filter(p => p.id).map(p => p.id as string);
+      const toDelete = existingPageIds.filter(id => !incomingIds.includes(id));
+      if (toDelete.length > 0) await prisma.eBookPage.deleteMany({ where: { id: { in: toDelete } } });
+
+      for (const p of incomingPages) {
+        if (p.id) {
+          await prisma.eBookPage.update({
+            where: { id: p.id },
+            data: { title: p.title ?? null, contentHtml: p.contentHtml, orderIndex: p.orderIndex },
+          });
+        } else {
+          await prisma.eBookPage.create({
+            data: { ebookId: params.id, title: p.title ?? null, contentHtml: p.contentHtml, orderIndex: p.orderIndex },
+          });
+        }
+      }
+    }
 
     await writeAuditLog({
       actorId: user.id,

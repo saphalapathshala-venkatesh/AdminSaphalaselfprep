@@ -3,6 +3,15 @@
 import { useState, useEffect, useCallback } from "react";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 
+// ── Types ────────────────────────────────────────────────────────────────────
+
+interface EBookPageRecord {
+  id: string;
+  title: string | null;
+  contentHtml: string;
+  orderIndex: number;
+}
+
 interface ContentPage {
   id: string;
   title: string;
@@ -11,6 +20,7 @@ interface ContentPage {
   isPublished: boolean;
   publishedAt: string | null;
   updatedAt: string;
+  ebookPages?: EBookPageRecord[];
   subtopic?: {
     id: string; name: string; topicId: string;
     topic?: { id: string; name: string; subjectId: string; subject?: { id: string; name: string; categoryId: string; category?: { id: string; name: string } } };
@@ -34,6 +44,20 @@ interface PdfAsset {
 
 interface TaxItem { id: string; name: string; }
 
+// Each page in the editor (may or may not have a DB id yet)
+interface EditorPage {
+  id?: string;
+  title: string;
+  contentHtml: string;
+  orderIndex: number;
+}
+
+function makeEmptyPage(idx: number): EditorPage {
+  return { title: "", contentHtml: "", orderIndex: idx };
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export default function ContentLibraryPage() {
   const [tab, setTab] = useState<"html" | "pdf">("html");
 
@@ -51,10 +75,16 @@ export default function ContentLibraryPage() {
   const [pdfPageNum, setPdfPageNum] = useState(1);
   const [pdfTotalPages, setPdfTotalPages] = useState(1);
 
+  // E-Book editor modal state
   const [showPageModal, setShowPageModal] = useState(false);
   const [editingPage, setEditingPage] = useState<ContentPage | null>(null);
-  const [pageForm, setPageForm] = useState({ title: "", body: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "", isPublished: false, xpEnabled: false, xpValue: "0" });
-  const [showPreview, setShowPreview] = useState(false);
+  const [pageForm, setPageForm] = useState({
+    title: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "",
+    isPublished: false, xpEnabled: false, xpValue: "0",
+  });
+  // Multi-page state
+  const [editorPages, setEditorPages] = useState<EditorPage[]>([makeEmptyPage(0)]);
+  const [currentPageIdx, setCurrentPageIdx] = useState(0);
 
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [editingPdf, setEditingPdf] = useState<PdfAsset | null>(null);
@@ -78,7 +108,7 @@ export default function ContentLibraryPage() {
 
   const showToast = (msg: string, type: "success" | "error") => {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 3500);
   };
 
   const loadTax = async (level: string, parentId?: string): Promise<TaxItem[]> => {
@@ -91,7 +121,7 @@ export default function ContentLibraryPage() {
 
   useEffect(() => { loadTax("category").then(setCategories); }, []);
 
-  const loadPages = useCallback(async () => {
+  const loadPageList = useCallback(async () => {
     setLoadingPages(true);
     const params = new URLSearchParams({ page: String(pageNum), pageSize: "20" });
     if (pageSearch) params.set("search", pageSearch);
@@ -119,7 +149,7 @@ export default function ContentLibraryPage() {
     finally { setLoadingPdfs(false); }
   }, [pdfPageNum, pdfSearch, pdfPubFilter]);
 
-  useEffect(() => { loadPages(); }, [loadPages]);
+  useEffect(() => { loadPageList(); }, [loadPageList]);
   useEffect(() => { loadPdfs(); }, [loadPdfs]);
 
   const handleTaxChange = async (level: string, value: string, target: "page" | "upload" | "pdfEdit") => {
@@ -147,43 +177,111 @@ export default function ContentLibraryPage() {
   };
 
   const openPageEditor = async (p?: ContentPage) => {
+    setSubjects([]); setTopics([]); setSubtopics([]);
     if (p) {
-      setEditingPage(p);
-      const catId = p.subtopic?.topic?.subject?.categoryId || "";
-      const subId = p.subtopic?.topic?.subjectId || "";
-      const topId = p.subtopic?.topicId || "";
+      // Fetch full E-Book with pages from API
+      let fullRecord: ContentPage = p;
+      try {
+        const res = await fetch(`/api/content-pages/${p.id}`);
+        const json = await res.json();
+        if (res.ok && json.data) fullRecord = json.data;
+      } catch { /* fallback to list record */ }
+
+      setEditingPage(fullRecord);
+      const catId = fullRecord.subtopic?.topic?.subject?.categoryId || "";
+      const subId = fullRecord.subtopic?.topic?.subjectId || "";
+      const topId = fullRecord.subtopic?.topicId || "";
       setPageForm({
-        title: p.title, body: p.body,
+        title: fullRecord.title,
         categoryId: catId, subjectId: subId, topicId: topId,
-        subtopicId: p.subtopicId || "",
-        isPublished: p.isPublished,
-        xpEnabled: !!(p as any).xpEnabled,
-        xpValue: (p as any).xpValue != null ? String((p as any).xpValue) : "0",
+        subtopicId: fullRecord.subtopicId || "",
+        isPublished: fullRecord.isPublished,
+        xpEnabled: !!(fullRecord as any).xpEnabled,
+        xpValue: (fullRecord as any).xpValue != null ? String((fullRecord as any).xpValue) : "0",
       });
       if (catId) setSubjects(await loadTax("subject", catId));
       if (subId) setTopics(await loadTax("topic", subId));
       if (topId) setSubtopics(await loadTax("subtopic", topId));
+
+      // Build editor pages from ebookPages, or fall back to legacy body
+      if (fullRecord.ebookPages && fullRecord.ebookPages.length > 0) {
+        setEditorPages(fullRecord.ebookPages.map(ep => ({
+          id: ep.id,
+          title: ep.title ?? "",
+          contentHtml: ep.contentHtml,
+          orderIndex: ep.orderIndex,
+        })));
+      } else {
+        // Legacy E-Book: migrate body into page 1 in-editor (no DB write yet)
+        setEditorPages([{ title: "", contentHtml: fullRecord.body || "", orderIndex: 0 }]);
+      }
     } else {
       setEditingPage(null);
-      setPageForm({ title: "", body: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "", isPublished: false, xpEnabled: false, xpValue: "0" });
-      setSubjects([]); setTopics([]); setSubtopics([]);
+      setPageForm({ title: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "", isPublished: false, xpEnabled: false, xpValue: "0" });
+      setEditorPages([makeEmptyPage(0)]);
     }
-    setShowPreview(false);
+    setCurrentPageIdx(0);
     setShowPageModal(true);
   };
 
+  // ── Page management helpers ─────────────────────────────────────────────────
+
+  const updateCurrentPage = (patch: Partial<EditorPage>) => {
+    setEditorPages(prev => prev.map((p, i) => i === currentPageIdx ? { ...p, ...patch } : p));
+  };
+
+  const addPage = () => {
+    const newPage = makeEmptyPage(editorPages.length);
+    setEditorPages(prev => [...prev, newPage]);
+    setCurrentPageIdx(editorPages.length);
+  };
+
+  const deletePage = (idx: number) => {
+    if (editorPages.length === 1) { showToast("An E-Book must have at least one page", "error"); return; }
+    if (!confirm(`Delete page ${idx + 1}? This cannot be undone until you save.`)) return;
+    setEditorPages(prev => {
+      const next = prev.filter((_, i) => i !== idx).map((p, i) => ({ ...p, orderIndex: i }));
+      return next;
+    });
+    setCurrentPageIdx(prev => Math.min(prev, idx === 0 ? 0 : idx - 1));
+  };
+
+  const movePage = (idx: number, direction: "up" | "down") => {
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= editorPages.length) return;
+    setEditorPages(prev => {
+      const next = [...prev];
+      [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+      return next.map((p, i) => ({ ...p, orderIndex: i }));
+    });
+    setCurrentPageIdx(swapIdx);
+  };
+
+  const goToPage = (idx: number) => {
+    if (idx < 0 || idx >= editorPages.length) return;
+    setCurrentPageIdx(idx);
+  };
+
+  // ── Save ───────────────────────────────────────────────────────────────────
+
   const handleSavePage = async () => {
     if (!pageForm.title.trim()) { showToast("Title is required", "error"); return; }
-    if (!pageForm.body.trim()) { showToast("Body content is required", "error"); return; }
+    const hasContent = editorPages.some(p => p.contentHtml.trim().length > 0);
+    if (!hasContent) { showToast("At least one page must have content", "error"); return; }
     setSaving(true);
     try {
       const payload: any = {
         title: pageForm.title,
-        body: pageForm.body,
         subtopicId: pageForm.subtopicId || null,
         isPublished: pageForm.isPublished,
         xpEnabled: pageForm.xpEnabled,
         xpValue: parseInt(pageForm.xpValue) || 0,
+        pages: editorPages.map((p, i) => ({
+          ...(p.id ? { id: p.id } : {}),
+          title: p.title.trim() || null,
+          contentHtml: p.contentHtml,
+          orderIndex: i,
+        })),
       };
       let res;
       if (editingPage) {
@@ -197,21 +295,21 @@ export default function ContentLibraryPage() {
       }
       const json = await res.json();
       if (!res.ok) { showToast(json.error || "Failed", "error"); return; }
-      showToast(editingPage ? "Page updated" : "Page created", "success");
+      showToast(editingPage ? "E-Book updated" : "E-Book created", "success");
       setShowPageModal(false);
-      loadPages();
-    } catch { showToast("Failed to save page", "error"); }
+      loadPageList();
+    } catch { showToast("Failed to save E-Book", "error"); }
     finally { setSaving(false); }
   };
 
   const handleDeletePage = async (id: string) => {
-    if (!confirm("Delete this content page?")) return;
+    if (!confirm("Delete this E-Book?")) return;
     try {
       const res = await fetch(`/api/content-pages/${id}`, { method: "DELETE" });
       const json = await res.json();
       if (!res.ok) { showToast(json.error || "Failed", "error"); return; }
-      showToast("Page deleted", "success");
-      loadPages();
+      showToast("E-Book deleted", "success");
+      loadPageList();
     } catch { showToast("Failed to delete", "error"); }
   };
 
@@ -294,6 +392,8 @@ export default function ContentLibraryPage() {
     } catch { showToast("Failed to delete", "error"); }
   };
 
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
   const formatSize = (bytes: number | null) => {
     if (!bytes) return "-";
     if (bytes < 1024) return `${bytes} B`;
@@ -304,10 +404,12 @@ export default function ContentLibraryPage() {
   const formatDate = (d: string) => new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
   const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) + "..." : s;
 
-  const inputStyle: React.CSSProperties = { width: "100%", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "0.875rem", outline: "none" };
+  // ── Styles ─────────────────────────────────────────────────────────────────
+
+  const inputStyle: React.CSSProperties = { width: "100%", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "0.875rem", outline: "none", boxSizing: "border-box" };
   const btnPrimary: React.CSSProperties = { padding: "8px 16px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", fontWeight: 500 };
   const btnSecondary: React.CSSProperties = { padding: "8px 16px", background: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem" };
-  const btnDanger: React.CSSProperties = { padding: "6px 12px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "6px", cursor: "pointer", fontSize: "0.8rem" };
+  const btnDanger: React.CSSProperties = { padding: "4px 10px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "6px", cursor: "pointer", fontSize: "0.78rem" };
   const btnSmall: React.CSSProperties = { padding: "4px 10px", fontSize: "0.8rem", border: "1px solid #d1d5db", borderRadius: "4px", cursor: "pointer", background: "#fff" };
   const badgeStyle = (pub: boolean): React.CSSProperties => ({
     display: "inline-block", padding: "2px 8px", borderRadius: "9999px", fontSize: "0.7rem", fontWeight: 600,
@@ -352,6 +454,11 @@ export default function ContentLibraryPage() {
     </div>
   );
 
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  const currentEditorPage = editorPages[currentPageIdx] || editorPages[0];
+  const totalEditorPages = editorPages.length;
+
   return (
     <div>
       {toast && (
@@ -372,11 +479,11 @@ export default function ContentLibraryPage() {
         <button style={tabStyle(tab === "pdf")} onClick={() => setTab("pdf")}>PDF Library</button>
       </div>
 
-      {/* HTML PAGES TAB */}
+      {/* ── E-BOOKS TAB ─────────────────────────────────────────────────────── */}
       {tab === "html" && (
         <div>
           <div style={{ display: "flex", gap: "12px", marginBottom: "16px", alignItems: "center", flexWrap: "wrap" }}>
-            <input type="text" placeholder="Search pages..." value={pageSearch}
+            <input type="text" placeholder="Search E-Books..." value={pageSearch}
               onChange={(e) => { setPageSearch(e.target.value); setPageNum(1); }}
               style={{ ...inputStyle, maxWidth: "250px" }} />
             <select value={pagePubFilter} onChange={(e) => { setPagePubFilter(e.target.value); setPageNum(1); }} style={{ ...inputStyle, maxWidth: "150px" }}>
@@ -391,7 +498,7 @@ export default function ContentLibraryPage() {
           {loadingPages ? (
             <p style={{ color: "#9ca3af", textAlign: "center" }}>Loading...</p>
           ) : pages.length === 0 ? (
-            <p style={{ color: "#9ca3af", textAlign: "center", padding: "32px" }}>No content pages found</p>
+            <p style={{ color: "#9ca3af", textAlign: "center", padding: "32px" }}>No E-Books found</p>
           ) : (
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
               <thead>
@@ -432,7 +539,7 @@ export default function ContentLibraryPage() {
         </div>
       )}
 
-      {/* PDF LIBRARY TAB */}
+      {/* ── PDF LIBRARY TAB ──────────────────────────────────────────────────── */}
       {tab === "pdf" && (
         <div>
           <div style={{ display: "flex", gap: "12px", marginBottom: "16px", alignItems: "center", flexWrap: "wrap" }}>
@@ -445,7 +552,11 @@ export default function ContentLibraryPage() {
               <option value="false">Draft</option>
             </select>
             <div style={{ flex: 1 }} />
-            <button style={btnPrimary} onClick={() => { setShowUploadForm(true); setUploadForm({ title: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "" }); setUploadFile(null); setUpSubjects([]); setUpTopics([]); setUpSubtopics([]); }}>+ Upload PDF</button>
+            <button style={btnPrimary} onClick={() => {
+              setShowUploadForm(true);
+              setUploadForm({ title: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "" });
+              setUploadFile(null); setUpSubjects([]); setUpTopics([]); setUpSubtopics([]);
+            }}>+ Upload PDF</button>
           </div>
 
           {loadingPdfs ? (
@@ -469,9 +580,7 @@ export default function ContentLibraryPage() {
                   <tr key={pdf.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
                     <td style={{ padding: "8px", fontWeight: 500 }}>{truncate(pdf.title, 40)}</td>
                     <td style={{ padding: "8px" }}>
-                      <a href={pdf.fileUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb", textDecoration: "none", fontSize: "0.8rem" }}>
-                        Open PDF
-                      </a>
+                      <a href={pdf.fileUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb", textDecoration: "none", fontSize: "0.8rem" }}>Open PDF</a>
                     </td>
                     <td style={{ padding: "8px", color: "#6b7280" }}>{formatSize(pdf.fileSize)}</td>
                     <td style={{ padding: "8px" }}><span style={badgeStyle(pdf.isPublished)}>{pdf.isPublished ? "Published" : "Draft"}</span></td>
@@ -498,32 +607,140 @@ export default function ContentLibraryPage() {
         </div>
       )}
 
-      {/* HTML PAGE EDITOR MODAL */}
+      {/* ── E-BOOK EDITOR MODAL ───────────────────────────────────────────────── */}
       {showPageModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div style={{ background: "#fff", borderRadius: "12px", padding: "24px", width: "700px", maxHeight: "90vh", overflowY: "auto" }}>
-            <h3 style={{ fontSize: "1.1rem", fontWeight: 600, margin: "0 0 16px" }}>{editingPage ? "Edit E-Book" : "New E-Book"}</h3>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 1000, padding: "24px 16px", overflowY: "auto" }}>
+          <div style={{ background: "#fff", borderRadius: "12px", padding: "28px", width: "820px", maxWidth: "100%" }}>
 
-            <div style={{ marginBottom: "12px" }}>
-              <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151" }}>Title *</label>
-              <input style={inputStyle} value={pageForm.title} onChange={(e) => setPageForm({ ...pageForm, title: e.target.value })} />
+            {/* ── Header ── */}
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 700, margin: "0 0 20px", color: "#111" }}>
+              {editingPage ? "Edit E-Book" : "New E-Book"}
+            </h3>
+
+            {/* ── E-Book Title ── */}
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "4px" }}>E-Book Title *</label>
+              <input style={inputStyle} value={pageForm.title} placeholder="Enter E-Book title..." onChange={(e) => setPageForm({ ...pageForm, title: e.target.value })} />
             </div>
 
-            <div style={{ marginBottom: "12px" }}>
-              <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "6px" }}>E-Book Content *</label>
-              <RichTextEditor
-                value={pageForm.body}
-                onChange={(html) => setPageForm({ ...pageForm, body: html })}
-                placeholder="Write your E-Book content here…"
-                minHeight="280px"
-              />
+            {/* ── Pages Section ── */}
+            <div style={{ border: "1px solid #e2e8f0", borderRadius: "10px", overflow: "hidden", marginBottom: "16px" }}>
+
+              {/* Pages header bar */}
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "#374151" }}>Pages</span>
+                <span style={{ fontSize: "0.8rem", color: "#7c3aed", fontWeight: 600, background: "#f3e8ff", padding: "2px 10px", borderRadius: "20px" }}>
+                  Page {currentPageIdx + 1} of {totalEditorPages}
+                </span>
+                <div style={{ flex: 1 }} />
+                <button
+                  onClick={addPage}
+                  style={{ padding: "5px 14px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600 }}
+                >
+                  + Add Page
+                </button>
+              </div>
+
+              {/* Page tabs row — clickable page pills */}
+              {totalEditorPages > 1 && (
+                <div style={{ display: "flex", gap: "4px", padding: "8px 14px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", flexWrap: "wrap" }}>
+                  {editorPages.map((ep, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => goToPage(idx)}
+                      style={{
+                        padding: "3px 12px", borderRadius: "20px", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", border: "none",
+                        background: idx === currentPageIdx ? "#7c3aed" : "#e2e8f0",
+                        color: idx === currentPageIdx ? "#fff" : "#374151",
+                        transition: "background 0.15s",
+                      }}
+                    >
+                      {ep.title?.trim() ? truncate(ep.title, 16) : `Page ${idx + 1}`}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Current page editor */}
+              <div style={{ padding: "14px" }}>
+
+                {/* Optional page title */}
+                <div style={{ marginBottom: "10px" }}>
+                  <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#6b7280", display: "block", marginBottom: "3px" }}>
+                    Page {currentPageIdx + 1} Title <span style={{ fontWeight: 400 }}>(optional)</span>
+                  </label>
+                  <input
+                    style={{ ...inputStyle, fontSize: "0.82rem" }}
+                    placeholder={`e.g. "Introduction", "Chapter 1"…`}
+                    value={currentEditorPage?.title ?? ""}
+                    onChange={(e) => updateCurrentPage({ title: e.target.value })}
+                  />
+                </div>
+
+                {/* Rich text editor for this page */}
+                <div>
+                  <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#6b7280", display: "block", marginBottom: "4px" }}>
+                    Page {currentPageIdx + 1} Content *
+                  </label>
+                  <RichTextEditor
+                    key={`ebook-page-${currentPageIdx}`}
+                    value={currentEditorPage?.contentHtml ?? ""}
+                    onChange={(html) => updateCurrentPage({ contentHtml: html })}
+                    placeholder={`Write content for page ${currentPageIdx + 1}…`}
+                    minHeight="300px"
+                  />
+                </div>
+
+                {/* Page navigation + management row */}
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "12px", flexWrap: "wrap" }}>
+                  <button
+                    onClick={() => goToPage(currentPageIdx - 1)}
+                    disabled={currentPageIdx === 0}
+                    style={{ ...btnSmall, opacity: currentPageIdx === 0 ? 0.4 : 1, cursor: currentPageIdx === 0 ? "default" : "pointer" }}
+                  >
+                    ← Prev Page
+                  </button>
+                  <button
+                    onClick={() => goToPage(currentPageIdx + 1)}
+                    disabled={currentPageIdx === totalEditorPages - 1}
+                    style={{ ...btnSmall, opacity: currentPageIdx === totalEditorPages - 1 ? 0.4 : 1, cursor: currentPageIdx === totalEditorPages - 1 ? "default" : "pointer" }}
+                  >
+                    Next Page →
+                  </button>
+
+                  <div style={{ flex: 1 }} />
+
+                  {/* Move up/down */}
+                  <button
+                    onClick={() => movePage(currentPageIdx, "up")}
+                    disabled={currentPageIdx === 0}
+                    title="Move page up"
+                    style={{ ...btnSmall, opacity: currentPageIdx === 0 ? 0.35 : 1 }}
+                  >↑ Move Up</button>
+                  <button
+                    onClick={() => movePage(currentPageIdx, "down")}
+                    disabled={currentPageIdx === totalEditorPages - 1}
+                    title="Move page down"
+                    style={{ ...btnSmall, opacity: currentPageIdx === totalEditorPages - 1 ? 0.35 : 1 }}
+                  >↓ Move Down</button>
+
+                  {/* Delete page */}
+                  <button
+                    onClick={() => deletePage(currentPageIdx)}
+                    disabled={totalEditorPages === 1}
+                    style={{ ...btnDanger, opacity: totalEditorPages === 1 ? 0.35 : 1 }}
+                  >Delete Page</button>
+                </div>
+              </div>
             </div>
 
+            {/* ── Taxonomy ── */}
             <div style={{ marginBottom: "12px" }}>
               <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: "4px", display: "block" }}>Taxonomy (optional)</label>
               {renderTaxDropdowns(pageForm, "page", subjects, topics, subtopics)}
             </div>
 
+            {/* ── Published ── */}
             <div style={{ marginBottom: "12px" }}>
               <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
                 <input type="checkbox" checked={pageForm.isPublished} onChange={(e) => setPageForm({ ...pageForm, isPublished: e.target.checked })} />
@@ -531,92 +748,71 @@ export default function ContentLibraryPage() {
               </label>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", background: "#f0f9ff", borderRadius: "8px", border: "1px solid #bae6fd", marginBottom: "16px" }}>
+            {/* ── XP Reward ── */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", background: "#f0f9ff", borderRadius: "8px", border: "1px solid #bae6fd", marginBottom: "20px" }}>
               <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.8125rem", fontWeight: 700, color: "#0369a1", cursor: "pointer", whiteSpace: "nowrap" }}>
                 <input type="checkbox" checked={pageForm.xpEnabled} onChange={(e) => setPageForm({ ...pageForm, xpEnabled: e.target.checked })} />
                 XP Reward
               </label>
+              <span style={{ fontSize: "0.72rem", color: "#64748b" }}>Awarded when learner completes the full E-Book</span>
               {pageForm.xpEnabled && (
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginLeft: "auto" }}>
                   <input type="number" min="0" value={pageForm.xpValue} onChange={(e) => setPageForm({ ...pageForm, xpValue: e.target.value })} style={{ border: "1px solid #d1d5db", borderRadius: "6px", padding: "4px 8px", fontSize: "0.875rem", width: "80px" }} placeholder="XP" />
                   <span style={{ fontSize: "0.72rem", color: "#0369a1" }}>XP on completion</span>
                 </div>
               )}
             </div>
 
+            {/* ── Footer buttons ── */}
             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
               <button style={btnSecondary} onClick={() => setShowPageModal(false)}>Cancel</button>
-              <button style={btnPrimary} onClick={handleSavePage} disabled={saving}>{saving ? "Saving..." : editingPage ? "Update" : "Create"}</button>
+              <button style={btnPrimary} onClick={handleSavePage} disabled={saving}>{saving ? "Saving..." : editingPage ? "Update E-Book" : "Create E-Book"}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* PDF UPLOAD MODAL */}
+      {/* ── PDF UPLOAD MODAL ────────────────────────────────────────────────── */}
       {showUploadForm && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div style={{ background: "#fff", borderRadius: "12px", padding: "24px", width: "520px", maxHeight: "80vh", overflowY: "auto" }}>
+          <div style={{ background: "#fff", borderRadius: "12px", padding: "24px", width: "560px", maxHeight: "90vh", overflowY: "auto" }}>
             <h3 style={{ fontSize: "1.1rem", fontWeight: 600, margin: "0 0 16px" }}>Upload PDF</h3>
-
             <div style={{ marginBottom: "12px" }}>
               <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151" }}>Title *</label>
               <input style={inputStyle} value={uploadForm.title} onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })} />
             </div>
-
             <div style={{ marginBottom: "12px" }}>
-              <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151" }}>PDF File *</label>
-              <input type="file" accept=".pdf,application/pdf" style={{ display: "block", marginTop: "4px", fontSize: "0.875rem" }}
-                onChange={(e) => setUploadFile(e.target.files?.[0] || null)} />
-              {uploadFile && <p style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: "4px" }}>{uploadFile.name} ({formatSize(uploadFile.size)})</p>}
+              <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "4px" }}>PDF File *</label>
+              <input type="file" accept="application/pdf" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} />
             </div>
-
-            <div style={{ marginBottom: "16px" }}>
-              <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: "4px", display: "block" }}>Taxonomy (optional)</label>
-              {renderTaxDropdowns(uploadForm, "upload", upSubjects, upTopics, upSubtopics)}
-            </div>
-
-            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+            {renderTaxDropdowns(uploadForm, "upload", upSubjects, upTopics, upSubtopics)}
+            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", marginTop: "8px" }}>
               <button style={btnSecondary} onClick={() => setShowUploadForm(false)}>Cancel</button>
-              <button style={btnPrimary} onClick={handleUploadPdf} disabled={saving}>{saving ? "Uploading..." : "Upload"}</button>
+              <button style={btnPrimary} onClick={handleUploadPdf} disabled={saving}>{saving ? "Uploading..." : "Upload PDF"}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* PDF EDIT MODAL */}
+      {/* ── PDF EDIT MODAL ──────────────────────────────────────────────────── */}
       {showPdfModal && editingPdf && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div style={{ background: "#fff", borderRadius: "12px", padding: "24px", width: "520px", maxHeight: "80vh", overflowY: "auto" }}>
-            <h3 style={{ fontSize: "1.1rem", fontWeight: 600, margin: "0 0 16px" }}>Edit PDF Asset</h3>
-
+          <div style={{ background: "#fff", borderRadius: "12px", padding: "24px", width: "560px", maxHeight: "90vh", overflowY: "auto" }}>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 600, margin: "0 0 16px" }}>Edit PDF</h3>
             <div style={{ marginBottom: "12px" }}>
               <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151" }}>Title *</label>
               <input style={inputStyle} value={pdfForm.title} onChange={(e) => setPdfForm({ ...pdfForm, title: e.target.value })} />
             </div>
-
-            <div style={{ marginBottom: "12px", padding: "8px", background: "#f3f4f6", borderRadius: "6px", fontSize: "0.8rem" }}>
-              <span style={{ color: "#6b7280" }}>File: </span>
-              <a href={editingPdf.fileUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb" }}>
-                {editingPdf.fileUrl.split("/").pop()}
-              </a>
-              <span style={{ color: "#9ca3af", marginLeft: "8px" }}>({formatSize(editingPdf.fileSize)})</span>
-            </div>
-
+            {renderTaxDropdowns(pdfForm, "pdfEdit", subjects, topics, subtopics)}
             <div style={{ marginBottom: "12px" }}>
-              <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: "4px", display: "block" }}>Taxonomy (optional)</label>
-              {renderTaxDropdowns(pdfForm, "pdfEdit", subjects, topics, subtopics)}
-            </div>
-
-            <div style={{ marginBottom: "16px" }}>
               <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
                 <input type="checkbox" checked={pdfForm.isPublished} onChange={(e) => setPdfForm({ ...pdfForm, isPublished: e.target.checked })} />
                 <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Published</span>
               </label>
             </div>
-
             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
               <button style={btnSecondary} onClick={() => setShowPdfModal(false)}>Cancel</button>
-              <button style={btnPrimary} onClick={handleSavePdf} disabled={saving}>{saving ? "Saving..." : "Update"}</button>
+              <button style={btnPrimary} onClick={handleSavePdf} disabled={saving}>{saving ? "Saving..." : "Update PDF"}</button>
             </div>
           </div>
         </div>

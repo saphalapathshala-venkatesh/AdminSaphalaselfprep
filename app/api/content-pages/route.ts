@@ -67,14 +67,18 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { title, body: pageBody, categoryId, subjectId, topicId, subtopicId, isPublished, xpEnabled, xpValue } = body;
+    const incomingPages: { title?: string; contentHtml: string; orderIndex: number }[] = body.pages || [];
 
     if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
-    if (!pageBody?.trim()) return NextResponse.json({ error: "Body content is required" }, { status: 400 });
+    // Accept either multi-page pages array OR legacy body field
+    if (incomingPages.length === 0 && !pageBody?.trim()) {
+      return NextResponse.json({ error: "At least one page with content is required" }, { status: 400 });
+    }
 
     const page = await prisma.contentPage.create({
       data: {
         title: title.trim(),
-        body: pageBody.trim(),
+        body: incomingPages.length > 0 ? "" : (pageBody?.trim() || ""),
         categoryId: categoryId || null,
         subjectId: subjectId || null,
         topicId: topicId || null,
@@ -84,10 +88,18 @@ export async function POST(req: NextRequest) {
         xpEnabled: xpEnabled === true,
         xpValue: xpValue !== undefined ? Math.max(0, parseInt(xpValue) || 0) : 0,
         createdById: user.id,
+        ebookPages: incomingPages.length > 0 ? {
+          create: incomingPages.map((p, i) => ({
+            title: p.title ?? null,
+            contentHtml: p.contentHtml,
+            orderIndex: p.orderIndex ?? i,
+          })),
+        } : undefined,
       },
       include: {
         subtopic: { select: { id: true, name: true } },
         createdBy: { select: { id: true, name: true, email: true } },
+        ebookPages: { orderBy: { orderIndex: "asc" } },
       },
     });
 
@@ -96,7 +108,7 @@ export async function POST(req: NextRequest) {
       action: "CONTENTPAGE_CREATE",
       entityType: "ContentPage",
       entityId: page.id,
-      after: { title: page.title, categoryId: page.categoryId, subtopicId: page.subtopicId, isPublished: page.isPublished },
+      after: { title: page.title, categoryId: page.categoryId, subtopicId: page.subtopicId, isPublished: page.isPublished, pageCount: page.ebookPages.length },
     });
 
     return NextResponse.json({ data: page }, { status: 201 });
