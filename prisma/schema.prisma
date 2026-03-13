@@ -63,6 +63,17 @@ enum CouponDiscountType {
   PERCENT
   FLAT
 }
+enum FlashcardCardType {
+  TITLE
+  INFO
+  QUIZ
+  COMPARISON
+  FILL_IN_BLANK
+  MATCHING
+  REORDER
+  CATEGORIZATION
+}
+
 enum XpRuleKey {
   LOGIN_XP
   TEST_XP
@@ -169,8 +180,9 @@ model User {
   purchases      Purchase[]
   videos         Video[]       @relation("VideoCreatedBy")
   liveClasses    LiveClass[]   @relation("LiveClassCreatedBy")
-  devices        UserDevice[]
-  activities     UserActivity[]
+  devices          UserDevice[]
+  activities       UserActivity[]
+  contentConsents  ContentConsent[]
   @@index([role])
   @@index([isBlocked])
   @@index([deletedAt])
@@ -428,35 +440,55 @@ model AttemptAnswer {
 }
 // FLASHCARDS (Deck → Cards)
 model FlashcardDeck {
-  id          String @id @default(cuid())
-  title       String
-  description String?
-  categoryId  String?
-  subjectId   String?
-  topicId     String?
-  subtopicId  String?
-  xpEnabled   Boolean @default(false)
-  xpValue     Int     @default(0)
-  isPublished Boolean @default(false)
-  createdById String
-  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  cards       FlashcardCard[]
+  id             String  @id @default(cuid())
+  title          String
+  subtitle       String?
+  description    String?
+  categoryId     String?
+  subjectId      String?
+  topicId        String?
+  subtopicId     String?
+  titleTemplate  String  @default("minimal_academic")
+  titleImageUrl  String?
+  subjectColor   String?
+  xpEnabled      Boolean  @default(false)
+  xpValue        Int      @default(0)
+  isPublished    Boolean  @default(false)
+  createdById    String
+  createdBy      User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  cards          FlashcardCard[]
 }
 model FlashcardCard {
-  id          String @id @default(cuid())
+  id          String            @id @default(cuid())
   deckId      String
-  deck        FlashcardDeck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  deck        FlashcardDeck     @relation(fields: [deckId], references: [id], onDelete: Cascade)
   subtopicId  String?
-  subtopic    Subtopic? @relation(fields: [subtopicId], references: [id], onDelete: SetNull)
-  front       String
-  back        String
+  subtopic    Subtopic?         @relation(fields: [subtopicId], references: [id], onDelete: SetNull)
+  cardType    FlashcardCardType @default(INFO)
+  front       String            @default("")
+  back        String            @default("")
+  content     Json?
   imageUrl    String?
   order       Int
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
   @@index([deckId, order])
+}
+model ContentConsent {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contentType  String
+  contentId    String
+  accepted     Boolean
+  termsVersion String   @default("content_protection_terms_v1")
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  @@index([userId, contentType, contentId])
+  @@index([createdAt])
 }
 // CONTENT LIBRARY
 // Layer 1: HTML learning pages (non-downloadable, light XP)

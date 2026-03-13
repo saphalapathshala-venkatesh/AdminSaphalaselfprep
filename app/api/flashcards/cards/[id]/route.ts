@@ -17,11 +17,13 @@ export async function PUT(
     if (!existing) return NextResponse.json({ error: "Card not found" }, { status: 404 });
 
     const body = await req.json();
-    const { front, back, imageUrl, subtopicId } = body;
+    const { cardType, front, back, content, imageUrl, subtopicId } = body;
 
     const data: any = {};
-    if (front !== undefined) data.front = front.trim();
-    if (back !== undefined) data.back = back.trim();
+    if (cardType !== undefined) data.cardType = cardType;
+    if (front !== undefined) data.front = front?.trim() ?? "";
+    if (back !== undefined) data.back = back?.trim() ?? "";
+    if (content !== undefined) data.content = content ?? null;
     if (imageUrl !== undefined) data.imageUrl = imageUrl?.trim() || null;
     if (subtopicId !== undefined) data.subtopicId = subtopicId || null;
 

@@ -17,15 +17,20 @@ export async function PUT(
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const body = await req.json();
-    const { title, description, categoryId, subjectId, topicId, subtopicId, isPublished, xpEnabled, xpValue } = body;
+    const { title, subtitle, description, categoryId, subjectId, topicId, subtopicId,
+            titleTemplate, titleImageUrl, subjectColor, isPublished, xpEnabled, xpValue } = body;
 
     const data: any = {};
     if (title !== undefined) data.title = title.trim();
+    if (subtitle !== undefined) data.subtitle = subtitle?.trim() || null;
     if (description !== undefined) data.description = description?.trim() || null;
     if (categoryId !== undefined) data.categoryId = categoryId || null;
     if (subjectId !== undefined) data.subjectId = subjectId || null;
     if (topicId !== undefined) data.topicId = topicId || null;
     if (subtopicId !== undefined) data.subtopicId = subtopicId || null;
+    if (titleTemplate !== undefined) data.titleTemplate = titleTemplate || "minimal_academic";
+    if (titleImageUrl !== undefined) data.titleImageUrl = titleImageUrl?.trim() || null;
+    if (subjectColor !== undefined) data.subjectColor = subjectColor?.trim() || null;
     if (isPublished !== undefined) data.isPublished = isPublished;
     if (xpEnabled !== undefined) data.xpEnabled = xpEnabled === true;
     if (xpValue !== undefined) data.xpValue = Math.max(0, parseInt(xpValue) || 0);

@@ -1,0 +1,677 @@
+Build the next production-grade phase of the Saphala Self Prep / Admin system for Flashcards and Protected Content Access Gate, using the existing stack and current live schema as safely as possible. Follow the already locked architecture direction: do not make unnecessary schema changes or disruptive refactors. Keep DB changes minimal and only add what is truly required.
+
+Core goal
+
+Implement a premium, reusable flashcard system for the student-facing Self Prep app and admin authoring flow, plus a protected-content consent gate for HTML materials, flashcard decks, and protected PDFs.
+
+1) Flashcard system — overall rules
+
+Implement the flashcard experience with these locked UX rules:
+
+Only one card at a time
+
+Clean, minimal, high-clarity layout
+
+First card in every deck is a Title Card by default
+
+All cards must include a global branding header
+
+Subject/topic/subtopic must not consume large card space
+
+Subject/topic/subtopic should appear in a small header/breadcrumb area
+
+Content area should maximize usable study space
+
+Card backgrounds should stay mostly white/clean; subject color should be used as accent only
+
+Same experience should work cleanly on website and mobile-responsive web
+
+2) Global branding header on every card
+
+Every flashcard must include this default branding header at the top:
+
+Saphala logo on the left
+
+To the right:
+
+Saphala Pathshala
+
+Your Success is Our Focus
+
+This should be built into the base flashcard layout, not manually added by admin per card.
+
+Design guidance:
+
+slim header, not bulky
+
+consistent on every card
+
+neutral background
+
+subject color accents should appear below this branding row, not replace it
+
+3) Subject color system (locked)
+
+Implement and centralize subject theme colors so decks/cards can automatically adapt based on subject.
+
+Use these subject colors:
+
+Polity — #8050C0
+
+History — #8B5E3C
+
+Geography — #2E8B57
+
+Economy — #2563EB
+
+Environment & Ecology — #0F766E
+
+General Science — #10B981
+
+Science & Technology — #0891B2
+
+Current Affairs — #F97316
+
+Reasoning — #4F46E5
+
+Quant — #1D4ED8
+
+English — #7C2D12
+
+Important distinctions:
+
+General Science = Biology, Physics, Chemistry
+
+Science & Technology = tech/current developments only
+
+Environment & Ecology has its own separate deep teal theme
+
+Subject color should affect:
+
+header accent / divider
+
+progress bar
+
+key UI highlights
+
+icons / active accents
+
+Do not overuse subject colors in the main card body.
+
+4) Flashcard deck structure
+
+Support deck-level metadata including at minimum:
+
+category
+
+subject
+
+topic
+
+subtopic
+
+deck title
+
+deck subtitle / optional description
+
+subject color / theme
+
+title card template selection
+
+title card image / illustration (optional)
+
+ordering / sequence
+
+published/draft status
+
+Deck hierarchy should support:
+Category → Subject → Topic → Subtopic → Deck → Cards
+
+5) Title card requirements
+
+The first card in every deck should be a Title Card.
+
+Title card requirements:
+
+mandatory by default
+
+supports image upload
+
+supports deck title
+
+supports subtitle / short intro
+
+supports optional card count display
+
+adapts to subject color
+
+should feel premium and clean, not poster-like
+
+Implement 10 title card templates for launch, all reusable across subjects and auto-adapting to subject color.
+
+Examples of template styles:
+
+minimal academic
+
+image right
+
+light background overlay
+
+icon focus
+
+quote style
+
+chapter opener
+
+badge style
+
+diagram cover
+
+timeline opener
+
+premium editorial
+
+Admin should choose template from these 10.
+
+6) Flashcard card types to support
+
+Implement these card types as proper system-supported types:
+
+Title Card
+
+Info Card
+
+Quiz Card
+
+Comparison / Table Card
+
+Typed Fill-in-the-Blank Card
+
+Matching Card
+
+Reorder Card
+
+Categorization Drag-and-Drop Card
+
+Keep architecture extensible so more card types can be added later.
+
+7) Info card
+
+Info card rules:
+
+one-sided content-focused card
+
+no need for heavy repeated labels inside body
+
+should support:
+
+title
+
+body text
+
+key points
+
+optional example block
+
+optional formatted highlights
+
+optional image
+
+optional table
+
+use the small subject/topic/subtopic header outside the main card body
+
+8) Quiz card behavior
+
+Implement Quiz Card with this logic:
+
+question shown first
+
+options shown
+
+student selects answer
+
+must click Submit Answer
+
+only after submit should evaluation happen
+
+only after submit should Flip Card become active
+
+after flip, show explanation
+
+no difficulty/easy-medium-hard controls here; this is for reinforcement/revision, not evaluation
+
+Support at least:
+
+single-correct MCQ initially
+Architecture can remain extensible for future quiz subtypes.
+
+9) Typed Fill-in-the-Blank card
+
+Implement this as a separate card type, not as drag/drop or word bank.
+
+Behavior:
+
+learner types answer manually into input field
+
+clicks Submit Answer
+
+system validates at coding level
+
+if correct, Flip Card becomes available
+
+if wrong, allow retry
+
+after flip, show explanation
+
+Critical requirement:
+For each blank, admin must be able to define:
+
+one canonical answer
+
+multiple accepted answer variants (e.g. 4–5 valid forms)
+
+Validation rules:
+
+normalize input
+
+trim whitespace
+
+lowercase by default
+
+collapse extra spaces
+
+optionally ignore punctuation where appropriate
+
+compare only against admin-approved accepted variants
+
+Support:
+
+single blank
+
+multi-blank architecture if feasible cleanly, but single blank minimum required now
+
+Do not use loose AI grading for this. Use deterministic accepted-answer matching.
+
+10) Matching card
+
+Implement a matching card type.
+
+Behavior:
+
+student performs matching interaction
+
+on submit, evaluate matches
+
+show green for correct, red for wrong
+
+after submit, show two actions:
+
+Retry
+
+Flip Card
+
+do not force student to stay until fully correct
+
+after flip, show correct answer/explanation
+
+continue button after flip
+
+Retry behavior:
+Prefer keeping correct matches and resetting only wrong ones, if feasible cleanly.
+
+11) Reorder card
+
+Implement reorder/arrange-in-correct-order as a separate card type.
+
+Behavior:
+
+admin defines a sequence of items/steps
+
+learner arranges items into order
+
+on submit:
+
+evaluate
+
+show green/red feedback by position
+
+show Retry and Flip Card
+
+learner should not be forced to get all correct before explanation
+
+flip should reveal correct order + explanation
+
+12) Categorization drag-and-drop card
+
+Implement this as a separate card type from reorder.
+
+This card type should support:
+
+left side or source pool = items
+
+right side = category boxes
+
+learner drags items into category boxes
+
+Critical admin configurability:
+
+admin chooses number of items
+
+admin chooses number of categories
+
+categories are dynamic, not fixed
+
+item counts per category can vary
+
+each item maps to a correct category
+
+support text items first; architecture should allow image support later
+
+Behavior:
+
+submit required
+
+after submit:
+
+show green for correct
+
+show red for wrong
+
+show Retry and Flip Card
+
+do not force learner to stay until everything is correct
+
+flip should show correct categorization + explanation
+
+architecture should be robust and flexible, not hardcoded to 3 items / 3 categories
+
+Responsive behavior:
+
+desktop can be two-column
+
+mobile should stack cleanly
+
+13) Comparison / table card
+
+Implement a comparison/table card useful for subjects like Polity, Economy, Geography, etc.
+
+Support:
+
+title
+
+2-column minimum table
+
+optional more columns if simple
+
+clean responsive layout
+
+14) Header + progress + breadcrumb structure
+
+All card screens should follow this broad structure:
+
+Global Saphala branding header
+
+Small subject/topic/subtopic breadcrumb
+
+Card count / progress bar
+
+Main card body
+
+Action buttons
+
+Use minimal space for breadcrumb and metadata.
+
+15) Admin authoring experience for flashcards
+
+Build/admin-finalize authoring flow for decks and cards.
+
+Admin capabilities:
+
+create deck
+
+select category / subject / topic / subtopic
+
+choose title card template
+
+upload title card image
+
+add cards
+
+select card type per card
+
+reorder cards
+
+preview deck
+
+save draft / publish
+
+Per card type, show appropriate fields dynamically.
+
+For rich content/editor needs, support formatting options suitable for premium content:
+
+bold
+
+italic
+
+underline
+
+text color
+
+highlight
+
+bullet list
+
+numbered list
+
+info/box style blocks
+
+tables
+
+image insertion where relevant
+
+Prevent clutter and overflow. Keep card content readable.
+
+Add sensible character/size validation so cards do not become overwhelming.
+
+16) Protected Content Access Gate
+
+Implement a reusable Protected Content Access Gate that appears before opening any protected:
+
+HTML material
+
+Flashcard deck
+
+protected PDF
+
+This must not be just a frontend popup. It should be meaningful and backend-recorded.
+
+Required UX
+
+Before access, show a modal/dialog with copyright and monitoring warning.
+
+Use copy similar to:
+
+Protected Content Notice
+This content belongs to Saphala Pathshala and is provided only for your personal learning use.
+Copying, sharing, recording, downloading, redistributing, or publishing this content without permission is prohibited.
+All your activities inside Saphala may be monitored for security and content protection purposes. If misuse or redistribution is detected, your account may be suspended or blocked as per platform policy.
+
+Checkbox:
+
+I have read and agree to the Terms & Conditions
+
+Buttons:
+
+Accept and Continue
+
+Cancel
+
+User must explicitly accept before content loads.
+
+Important:
+
+do not preload full HTML material before acceptance
+
+do not fetch full flashcard deck before acceptance
+
+do not open/generate protected PDF URL before acceptance
+
+Acceptance should happen first, then content access should proceed.
+
+17) Consent logging / minimal backend support
+
+Log protected content consent events at backend level.
+
+For each accepted/declined access attempt, record at least:
+
+user id
+
+content type (html_material, flashcard_deck, pdf_material)
+
+content id
+
+accepted or declined
+
+timestamp
+
+terms version
+
+session/device/user-agent details if already available in the system
+
+Use a simple terms version such as:
+
+content_protection_terms_v1
+
+Add only minimal schema support required.
+
+18) Learner activity tracking for protected content
+
+Extend learner activity tracking for protected content usage.
+
+At minimum, log useful events for:
+
+content opened
+
+terms accepted
+
+time spent
+
+session end / exit
+
+For flashcards also track:
+
+deck opened
+
+card viewed
+
+flip action
+
+answer submitted
+
+deck completed / exited
+
+For HTML materials:
+
+sections visited if relevant
+
+scroll depth / completion if feasible
+
+For PDFs:
+
+pages viewed / total duration if feasible
+
+Keep implementation practical and lightweight, but structured enough to support future monitoring dashboards.
+
+19) Casual anti-copy deterrence layer
+
+Implement reasonable content-protection deterrents on protected views, especially for:
+
+HTML materials
+
+flashcards
+
+test question content
+
+protected PDF viewers where applicable
+
+Add deterrents such as:
+
+disable easy text selection in protected learning areas where reasonable
+
+block right-click/context menu on protected content areas
+
+block common copy shortcuts on protected content areas where reasonable
+
+Important:
+This is only a deterrent, not perfect security. Do not break usability unnecessarily.
+
+Structure code so watermarking can be layered in cleanly.
+
+20) Watermark-ready protected layout
+
+Make protected content views watermark-ready.
+
+Even if not fully perfect now, prepare protected screens to support subtle watermark overlays with user/session binding later.
+
+Prefer architecture that can display something like:
+
+Saphala Pathshala
+
+user name or masked identifier
+
+protected content marker
+
+without major rewrite later.
+
+If easy, include a subtle watermark now on protected content screens.
+
+21) Quality expectations
+
+Build this at a polished, production-grade level:
+
+clean UI
+
+mobile responsive
+
+no clutter
+
+no hardcoded demo-only logic
+
+dynamic where required
+
+reusable components
+
+safe backend checks
+
+minimal schema disturbance
+
+preserve existing architecture and branding direction
+
+Do not overengineer. Deliver a clean, working foundation that can be expanded later.
+
+22) Deliverables expected from this implementation
+
+At the end, the app should support:
+
+flashcard deck creation in admin
+
+10 title card templates
+
+branded one-card-at-a-time student deck experience
+
+subject-adaptive theming
+
+info, quiz, typed fill-in-the-blank, matching, reorder, comparison/table, and categorization drag-drop cards
+
+submit/retry/flip logic for interactive cards as finalized
+
+protected content modal for flashcards, HTML materials, and PDFs
+
+consent logging
+
+learner activity tracking foundation
+
+anti-casual-copy deterrents in protected views
+
+Also ensure code is clean enough for further iteration after testing.
