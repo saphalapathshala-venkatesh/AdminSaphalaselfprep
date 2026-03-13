@@ -1,0 +1,183 @@
+Context:
+We already added a custom “Compare” tool inside the shared RichTextEditor used by both:
+1) Flashcards editor
+2) E-Books / HTML content editor
+
+Current issue:
+The Compare block currently inserts a side-by-side structure with “Column A” and “Column B” as actual visible content. That is not the desired UX.
+
+Required change:
+I want the Compare tool to behave like a premium structured content block editor.
+
+Goal:
+- “Column A” and “Column B” should behave as editable header placeholders, not fixed default visible labels.
+- Admin should be able to set:
+  - header text
+  - header text color
+  - header background color
+for each column independently.
+- This must work in both Flashcards editor and E-Books editor because both use the same RichTextEditor.
+- In addition, structured inserted tools should support resizing so content creators can control visual fit and layout better.
+
+Please implement the feature carefully without breaking existing saved content.
+
+Detailed requirements:
+
+1. Compare block UX change
+- When the Compare tool is inserted, create a two-column compare block.
+- Each column must have:
+  - Header area
+  - Body/content area
+- The header text should initially appear as placeholder text only, such as:
+  - Left header placeholder: “Enter left heading”
+  - Right header placeholder: “Enter right heading”
+- These placeholder texts must not be treated as meaningful saved content unless the user actually types something.
+- If possible, use CSS placeholder-style behavior or data-placeholder behavior rather than storing dummy text permanently.
+- The body areas should also have placeholder-style prompts like:
+  - “Add left content...”
+  - “Add right content...”
+
+2. Header customization controls
+Add controls for the Compare block so admin can customize each column header independently:
+
+For left column header:
+- Header text
+- Text color
+- Background color
+
+For right column header:
+- Header text
+- Text color
+- Background color
+
+Implementation guidance:
+- Best UX is: when cursor is inside a compare block, show a small contextual control panel / inline popover / inspector for that block.
+- Simpler acceptable fallback: clicking the Compare block exposes controls in a compact floating mini-toolbar.
+- Avoid cluttering the global toolbar permanently if possible.
+
+3. Editing behavior
+- Header text must be directly editable by the admin.
+- Text color and background color changes should reflect immediately in the editor.
+- Styling must persist after save/reload.
+- Existing compare blocks created earlier should still render safely; provide backward compatibility for old markup if needed.
+
+4. Data structure / markup
+Use a robust HTML structure with clear classes/data attributes. Example direction only (you may improve it):
+
+<div class="compare-block">
+  <div class="compare-col">
+    <div class="compare-header" data-placeholder="Enter left heading" style="color:...; background-color:..."></div>
+    <div class="compare-body" data-placeholder="Add left content..."></div>
+  </div>
+  <div class="compare-col">
+    <div class="compare-header" data-placeholder="Enter right heading" style="color:...; background-color:..."></div>
+    <div class="compare-body" data-placeholder="Add right content..."></div>
+  </div>
+</div>
+
+Important:
+- Header placeholders should visually appear when empty.
+- Do not rely on permanently stored dummy text like “Column A” / “Column B”.
+- Saved HTML should remain clean and stable.
+
+5. Shared editor requirement
+This must work identically anywhere the shared RichTextEditor is used:
+- Flashcards editor
+- E-Books / HTML lesson editor
+- Any other admin content editor already using this shared editor
+
+Please avoid a flashcard-only implementation.
+
+6. Preview mode and student rendering
+Ensure compare blocks render properly in:
+- editor mode
+- preview mode
+- saved student-facing content view
+
+Behavior requirements:
+- Clean spacing
+- Readable headers
+- Mobile-friendly layout
+- On smaller screens, columns may stack vertically if needed, but must still look intentional and premium
+
+7. Keyboard behavior
+- Backspace on a fully empty compare block should remove the whole block cleanly
+- Backspace inside non-empty body/header should behave naturally
+- Clicking between header and body should not break caret placement
+
+8. Styling requirements
+- Header areas should look polished and premium
+- Rounded corners
+- Good border separation
+- No clumsy colors
+- Respect existing Saphala admin visual language
+- Keep design minimal, academic, clean
+
+9. Backward compatibility
+We may already have saved compare blocks with literal “Column A” and “Column B” text.
+Please handle this safely:
+- old blocks should still render
+- if easy, migrate old empty/default headers visually into placeholder behavior during edit mode
+- do not break existing content
+
+10. New requirement: resizable structured elements
+I want structured inserted tools to support resizing / width control where sensible, so content creators can visually fit elements according to their design intent.
+
+At minimum, support this for:
+- Compare blocks
+- Tables
+- Blank / Cloze generator blocks or related inserted structured elements, if they are block-level
+- Any similar custom editor blocks already added or being added
+
+Expected behavior:
+- Content creator should be able to adjust width and/or layout size of the inserted element
+- This should be intuitive and not clumsy
+- Best options:
+  - resize handles, or
+  - a compact width selector / alignment control / block size control
+- Acceptable presets may include:
+  - Full width
+  - Wide
+  - Medium
+  - Compact
+or percentage-based presets if easier and more stable
+
+Important constraints:
+- The resizing system must be stable after save/reload
+- It must render properly in preview mode and student-facing content
+- It must remain mobile-friendly
+- Do not implement fragile freeform resizing if it creates broken layouts
+- Prefer controlled, premium, reliable resizing over messy drag behavior
+
+Strong recommendation:
+Use structured width presets stored via class names or data attributes, for example:
+- data-width="full"
+- data-width="wide"
+- data-width="medium"
+- data-width="compact"
+
+This is preferable to unstable arbitrary inline pixel widths unless there is already a robust block-resize system in the editor.
+
+11. Deliverables
+Please complete all of the following:
+- Update shared RichTextEditor compare tool behavior
+- Add compare block header customization UI
+- Add resizing support for structured tools where appropriate
+- Add supporting CSS
+- Ensure preview rendering works
+- Ensure Flashcards and E-Books both work
+- Ensure saved HTML reloads correctly
+- Run build/typecheck and confirm zero errors
+
+12. Output format I want from you
+Please do the work and then provide:
+1) exact files changed
+2) what markup structure is now used
+3) how header color controls are accessed
+4) how resizing works and which elements support it
+5) confirmation that both Flashcards and E-Books editor use the new behavior
+6) confirmation of backward compatibility
+7) build/typecheck result
+
+Important instruction:
+Do not redesign unrelated editor features. Only improve the Compare tool carefully and cleanly, and add stable resizing support for structured editor elements.

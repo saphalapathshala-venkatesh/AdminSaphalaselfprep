@@ -22,6 +22,12 @@ const CUSTOM_COLORS = [
   "#0891b2","#db2777","#475569","#0f766e","#b45309",
 ];
 
+/* ─── Compare block header color palettes ─── */
+const COMPARE_TEXT_COLORS = ["#1d4ed8","#15803d","#7c3aed","#dc2626","#b45309","#0f766e","#111827","#6b7280"];
+const COMPARE_BG_COLORS   = ["#dbeafe","#dcfce7","#f5f3ff","#fff1f2","#fefce8","#f0fdfa","#f3f4f6","#fff7ed"];
+const WIDTH_PRESETS = ["full","wide","medium","compact"] as const;
+type WidthPreset = typeof WIDTH_PRESETS[number];
+
 /* ─── Keyword Tag / Chip presets ─── */
 const TAG_TYPES = [
   { key: "Keyword",    color: "#15803d", bg: "#dcfce7", border: "#86efac" },
@@ -83,6 +89,14 @@ export default function RichTextEditor({ value, onChange, placeholder = "Write c
   const initialized = useRef(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedRange = useRef<Range | null>(null);
+  const activeCompareRef = useRef<HTMLElement | null>(null);
+  const activeTableRef = useRef<HTMLElement | null>(null);
+  const [compareInsp, setCompareInsp] = useState<{
+    leftColor: string; leftBg: string;
+    rightColor: string; rightBg: string;
+    width: WidthPreset;
+  } | null>(null);
+  const [tableWidthVal, setTableWidthVal] = useState<WidthPreset | null>(null);
 
   /* Init once */
   useEffect(() => {
@@ -136,7 +150,7 @@ export default function RichTextEditor({ value, onChange, placeholder = "Write c
   const insertTable = useCallback(() => {
     const r = Math.max(1, parseInt(tableRows) || 3);
     const c = Math.max(1, parseInt(tableCols) || 3);
-    let html = `<table style="border-collapse:collapse;width:100%;margin:12px 0;"><thead><tr>`;
+    let html = `<table data-width="full" style="border-collapse:collapse;width:100%;margin:12px 0;"><thead><tr>`;
     for (let j = 0; j < c; j++)
       html += `<th style="border:1.5px solid #d1d5db;padding:6px 10px;background:#f3f4f6;text-align:left;font-size:0.8125rem;">Header ${j + 1}</th>`;
     html += `</tr></thead><tbody>`;
@@ -215,14 +229,14 @@ export default function RichTextEditor({ value, onChange, placeholder = "Write c
   /* ── Tool 3: Two-Column Compare Block ── */
   const insertCompare = useCallback(() => {
     const html =
-      `<div data-compare style="display:grid;grid-template-columns:1fr 1fr;border-radius:8px;overflow:hidden;border:1.5px solid #e2e8f0;margin:14px 0;">`
-      + `<div>`
-      +   `<div data-compare-header style="background:#dbeafe;padding:7px 12px;font-weight:700;font-size:0.78rem;text-align:center;color:#1d4ed8;">Column A</div>`
-      +   `<div data-compare-body data-ph="Add content…" style="padding:10px 12px;min-height:56px;font-size:0.875rem;line-height:1.6;color:#1f2937;"><br></div>`
+      `<div data-compare data-width="full" style="display:grid;grid-template-columns:1fr 1fr;border-radius:8px;overflow:hidden;border:1.5px solid #e2e8f0;margin:14px 0;">`
+      + `<div class="compare-col">`
+      +   `<div data-compare-header data-placeholder="Enter left heading" style="background:#dbeafe;padding:7px 12px;font-weight:700;font-size:0.78rem;text-align:center;color:#1d4ed8;min-height:32px;"></div>`
+      +   `<div data-compare-body data-ph="Add left content…" style="padding:10px 12px;min-height:56px;font-size:0.875rem;line-height:1.6;color:#1f2937;"><br></div>`
       + `</div>`
-      + `<div style="border-left:1.5px solid #e2e8f0;">`
-      +   `<div data-compare-header style="background:#dcfce7;padding:7px 12px;font-weight:700;font-size:0.78rem;text-align:center;color:#15803d;">Column B</div>`
-      +   `<div data-compare-body data-ph="Add content…" style="padding:10px 12px;min-height:56px;font-size:0.875rem;line-height:1.6;color:#1f2937;"><br></div>`
+      + `<div class="compare-col" style="border-left:1.5px solid #e2e8f0;">`
+      +   `<div data-compare-header data-placeholder="Enter right heading" style="background:#dcfce7;padding:7px 12px;font-weight:700;font-size:0.78rem;text-align:center;color:#15803d;min-height:32px;"></div>`
+      +   `<div data-compare-body data-ph="Add right content…" style="padding:10px 12px;min-height:56px;font-size:0.875rem;line-height:1.6;color:#1f2937;"><br></div>`
       + `</div>`
       + `</div><p><br></p>`;
     insertHTML(html);
@@ -263,6 +277,82 @@ export default function RichTextEditor({ value, onChange, placeholder = "Write c
         emitNow();
       }
     }
+  }, [emitNow]);
+
+  /* ── Detect which structured block the caret is in ── */
+  const detectActiveBlocks = useCallback(() => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) {
+      activeCompareRef.current = null; activeTableRef.current = null;
+      setCompareInsp(null); setTableWidthVal(null);
+      return;
+    }
+    const node = sel.getRangeAt(0).startContainer;
+    const el = (node.nodeType === Node.TEXT_NODE ? node.parentElement : node as Element) as HTMLElement | null;
+
+    const compareEl = el?.closest("[data-compare]") as HTMLElement | null;
+    if (compareEl) {
+      activeCompareRef.current = compareEl;
+      activeTableRef.current = null;
+      const headers = compareEl.querySelectorAll<HTMLElement>("[data-compare-header]");
+      const lh = headers[0]; const rh = headers[1];
+      setCompareInsp({
+        leftColor:  lh?.style.color           || "#1d4ed8",
+        leftBg:     lh?.style.backgroundColor || "#dbeafe",
+        rightColor: rh?.style.color           || "#15803d",
+        rightBg:    rh?.style.backgroundColor || "#dcfce7",
+        width: (compareEl.dataset.width as WidthPreset) || "full",
+      });
+      setTableWidthVal(null);
+      return;
+    }
+    const tableEl = el?.closest("table") as HTMLElement | null;
+    if (tableEl) {
+      activeTableRef.current = tableEl;
+      activeCompareRef.current = null;
+      setTableWidthVal((tableEl.dataset.width as WidthPreset) || "full");
+      setCompareInsp(null);
+      return;
+    }
+    activeCompareRef.current = null; activeTableRef.current = null;
+    setCompareInsp(null); setTableWidthVal(null);
+  }, []);
+
+  /* ── Apply header style to compare block ── */
+  const applyCompareHeaderStyle = useCallback((side: "left" | "right", prop: "color" | "bg", value: string) => {
+    const el = activeCompareRef.current;
+    if (!el) return;
+    const headers = el.querySelectorAll<HTMLElement>("[data-compare-header]");
+    const h = side === "left" ? headers[0] : headers[1];
+    if (!h) return;
+    if (prop === "color") h.style.color = value;
+    else h.style.backgroundColor = value;
+    setCompareInsp(prev => prev ? {
+      ...prev,
+      ...(side === "left"  && prop === "color" ? { leftColor:  value } : {}),
+      ...(side === "left"  && prop === "bg"    ? { leftBg:     value } : {}),
+      ...(side === "right" && prop === "color" ? { rightColor: value } : {}),
+      ...(side === "right" && prop === "bg"    ? { rightBg:    value } : {}),
+    } : null);
+    emitNow();
+  }, [emitNow]);
+
+  /* ── Apply width preset to compare block ── */
+  const applyCompareWidth = useCallback((w: WidthPreset) => {
+    const el = activeCompareRef.current;
+    if (!el) return;
+    el.dataset.width = w;
+    setCompareInsp(prev => prev ? { ...prev, width: w } : null);
+    emitNow();
+  }, [emitNow]);
+
+  /* ── Apply width preset to table ── */
+  const applyTableWidth = useCallback((w: WidthPreset) => {
+    const el = activeTableRef.current;
+    if (!el) return;
+    el.dataset.width = w;
+    setTableWidthVal(w);
+    emitNow();
   }, [emitNow]);
 
   /* ─── Toolbar Button Component ─── */
@@ -527,6 +617,86 @@ export default function RichTextEditor({ value, onChange, placeholder = "Write c
         </Btn>
       </div>
 
+      {/* ── Compare Block Inspector (shows when caret is inside a compare block) ── */}
+      {!preview && compareInsp && (
+        <div style={{
+          borderBottom: "1px solid #e5e7eb", padding: "5px 8px",
+          background: "#f8f7ff", display: "flex", alignItems: "center",
+          gap: 10, flexWrap: "wrap", fontSize: "0.72rem",
+        }}>
+          <span style={{ fontWeight: 700, color: "#7c3aed", marginRight: 2, flexShrink: 0 }}>⇔ Compare</span>
+          <div style={SEP} />
+
+          {/* Left column header styling */}
+          <span style={{ color: "#6b7280", flexShrink: 0 }}>Left:</span>
+          <span style={{ color: "#6b7280", fontSize: "0.68rem" }}>Text</span>
+          {COMPARE_TEXT_COLORS.map(c => (
+            <div key={"lt"+c} onMouseDown={(e) => { e.preventDefault(); applyCompareHeaderStyle("left","color",c); }}
+              style={{ width: 15, height: 15, background: c, borderRadius: "50%", cursor: "pointer", flexShrink: 0,
+                border: compareInsp.leftColor === c ? "2.5px solid #111" : "1.5px solid transparent" }} />
+          ))}
+          <span style={{ color: "#6b7280", fontSize: "0.68rem" }}>Fill</span>
+          {COMPARE_BG_COLORS.map(c => (
+            <div key={"lb"+c} onMouseDown={(e) => { e.preventDefault(); applyCompareHeaderStyle("left","bg",c); }}
+              style={{ width: 15, height: 15, background: c, borderRadius: 3, cursor: "pointer", flexShrink: 0,
+                border: compareInsp.leftBg === c ? "2.5px solid #111" : "1.5px solid #d1d5db" }} />
+          ))}
+          <div style={SEP} />
+
+          {/* Right column header styling */}
+          <span style={{ color: "#6b7280", flexShrink: 0 }}>Right:</span>
+          <span style={{ color: "#6b7280", fontSize: "0.68rem" }}>Text</span>
+          {COMPARE_TEXT_COLORS.map(c => (
+            <div key={"rt"+c} onMouseDown={(e) => { e.preventDefault(); applyCompareHeaderStyle("right","color",c); }}
+              style={{ width: 15, height: 15, background: c, borderRadius: "50%", cursor: "pointer", flexShrink: 0,
+                border: compareInsp.rightColor === c ? "2.5px solid #111" : "1.5px solid transparent" }} />
+          ))}
+          <span style={{ color: "#6b7280", fontSize: "0.68rem" }}>Fill</span>
+          {COMPARE_BG_COLORS.map(c => (
+            <div key={"rb"+c} onMouseDown={(e) => { e.preventDefault(); applyCompareHeaderStyle("right","bg",c); }}
+              style={{ width: 15, height: 15, background: c, borderRadius: 3, cursor: "pointer", flexShrink: 0,
+                border: compareInsp.rightBg === c ? "2.5px solid #111" : "1.5px solid #d1d5db" }} />
+          ))}
+          <div style={SEP} />
+
+          {/* Width presets */}
+          <span style={{ color: "#6b7280", flexShrink: 0 }}>Width:</span>
+          {WIDTH_PRESETS.map(w => (
+            <button key={w} type="button"
+              onMouseDown={(e) => { e.preventDefault(); applyCompareWidth(w); }}
+              style={{
+                padding: "2px 8px", fontSize: "0.68rem", fontWeight: 600, borderRadius: 5, cursor: "pointer", flexShrink: 0,
+                background: compareInsp.width === w ? "#7c3aed" : "#f3f4f6",
+                color: compareInsp.width === w ? "#fff" : "#374151",
+                border: compareInsp.width === w ? "1.5px solid #7c3aed" : "1.5px solid #e5e7eb",
+              }}
+            >{w.charAt(0).toUpperCase() + w.slice(1)}</button>
+          ))}
+        </div>
+      )}
+
+      {/* ── Table Width Bar (shows when caret is inside a table) ── */}
+      {!preview && tableWidthVal && (
+        <div style={{
+          borderBottom: "1px solid #e5e7eb", padding: "5px 8px",
+          background: "#fafafa", display: "flex", alignItems: "center",
+          gap: 8, fontSize: "0.72rem",
+        }}>
+          <span style={{ fontWeight: 700, color: "#374151", marginRight: 2, flexShrink: 0 }}>⊞ Table width:</span>
+          {WIDTH_PRESETS.map(w => (
+            <button key={w} type="button"
+              onMouseDown={(e) => { e.preventDefault(); applyTableWidth(w); }}
+              style={{
+                padding: "2px 8px", fontSize: "0.68rem", fontWeight: 600, borderRadius: 5, cursor: "pointer", flexShrink: 0,
+                background: tableWidthVal === w ? "#374151" : "#f3f4f6",
+                color: tableWidthVal === w ? "#fff" : "#374151",
+                border: tableWidthVal === w ? "1.5px solid #374151" : "1.5px solid #e5e7eb",
+              }}
+            >{w.charAt(0).toUpperCase() + w.slice(1)}</button>
+          ))}
+        </div>
+      )}
+
       {/* ── Editor / Preview area ── */}
       {preview ? (
         <div
@@ -542,6 +712,8 @@ export default function RichTextEditor({ value, onChange, placeholder = "Write c
           onInput={emit}
           onBlur={emitNow}
           onKeyDown={handleKeyDown}
+          onMouseUp={detectActiveBlocks}
+          onKeyUp={detectActiveBlocks}
           data-placeholder={placeholder}
           style={{ minHeight, padding: "14px 16px", outline: "none", fontSize: "0.9rem", lineHeight: 1.7, color: "#1f2937", overflowY: "auto" }}
           onClick={() => closeAll()}
@@ -586,6 +758,17 @@ export default function RichTextEditor({ value, onChange, placeholder = "Write c
         [contenteditable] [data-callout-header], .rte-preview [data-callout-header] { user-select: text; }
         [contenteditable] [data-callout-body], .rte-preview [data-callout-body] { user-select: text; }
 
+        /* Compare header placeholder (empty or only a <br>) */
+        [data-compare-header]:empty::before,
+        [data-compare-header]:has(> br:only-child)::before {
+          content: attr(data-placeholder);
+          color: #9ca3af;
+          font-style: italic;
+          font-weight: 400;
+          pointer-events: none;
+          display: block;
+        }
+
         /* Compare body placeholder */
         [data-compare-body]:has(> br:only-child)::before {
           content: attr(data-ph);
@@ -593,6 +776,24 @@ export default function RichTextEditor({ value, onChange, placeholder = "Write c
           font-style: italic;
           pointer-events: none;
           display: block;
+        }
+
+        /* Width presets — compare block */
+        [data-compare][data-width="full"]    { width: 100%; }
+        [data-compare][data-width="wide"]    { width: 85%; }
+        [data-compare][data-width="medium"]  { width: 66%; }
+        [data-compare][data-width="compact"] { width: 50%; }
+
+        /* Width presets — table */
+        table[data-width="full"]    { width: 100%; }
+        table[data-width="wide"]    { width: 85%; }
+        table[data-width="medium"]  { width: 66%; }
+        table[data-width="compact"] { width: 50%; }
+
+        /* Mobile stacking for compare blocks */
+        @media (max-width: 600px) {
+          [data-compare] { grid-template-columns: 1fr !important; }
+          .compare-col + .compare-col { border-left: none !important; border-top: 1.5px solid #e2e8f0; }
         }
 
         /* Blank / Cloze chips */
