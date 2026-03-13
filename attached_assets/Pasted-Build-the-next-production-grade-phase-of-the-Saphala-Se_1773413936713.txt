@@ -1,0 +1,1365 @@
+Build the next production-grade phase of the Saphala Self Prep / Admin system for student frontend, structured courses, reusable content items, premium learning UI, E-Books, Flashcards, progress tracking, protected content access, and detectable infringement monitoring, using the existing stack and current live schema as safely as possible.
+
+Follow the already locked architecture direction:
+
+do not make unnecessary schema changes
+
+do not make disruptive refactors unless truly required
+
+keep DB changes minimal
+
+extend current architecture carefully and cleanly
+
+build reusable components and services where possible
+
+The result must feel like a premium EdTech product, not a generic admin CMS or file manager.
+
+1) Core course architecture
+
+Implement a structured course system organized as:
+
+Category → Subject → Chapter → Lesson → Content Items
+
+Supported content types now:
+
+Video
+
+E-Book
+
+PDF
+
+Flashcard Deck
+
+Architecture should remain extensible for later item types.
+
+Important structural rules
+
+Every course must first be assigned to a Category
+
+Inside a course, Subject is the first visible learning grouping
+
+Subject and Chapter are structural grouping layers
+
+Lesson is the actual content layer
+
+Actual study items live inside lessons
+
+2) Product naming update
+
+Across admin UI, student UI, course builder, lesson item lists, content cards, and icons:
+
+rename HTML Material to E-Book
+
+If internal code/database names still use HTML naming and changing them everywhere is risky, preserve internal compatibility where needed, but the display/UI name must be E-Book consistently.
+
+3) Course creation and product-type-aware structure
+
+During course creation/editing:
+
+assign Category
+
+select product types enabled for that course
+
+Example product types:
+
+Video Course
+
+E-Book Course
+
+PDF Course
+
+Flashcards
+
+Test Series (later/where relevant)
+
+Only item types enabled for that course should be addable inside lessons.
+
+Example:
+If a course supports:
+
+Video
+
+E-Book
+
+PDF
+
+Flashcards
+
+then inside lessons, admin should be able to add:
+
+video items
+
+E-Book items
+
+PDF items
+
+flashcard decks
+
+If a product type is not enabled, it should not appear in lesson item options unless course config is later changed.
+
+4) Premium course overview UI — subject folders
+
+At the course level, display subjects as premium learning module cards / subject folders, not standard OS-style folders.
+
+Each subject folder card should include:
+
+subject icon
+
+subject color accent
+
+subject title
+
+optional subtitle/descriptor
+
+completed item count (example: 10 / 250 items completed)
+
+progress percentage
+
+progress bar
+
+open/click behavior
+
+UI direction
+
+Subject cards must feel premium:
+
+rounded corners
+
+subtle shadow
+
+subject-colored accent strip/border
+
+clean spacing
+
+readable typography
+
+soft hover/active states
+
+no generic computer-folder look
+
+5) Subject-inside-course layout
+
+When learner opens a subject, use a clean split layout:
+
+Left sidebar = chapter and lesson learning navigator
+
+Right content area = current lesson details and content items
+
+Responsive behavior should remain clean on smaller screens.
+
+6) Left sidebar learning navigator
+
+The left sidebar should feel like a learning navigator, not a raw nested file tree.
+
+Inside a subject:
+
+show subject title at top
+
+show subject progress summary
+
+chapters shown as accordion sections
+
+lessons shown as elegant rows inside expanded chapter
+
+active lesson visibly highlighted
+
+completed lessons show green tick/completed state
+
+incomplete lessons show neutral state
+
+chapter progress visible subtly
+
+Desired feel
+
+clean accordion navigation
+
+lesson rows with status indicators
+
+active lesson pill/card highlight
+
+premium spacing
+
+no clunky nested border tree UI
+
+7) Chapter structure
+
+Inside each subject, admin must be able to:
+
+add chapter
+
+edit chapter
+
+delete chapter
+
+reorder chapter
+
+Each chapter supports:
+
+title
+
+optional short description
+
+manual ordering
+
+expand/collapse
+
+item completion summary
+
+Example:
+
+Chapter 1: Fundamental Rights
+
+2 / 10 items completed
+
+8) Lesson structure
+
+Inside each chapter, admin must be able to:
+
+add lesson
+
+edit lesson
+
+delete lesson
+
+reorder lesson
+
+Each lesson supports:
+
+title
+
+optional short description
+
+published/draft if needed
+
+manual ordering
+
+content item count
+
+lesson-level progress summary
+
+Lessons are the actual content layer where items are attached.
+
+9) Lesson item architecture
+
+Inside a lesson, admin should be able to add:
+
+Video
+
+E-Book
+
+PDF
+
+Flashcard Deck
+
+For each lesson item:
+
+add existing library item
+
+create new item where appropriate
+
+reorder item
+
+edit item
+
+remove item from lesson without deleting the original item
+
+Removing from lesson must not delete the underlying content master record.
+
+10) Reusable content library rule
+
+Follow this core rule:
+
+Every learning item must first belong to taxonomy, then may optionally be attached to one or more courses/lessons.
+
+This applies to:
+
+Video
+
+E-Book
+
+PDF
+
+Flashcard Deck
+
+Each library item should support:
+
+Category (required)
+
+Subject (required)
+
+Topic (optional/recommended)
+
+Subtopic (optional/recommended)
+
+title
+
+description where relevant
+
+publish/unpublish where relevant
+
+edit option
+
+attach to one or more courses/lessons
+
+11) Flashcard deck mapping rules
+
+Before creating a flashcard deck, require mapping to:
+
+Category
+
+Subject
+
+Also support:
+
+Topic
+
+Subtopic
+
+deck title
+
+title card template
+
+title card image
+
+attached courses / attached lessons later
+
+Flashcard decks must be reusable and attachable just like other content items.
+
+12) Rich editor for E-Books
+
+The current page editor is too basic. Upgrade the E-Book editor so it supports premium content authoring.
+
+Required E-Book editor features
+
+Support at least:
+
+bold
+
+italic
+
+underline
+
+text color
+
+text highlight
+
+headings
+
+bullets
+
+numbered list
+
+quote block
+
+note/info/warning boxes
+
+table insertion
+
+image insertion/upload
+
+divider
+
+preview mode
+
+Do not leave this as a plain textarea if a safe richer editor can be integrated.
+
+13) Rich editor for Flashcards
+
+Flashcards must also support a rich editor, not just plain text fields.
+
+This is mandatory.
+
+Flashcard editor must support at least:
+
+bold
+
+italic
+
+underline
+
+text color
+
+highlight text
+
+bullets
+
+numbered list
+
+note/info/warning boxes
+
+table insertion
+
+image insertion/upload
+
+divider where useful
+
+preview mode
+
+Important requirement
+
+This rich editor should be available where relevant in flashcard creation/edit flows, especially for:
+
+Title Card content
+
+Info Card content
+
+Quiz explanation content
+
+Comparison/Table card content
+
+Fill-in-the-blank explanation content
+
+Matching/Reorder/Categorization explanation content
+
+Keep the editor clean and premium, not cluttered.
+
+14) Flashcard system — overall rules
+
+Implement the student flashcard experience with these locked UX rules:
+
+only one card at a time
+
+clean minimal layout
+
+first card in every deck = Title Card
+
+all cards include global branding header
+
+subject/topic/subtopic should not consume large card space
+
+use a small breadcrumb/header area
+
+content area should maximize learning space
+
+same system should work cleanly on website and mobile-responsive web
+
+15) Global branding header on every flashcard
+
+Every flashcard must include this default branding header:
+
+Saphala logo on the left
+
+to the right:
+
+Saphala Pathshala
+
+Your Success is Our Focus
+
+This must be part of the base flashcard layout, not something admin manually adds.
+
+Keep it slim and elegant.
+
+16) Flashcard subject color consistency
+
+Maintain strict subject-color consistency across all surfaces.
+
+The same subject color used in subject folders must also be used in:
+
+flashcard decks
+
+flashcard headers
+
+title cards
+
+lesson highlights
+
+progress bars
+
+relevant content item UI
+
+subject-level learning navigator accents
+
+Locked subject colors
+
+Polity — #8050C0
+
+History — #8B5E3C
+
+Geography — #2E8B57
+
+Economy — #2563EB
+
+Environment & Ecology — #0F766E
+
+General Science — #10B981
+
+Science & Technology — #0891B2
+
+Current Affairs — #F97316
+
+Reasoning — #4F46E5
+
+Quant — #1D4ED8
+
+English — #7C2D12
+
+Important distinctions:
+
+General Science = Biology, Physics, Chemistry
+
+Science & Technology = current technology / tech developments
+
+Environment & Ecology = separate deep teal
+
+17) Flashcard deck structure
+
+Deck hierarchy:
+Category → Subject → Topic → Subtopic → Deck → Cards
+
+Each deck supports:
+
+deck title
+
+subtitle/description
+
+title card template
+
+title card image
+
+subject theme color
+
+ordering
+
+published/draft status
+
+18) Title card requirements
+
+The first card in every deck should be a Title Card by default.
+
+Title card supports:
+
+deck title
+
+optional subtitle
+
+optional short intro
+
+optional image upload
+
+subject color adaptation
+
+optional total card count
+
+Implement 10 title card templates for launch, reusable across subjects and auto-adapting to subject color.
+
+19) Flashcard card types to support
+
+Implement these proper card types:
+
+Title Card
+
+Info Card
+
+Quiz Card
+
+Comparison / Table Card
+
+Typed Fill-in-the-Blank Card
+
+Matching Card
+
+Reorder Card
+
+Categorization Drag-and-Drop Card
+
+Architecture must remain extensible.
+
+20) Info Card
+
+Info card is a one-sided content-focused card.
+
+Should support:
+
+title
+
+body content
+
+key points
+
+optional example block
+
+optional image
+
+optional table
+
+rich formatting via rich editor
+
+21) Quiz Card behavior
+
+Quiz card rules:
+
+show question and options
+
+learner selects answer
+
+learner clicks Submit Answer
+
+only after submit does evaluation happen
+
+only after submit does Flip Card become available
+
+after flip, show explanation
+
+no easy/medium/hard rating here — this is reinforcement/revision, not evaluation
+
+22) Typed Fill-in-the-Blank Card
+
+This must be a separate card type.
+
+Behavior:
+
+learner types answer manually
+
+clicks Submit Answer
+
+system validates
+
+if correct, Flip Card becomes available
+
+if wrong, allow retry
+
+after flip, show explanation
+
+Critical requirement
+
+For each blank, admin must be able to define:
+
+one canonical answer
+
+multiple accepted answer variants (e.g. 4–5 valid forms)
+
+Validation rules
+
+trim spaces
+
+lowercase by default
+
+collapse extra spaces
+
+optionally ignore punctuation where appropriate
+
+deterministic comparison only against admin-approved accepted variants
+
+Support:
+
+single blank now
+
+architecture should be extendable to multi-blank
+
+23) Matching / Reorder / Categorization card behavior update
+
+This rule applies to:
+
+Matching Card
+
+Reorder Card
+
+Categorization Drag-and-Drop Card
+
+On submit:
+
+immediately evaluate
+
+show green for correct
+
+show red for wrong
+
+Then show:
+
+Retry
+
+Flip Card
+
+Do not force learner to stay until everything is fully correct.
+
+This is important.
+
+After flip:
+
+show correct answer / arrangement / categorization
+
+show explanation
+
+allow Continue
+
+Retry behavior
+
+Prefer keeping correct parts and resetting only wrong parts where feasible.
+
+24) Reorder Card
+
+Separate card type for arranging steps in correct order.
+
+Admin defines sequence of items.
+Learner arranges order.
+On submit:
+
+show green/red feedback by position
+
+show Retry and Flip Card
+
+after flip show correct order + explanation
+
+25) Categorization Drag-and-Drop Card
+
+Separate card type from reorder.
+
+This card type must support:
+
+item bank/source pool
+
+dynamic number of items
+
+dynamic number of categories
+
+items dragged into category boxes
+
+Admin must control:
+
+number of categories
+
+number of items
+
+category names
+
+correct item → category mapping
+
+Architecture must not be hardcoded.
+
+26) Matching Card
+
+Separate matching interaction card.
+
+On submit:
+
+evaluate
+
+green/red feedback
+
+show Retry and Flip Card
+
+flip reveals correct matches + explanation
+
+27) Comparison / Table Card
+
+Support clean comparison card useful for Polity, Economy, Geography, etc.
+
+Must support:
+
+title
+
+at least 2-column table
+
+clean responsive rendering
+
+28) E-Book student annotation feature
+
+When learner is reading an E-Book, allow:
+
+highlight text
+
+underline text
+
+save those annotations
+
+show them again later
+
+undo/remove later
+
+Important rules
+
+annotations must be user-specific
+
+one learner’s highlights must not affect another
+
+original E-Book content remains unchanged
+
+annotations stored separately and reapplied on reopen
+
+29) PDF student annotation feature
+
+Also support learner annotations for PDFs:
+
+highlight
+
+underline
+
+save
+
+revisit and see them
+
+undo/remove
+
+This must also be:
+
+user-specific
+
+persistent
+
+separate from original PDF file
+
+If complexity rises, architect carefully, but keep support direction for both E-Book and PDF.
+
+30) Product/item icons
+
+Use a dedicated, consistent icon system.
+
+Minimum icons:
+
+Video
+
+E-Book
+
+PDF
+
+Flashcard Deck
+
+Test Series (where relevant later)
+
+LIVE Class (where relevant later)
+
+Special icon requirements
+
+E-Book icon should clearly show capital letters, cleanly visible
+
+PDF icon should clearly show capital letters, cleanly visible
+
+Flashcard Deck icon should visually show 5 neatly visible cards
+
+Icons must be modern, consistent, and clearly distinguishable
+
+31) Lesson item rendering in student UI
+
+Lesson item rows/cards should show:
+
+dedicated icon
+
+title
+
+completion state
+
+click/open behavior
+
+protected access gate if relevant
+
+Use labels:
+
+Video
+
+E-Book
+
+PDF
+
+Flashcard Deck
+
+Completed items should visibly show green/completed state.
+
+32) Progress tracking and completion rollup
+
+When learner completes an item, mark it completed and roll progress upward automatically:
+
+Item completed
+→ lesson progress updates
+→ chapter progress updates
+→ subject progress updates
+→ course progress updates
+
+Display examples
+
+Subject: 10 / 250 items completed
+
+Chapter: 2 / 10 items completed
+
+Course: overall progress %
+
+If items are added later, totals and percentages must recalculate dynamically.
+
+33) Completion rules by item type
+Video
+
+Use watched threshold or explicit completion signal
+
+E-Book
+
+Use defined completion rule (end reached or mark complete)
+
+PDF
+
+Use defined completion rule (pages viewed or mark complete)
+
+Flashcard Deck
+
+Completed when learner completes deck/session
+
+Keep logic practical and honest.
+
+34) Protected Content Access Gate
+
+Implement reusable protected content gate before opening:
+
+E-Books
+
+Flashcard Decks
+
+protected PDFs
+
+Before access, show modal with copyright/security warning.
+
+Use wording close to:
+
+Protected Content Notice
+This content belongs to Saphala Pathshala and is provided only for your personal learning use.
+Copying, sharing, recording, downloading, redistributing, or publishing this content without permission is prohibited.
+All your activities inside Saphala may be monitored for security and content protection purposes. If misuse or redistribution is detected, your account may be suspended or blocked as per platform policy.
+
+Checkbox:
+
+I have read and agree to the Terms & Conditions
+
+Buttons:
+
+Accept and Continue
+
+Cancel
+
+Important:
+
+do not preload E-Book content before acceptance
+
+do not fetch full flashcard deck before acceptance
+
+do not open/generate protected PDF access before acceptance
+
+35) Consent logging
+
+Log protected-content access consent events at backend level.
+
+For each accepted/declined attempt, record:
+
+user id
+
+content type (ebook, flashcard_deck, pdf)
+
+content id
+
+accepted/declined
+
+timestamp
+
+terms version
+
+session/device/user-agent details if available
+
+Use a simple version like:
+
+content_protection_terms_v1
+
+36) Learner activity tracking
+
+Track activity for protected content.
+
+At minimum:
+
+content opened
+
+terms accepted
+
+time spent
+
+session end/exit
+
+E-Books / PDFs
+
+Also where practical:
+
+highlight created
+
+underline created
+
+annotation removed
+
+Flashcards
+
+Also track:
+
+deck opened
+
+card viewed
+
+flip action
+
+answer submitted
+
+deck completed/exited
+
+37) Anti-casual-copy deterrence
+
+Implement reasonable deterrents on protected surfaces:
+
+E-Books
+
+Flashcards
+
+protected PDFs
+
+test-like question views where applicable
+
+Use:
+
+block right-click/context menu on protected content zones
+
+block common copy shortcuts where protection is active
+
+disable easy text selection where reasonable
+
+This is deterrence, not perfect security.
+
+38) Detectable infringement monitoring
+
+Build a detectable infringement monitoring system for protected student content surfaces, especially:
+
+E-Books
+
+tests/question views
+
+flashcards
+
+protected PDFs
+
+Track only actions that are truly detectable, such as:
+
+blocked copy shortcut attempts
+
+blocked right-click/context-menu attempts
+
+blocked copy events
+
+blocked text selection attempts where content protection is active
+
+Do not falsely claim perfect detection.
+
+39) Infringement event logging
+
+Whenever a learner performs a detectable restricted action, create an infringement/security event.
+
+Each record should capture at minimum:
+
+learner/user id
+
+learner name
+
+learner email
+
+learner mobile if available
+
+content type (ebook, test, flashcard_deck, pdf, etc.)
+
+content id
+
+course id / lesson id if relevant
+
+event type (copy_attempt, right_click_attempt, selection_attempt, etc.)
+
+timestamp
+
+session id if available
+
+device/login/session details already available
+
+user agent/browser details if available
+
+warning count at time of event
+
+resulting action taken (logged, warning_1, warning_2, auto_blocked)
+
+40) Dashboard card — Infringed Activity
+
+Add a dedicated admin dashboard card/widget:
+
+Infringed Activity or Detected Infringement Activity
+
+Show:
+
+total infringement attempts today
+
+total this week
+
+learners on warning 1
+
+learners on warning 2
+
+learners auto-blocked
+
+latest recent infringement events
+
+Provide deep link to full review page.
+
+41) Dedicated admin infringement page
+
+Build admin page/table for full infringement review.
+
+Show:
+
+learner name
+
+email
+
+mobile
+
+device/login details
+
+event type
+
+content type
+
+content title where easy
+
+date/time
+
+warning level
+
+current account status
+
+action taken
+
+Support filters:
+
+date range
+
+learner
+
+event type
+
+content type
+
+warning level
+
+blocked/unblocked
+
+42) Warning system
+
+Implement automatic warning system:
+
+1st detectable offense → Warning 1
+
+2nd detectable offense → Warning 2
+
+3rd detectable offense → auto block learner account
+
+Warnings must persist against learner account.
+
+Warning UI
+
+Show strong warning message on first and second offenses.
+
+43) Auto-block on third offense
+
+On third detectable infringement offense:
+
+automatically suspend/block learner account
+
+prevent further protected content access
+
+ideally invalidate/close active sessions if feasible
+
+show blocked-account message
+
+Blocked message
+
+Show:
+
+blocked due to repeated policy violations
+
+contact admin email
+
+contact admin mobile number
+
+These admin contact values should come from settings/config, not hardcoded if possible.
+
+44) Admin review actions
+
+On infringement admin page, support:
+
+view learner details
+
+view warning history
+
+unblock learner manually
+
+reset warning count if needed
+
+preserve audit trail
+
+Do not delete infringement history when unblocking.
+
+45) Watermark-ready protected layout
+
+Protected content screens should be watermark-ready.
+
+Prefer architecture that can support subtle watermark overlays with:
+
+Saphala Pathshala
+
+protected content marker
+
+masked learner identifier if feasible
+
+If easy, include subtle watermark now.
+
+46) Admin item edit flows
+
+For each item type:
+
+Video
+
+E-Book
+
+PDF
+
+Flashcard Deck
+
+Support:
+
+metadata edit
+
+taxonomy mapping edit
+
+attach to course/lesson
+
+publish/unpublish
+
+item preview
+
+ordering management where relevant
+
+For flashcards specifically:
+
+edit deck metadata
+
+edit title card
+
+edit cards
+
+reorder cards
+
+preview deck
+
+47) Admin course builder actions
+
+Admin must be able to:
+
+create/edit course
+
+assign category
+
+choose product types
+
+add/reorder subject sections
+
+add/edit/delete/reorder chapters
+
+add/edit/delete/reorder lessons
+
+add/edit/remove/reorder lesson items
+
+select existing content items from library
+
+create new items where appropriate
+
+Filter item selection intelligently by taxonomy.
+
+48) UI expectations
+
+The whole result must feel:
+
+modern
+
+premium
+
+clean
+
+unique
+
+uncluttered
+
+mobile friendly
+
+Avoid:
+
+OS-like folder/file-manager look
+
+cramped nested borders
+
+ugly technical tree UI
+
+dull repeated icons
+
+plain textarea-first authoring experience
+
+Prefer:
+
+subject module cards
+
+elegant accordion navigation
+
+polished lesson item cards
+
+strong progress visibility
+
+premium editor experience
+
+beautiful completed-state visuals
+
+consistent subject-color language
+
+49) Deliverables expected
+
+At the end, the system should support:
+
+category-based course creation
+
+subject folders/modules inside course
+
+chapter → lesson → item structure
+
+reusable library items for Video / E-Book / PDF / Flashcard Deck
+
+edit options for each content type
+
+product-type-aware lesson item attachment
+
+dynamic progress rollup
+
+premium student course UI
+
+premium E-Book editor
+
+premium Flashcard rich editor
+
+all discussed flashcard card types
+
+one-card-at-a-time flashcard student UI
+
+subject color consistency across folders and flashcards
+
+E-Book/PDF learner annotations
+
+protected content gate
+
+consent logging
+
+learner activity tracking
+
+anti-casual-copy deterrents
+
+infringement dashboard card
+
+infringement review page
+
+2 warnings + auto-block on 3rd detectable offense
+
+admin review/unblock flow
+
+clean icon system including E-Book/PDF letters and 5-card flashcard icon
+
+Build this carefully on top of the existing system.

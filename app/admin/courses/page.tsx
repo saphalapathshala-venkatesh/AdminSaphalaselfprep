@@ -34,7 +34,7 @@ type FormData = {
 
 // ─── Product type config ──────────────────────────────────────────────────────
 const TYPE_CONFIG = [
-  { key: "hasHtmlCourse"     as const, label: "HTML Course",    short: "HTML",   bg: "#dbeafe", color: "#1d4ed8" },
+  { key: "hasHtmlCourse"     as const, label: "E-Book Course",  short: "E-Book", bg: "#dbeafe", color: "#1d4ed8" },
   { key: "hasVideoCourse"    as const, label: "Video Course",   short: "Video",  bg: "#f3e8ff", color: PURPLE    },
   { key: "hasPdfCourse"      as const, label: "PDF Course",     short: "PDF",    bg: "#fef3c7", color: "#b45309" },
   { key: "hasTestSeries"     as const, label: "Test Series",    short: "Tests",  bg: "#dcfce7", color: "#15803d" },

@@ -30,6 +30,12 @@ The console uses a consistent brand palette with purple as the primary CTA color
     - **User Management**: Full CRUD for users, including role management, device blocking, session revocation, and detailed activity logs. Implements web device restriction with `maxWebDevices` limit.
     - **XP Reward System**: A complete XP engine managing user wallets, source progress, achievements, and ledgers. Includes rules for earning XP from content, daily logins, and streak bonuses, with a redemption system.
     - **Protected Content Gate**: Implements a consent system (`ContentConsent` model) requiring user agreement to terms before accessing specific content types, with logging and watermarking support.
+    - **Rich Text Editor**: `components/ui/RichTextEditor.tsx` — contentEditable-based, no external deps. Toolbar: Bold/Italic/Underline/H1-H3/text color/highlight/note boxes/table/image/divider/preview. Used in E-Book editor and all flashcard content fields.
+    - **E-Book Viewer**: `components/ui/EBookViewer.tsx` — modal viewer for E-Book (HTML_PAGE) content with anti-copy protection, infringement logging, and learner annotation support (highlight/underline with color picker, persisted via `/api/annotations`).
+    - **Flashcard Student Player**: `components/ui/FlashcardPlayer.tsx` — full-featured one-card-at-a-time player supporting all 8 card types (Title, Info, Quiz, Comparison, Fill-in-Blank, Matching, Reorder, Categorization). Wired into lesson preview page for FLASHCARD_DECK items.
+    - **Infringement Monitoring**: `InfringementEvent` model tracks copy/right-click/selection/keyboard-copy attempts on protected content. 3-strike auto-block system (WARNING_1 → WARNING_2 → AUTO_BLOCKED with session revocation). Admin review page at `/admin/users/infringement` with filters. Dashboard card with live stats.
+    - **Learner Annotations**: `LearnerAnnotation` model persists text highlights and underlines on E-Books and PDFs. API at `/api/annotations` (CRUD). Annotations are reapplied via DOM Range API on each viewer open.
+    - **Content Type Label**: "HTML Material"/"HTML Pages" renamed to "E-Book"/"E-Books" throughout the UI. Schema key remains `HTML_PAGE`.
 
 ## External Dependencies
 - **Database**: PostgreSQL (managed via Neon)

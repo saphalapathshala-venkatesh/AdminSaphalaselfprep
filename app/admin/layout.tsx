@@ -45,6 +45,7 @@ const navSections = [
       { label: "XP Rules", href: "/admin/xp-rules" },
       { label: "Learners", href: "/admin/learners" },
       { label: "Users", href: "/admin/users" },
+      { label: "Infringement", href: "/admin/users/infringement" },
     ],
   },
   {

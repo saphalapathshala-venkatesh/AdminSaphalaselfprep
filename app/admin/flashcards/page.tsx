@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { SUBJECT_COLOR_LIST, DEFAULT_SUBJECT_COLOR } from "@/lib/subjectColors";
 import { TITLE_TEMPLATES } from "@/lib/titleTemplates";
+import RichTextEditor from "@/components/ui/RichTextEditor";
 
 const CARD_TYPES = [
   { value: "TITLE",          label: "Title Card",              desc: "Deck cover / opener" },
@@ -733,7 +734,7 @@ export default function FlashcardsPage() {
             </div>
             <div style={{ marginBottom: "10px" }}>
               <label style={labelStyle}>Body Content *</label>
-              <textarea style={{ ...inputStyle, minHeight: "100px" }} value={cf.infoBody} onChange={(e) => set({ infoBody: e.target.value })} placeholder="Main content of the card..." />
+              <RichTextEditor value={cf.infoBody} onChange={(html) => set({ infoBody: html })} placeholder="Main content of the card…" minHeight="140px" />
             </div>
             <div style={{ marginBottom: "10px" }}>
               <p style={sectionHead}>Key Points</p>
@@ -747,7 +748,7 @@ export default function FlashcardsPage() {
             </div>
             <div style={{ marginBottom: "10px" }}>
               <label style={labelStyle}>Example Block (optional)</label>
-              <textarea style={{ ...inputStyle, minHeight: "60px" }} value={cf.infoExample} onChange={(e) => set({ infoExample: e.target.value })} placeholder="Optional example or note..." />
+              <RichTextEditor value={cf.infoExample} onChange={(html) => set({ infoExample: html })} placeholder="Optional example or supporting note…" minHeight="80px" />
             </div>
             <div style={{ marginBottom: "10px" }}>
               <label style={labelStyle}>Image URL (optional)</label>
@@ -762,7 +763,7 @@ export default function FlashcardsPage() {
           <div>
             <div style={{ marginBottom: "10px" }}>
               <label style={labelStyle}>Question *</label>
-              <textarea style={{ ...inputStyle, minHeight: "80px" }} value={cf.quizQuestion} onChange={(e) => set({ quizQuestion: e.target.value })} />
+              <RichTextEditor value={cf.quizQuestion} onChange={(html) => set({ quizQuestion: html })} placeholder="Enter the question…" minHeight="100px" />
             </div>
             <p style={sectionHead}>Options (mark correct answers)</p>
             {quizOptions.map((opt, i) => (
@@ -775,7 +776,7 @@ export default function FlashcardsPage() {
             <button style={{ ...btnSmall, marginBottom: "10px" }} onClick={() => setQuizOptions([...quizOptions, { text: "", isCorrect: false }])}>+ Add Option</button>
             <div>
               <label style={labelStyle}>Explanation (shown after flip) *</label>
-              <textarea style={{ ...inputStyle, minHeight: "70px" }} value={cf.quizExplanation} onChange={(e) => set({ quizExplanation: e.target.value })} />
+              <RichTextEditor value={cf.quizExplanation} onChange={(html) => set({ quizExplanation: html })} placeholder="Explain the correct answer…" minHeight="90px" />
             </div>
           </div>
         );
@@ -831,7 +832,7 @@ export default function FlashcardsPage() {
             <button style={{ ...btnSmall, marginBottom: "10px" }} onClick={() => setFillBlanks([...fillBlanks, { id: `b${fillBlanks.length + 1}`, accepted: "" }])}>+ Add Blank</button>
             <div>
               <label style={labelStyle}>Explanation (shown after flip)</label>
-              <textarea style={{ ...inputStyle, minHeight: "70px" }} value={cf.fillExplanation} onChange={(e) => set({ fillExplanation: e.target.value })} />
+              <RichTextEditor value={cf.fillExplanation} onChange={(html) => set({ fillExplanation: html })} placeholder="Explain the answer…" minHeight="90px" />
             </div>
           </div>
         );
@@ -851,7 +852,7 @@ export default function FlashcardsPage() {
             <button style={{ ...btnSmall, marginBottom: "10px" }} onClick={() => setMatchPairs([...matchPairs, { left: "", right: "" }])}>+ Add Pair</button>
             <div>
               <label style={labelStyle}>Explanation (shown after flip)</label>
-              <textarea style={{ ...inputStyle, minHeight: "70px" }} value={cf.matchExplanation} onChange={(e) => set({ matchExplanation: e.target.value })} />
+              <RichTextEditor value={cf.matchExplanation} onChange={(html) => set({ matchExplanation: html })} placeholder="Explain the correct matching…" minHeight="90px" />
             </div>
           </div>
         );
@@ -873,7 +874,7 @@ export default function FlashcardsPage() {
             <button style={{ ...btnSmall, marginBottom: "10px" }} onClick={() => setReorderItems([...reorderItems, ""])}>+ Add Item</button>
             <div>
               <label style={labelStyle}>Explanation (shown after flip)</label>
-              <textarea style={{ ...inputStyle, minHeight: "70px" }} value={cf.reorderExplanation} onChange={(e) => set({ reorderExplanation: e.target.value })} />
+              <RichTextEditor value={cf.reorderExplanation} onChange={(html) => set({ reorderExplanation: html })} placeholder="Explain the correct order…" minHeight="90px" />
             </div>
           </div>
         );
@@ -904,7 +905,7 @@ export default function FlashcardsPage() {
             <button style={{ ...btnSmall, marginBottom: "10px" }} onClick={() => setCatItems([...catItems, { text: "", category: catCategories[0] || "" }])}>+ Add Item</button>
             <div>
               <label style={labelStyle}>Explanation (shown after flip)</label>
-              <textarea style={{ ...inputStyle, minHeight: "70px" }} value={cf.catExplanation} onChange={(e) => set({ catExplanation: e.target.value })} />
+              <RichTextEditor value={cf.catExplanation} onChange={(html) => set({ catExplanation: html })} placeholder="Explain the correct categorization…" minHeight="90px" />
             </div>
           </div>
         );

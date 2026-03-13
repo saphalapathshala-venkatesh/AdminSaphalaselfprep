@@ -39,11 +39,20 @@ const STREAMS = [
 ];
 
 const QUICK_ACTIONS = [
-  { label: "Upload HTML Page", href: "/admin/content-library" },
+  { label: "Create E-Book", href: "/admin/content-library" },
   { label: "Upload PDF", href: "/admin/content-library" },
   { label: "Create Flashcards", href: "/admin/flashcards" },
   { label: "Create Test Series", href: "/admin/test-series" },
 ];
+
+interface InfringementStats {
+  todayCount: number;
+  weekCount: number;
+  warning1: number;
+  warning2: number;
+  blocked: number;
+  recent: { id: string; eventType: string; contentType: string; createdAt: string; user: { name: string | null; email: string | null } }[];
+}
 
 export default function DashboardPage() {
   const defaultRange = PRESETS["30 Days"]();
@@ -53,6 +62,7 @@ export default function DashboardPage() {
   const [stream, setStream] = useState("all");
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [infStats, setInfStats] = useState<InfringementStats | null>(null);
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
@@ -66,6 +76,13 @@ export default function DashboardPage() {
   }, [start, end, learnerFilter, stream]);
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
+
+  useEffect(() => {
+    fetch("/api/admin/infringement/stats")
+      .then(r => r.json())
+      .then(d => setInfStats(d))
+      .catch(() => {});
+  }, []);
 
   const applyPreset = (name: string) => {
     const [s, e] = PRESETS[name]();
@@ -339,6 +356,42 @@ export default function DashboardPage() {
           )}
         </div>
       ) : null}
+
+      {/* ── Infringement Activity Card ── */}
+      {infStats && (
+        <div style={{ ...card, marginBottom: "1.75rem", borderLeft: "4px solid #ef4444" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+            <h3 style={{ ...chartTitle, margin: 0, color: "#dc2626" }}>🔒 Content Infringement Activity</h3>
+            <Link href="/admin/users/infringement" style={{ fontSize: "0.75rem", color: BRAND.purple, textDecoration: "none", fontWeight: 600 }}>View All →</Link>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
+            {[
+              { label: "Today", value: infStats.todayCount, color: "#6b7280" },
+              { label: "This Week", value: infStats.weekCount, color: "#6b7280" },
+              { label: "1st Warning", value: infStats.warning1, color: "#d97706" },
+              { label: "2nd Warning", value: infStats.warning2, color: "#ea580c" },
+              { label: "Auto-Blocked", value: infStats.blocked, color: "#dc2626" },
+            ].map(stat => (
+              <div key={stat.label} style={{ background: "#fafafa", borderRadius: 8, padding: "0.625rem 0.75rem", textAlign: "center", border: "1px solid #f3f4f6" }}>
+                <div style={{ fontSize: "1.25rem", fontWeight: 800, color: stat.color }}>{stat.value}</div>
+                <div style={{ fontSize: "0.65rem", color: "#9ca3af", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{stat.label}</div>
+              </div>
+            ))}
+          </div>
+          {infStats.recent.length > 0 && (
+            <div>
+              <div style={{ fontSize: "0.65rem", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>Recent Events</div>
+              {infStats.recent.map(ev => (
+                <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.35rem 0", borderBottom: "1px solid #f9fafb", fontSize: "0.78rem" }}>
+                  <span style={{ color: "#9ca3af", fontSize: "0.7rem", flexShrink: 0 }}>{new Date(ev.createdAt).toLocaleDateString()}</span>
+                  <span style={{ fontWeight: 600, color: "#374151", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ev.user.name || ev.user.email || "Unknown"}</span>
+                  <span style={{ fontSize: "0.7rem", background: "#fee2e2", color: "#991b1b", borderRadius: 4, padding: "1px 6px", flexShrink: 0 }}>{ev.eventType.replace(/_/g, " ")}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Quick Actions — always visible, no data dependency ── */}
       <div>

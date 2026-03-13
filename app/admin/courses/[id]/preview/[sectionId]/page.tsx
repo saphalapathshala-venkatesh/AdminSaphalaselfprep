@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { getSubjectColor } from "@/lib/subjectColors";
 import { ContentTypeIcon, contentTypeLabel } from "@/components/ui/ContentTypeIcon";
+import FlashcardPlayer from "@/components/ui/FlashcardPlayer";
+import EBookViewer from "@/components/ui/EBookViewer";
 
 type LessonItem = { id: string; itemType: string; sourceId: string; titleSnapshot: string | null; sortOrder: number };
 type Lesson = { id: string; title: string; description: string | null; status: string; sortOrder: number; items: LessonItem[] };
@@ -23,6 +25,25 @@ export default function SubjectLearningPage() {
   const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
   const [completed, setCompleted] = useState<ProgressMap>({});
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const [flashcardItem, setFlashcardItem] = useState<LessonItem | null>(null);
+  const [ebookItem, setEbookItem] = useState<LessonItem | null>(null);
+  const [ebookHtml, setEbookHtml] = useState<string>("");
+  const [ebookLoading, setEbookLoading] = useState(false);
+
+  async function openEbook(item: LessonItem) {
+    setEbookLoading(true);
+    setEbookItem(item);
+    try {
+      const res = await fetch(`/api/content-pages/${item.sourceId}`);
+      const data = await res.json();
+      setEbookHtml(data.data?.body || "<p><em>No content available.</em></p>");
+    } catch {
+      setEbookHtml("<p><em>Failed to load content.</em></p>");
+    } finally {
+      setEbookLoading(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -117,6 +138,31 @@ export default function SubjectLearningPage() {
 
   return (
     <div style={{ display: "flex", height: "100vh", fontFamily: "system-ui, sans-serif", background: "#f8fafc" }}>
+      {/* FlashcardPlayer Modal */}
+      {flashcardItem && (
+        <FlashcardPlayer
+          deckId={flashcardItem.sourceId}
+          subjectColor={color}
+          onComplete={() => { markComplete(flashcardItem.id); setFlashcardItem(null); }}
+          onExit={() => setFlashcardItem(null)}
+        />
+      )}
+
+      {/* EBookViewer Modal */}
+      {ebookItem && !ebookLoading && (
+        <EBookViewer
+          contentId={ebookItem.sourceId}
+          htmlContent={ebookHtml}
+          title={ebookItem.titleSnapshot || "E-Book"}
+          subjectColor={color}
+          onClose={() => { setEbookItem(null); setEbookHtml(""); }}
+        />
+      )}
+      {ebookLoading && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9000, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#fff", borderRadius: 12, padding: "2rem 3rem", fontWeight: 700, color: "#374151" }}>Loading E-Book…</div>
+        </div>
+      )}
       {/* ── Left Sidebar ── */}
       <div style={{
         width: sidebarOpen ? 320 : 0,
@@ -301,14 +347,32 @@ export default function SubjectLearningPage() {
                             {item.titleSnapshot || `Item ${idx + 1}`}
                           </div>
                         </div>
-                        {!isDone && (
-                          <button
-                            onClick={() => markComplete(item.id)}
-                            style={{ padding: "0.5rem 1rem", borderRadius: 9, background: "#fff", border: `1.5px solid ${color}`, color: color, cursor: "pointer", fontWeight: 700, fontSize: "0.85rem", flexShrink: 0 }}
-                          >
-                            Mark Complete
-                          </button>
-                        )}
+                        <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0, alignItems: "center" }}>
+                          {item.itemType === "FLASHCARD_DECK" && (
+                            <button
+                              onClick={() => setFlashcardItem(item)}
+                              style={{ padding: "0.4rem 0.875rem", borderRadius: 8, background: "#ede9fe", border: "1.5px solid #ddd6fe", color: "#5b21b6", cursor: "pointer", fontWeight: 700, fontSize: "0.8rem" }}
+                            >
+                              🃏 Open Player
+                            </button>
+                          )}
+                          {item.itemType === "HTML_PAGE" && (
+                            <button
+                              onClick={() => openEbook(item)}
+                              style={{ padding: "0.4rem 0.875rem", borderRadius: 8, background: "#dbeafe", border: "1.5px solid #bfdbfe", color: "#1d4ed8", cursor: "pointer", fontWeight: 700, fontSize: "0.8rem" }}
+                            >
+                              📖 Open E-Book
+                            </button>
+                          )}
+                          {!isDone && (
+                            <button
+                              onClick={() => markComplete(item.id)}
+                              style={{ padding: "0.4rem 0.875rem", borderRadius: 9, background: "#fff", border: `1.5px solid ${color}`, color: color, cursor: "pointer", fontWeight: 700, fontSize: "0.8rem" }}
+                            >
+                              Mark Done
+                            </button>
+                          )}
+                        </div>
                         {isDone && (
                           <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#22c55e", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "1.125rem", flexShrink: 0 }}>✓</div>
                         )}
@@ -327,7 +391,7 @@ export default function SubjectLearningPage() {
                       >
                         <div style={{ fontSize: "0.8rem", color: "#94a3b8", fontStyle: "italic" }}>
                           {item.itemType === "VIDEO" && "▶ Video content — opens in player"}
-                          {item.itemType === "HTML_PAGE" && "📄 HTML Material — opens in protected viewer"}
+                          {item.itemType === "HTML_PAGE" && "📖 E-Book — opens in protected viewer"}
                           {item.itemType === "PDF" && "📋 PDF Document — opens in protected PDF viewer"}
                           {item.itemType === "FLASHCARD_DECK" && "🃏 Flashcard Deck — opens in card player"}
                           {item.itemType === "LIVE_CLASS" && "🔴 Live Class — view schedule and join link"}

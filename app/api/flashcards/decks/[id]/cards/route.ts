@@ -64,7 +64,7 @@ export async function GET(
       prisma.flashcardCard.count({ where }),
     ]);
 
-    return NextResponse.json({ items, total, page, pageSize });
+    return NextResponse.json({ deck, items, total, page, pageSize });
   } catch (err) {
     console.error("Flashcard cards GET error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

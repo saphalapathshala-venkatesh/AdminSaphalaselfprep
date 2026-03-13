@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import RichTextEditor from "@/components/ui/RichTextEditor";
 
 interface ContentPage {
   id: string;
@@ -367,7 +368,7 @@ export default function ContentLibraryPage() {
       <h1 style={{ fontSize: "1.25rem", fontWeight: 600, color: "#111", marginBottom: "16px" }}>Content Library</h1>
 
       <div style={{ borderBottom: "1px solid #e5e7eb", marginBottom: "20px" }}>
-        <button style={tabStyle(tab === "html")} onClick={() => setTab("html")}>HTML Pages</button>
+        <button style={tabStyle(tab === "html")} onClick={() => setTab("html")}>E-Books</button>
         <button style={tabStyle(tab === "pdf")} onClick={() => setTab("pdf")}>PDF Library</button>
       </div>
 
@@ -384,7 +385,7 @@ export default function ContentLibraryPage() {
               <option value="false">Draft</option>
             </select>
             <div style={{ flex: 1 }} />
-            <button style={btnPrimary} onClick={() => openPageEditor()}>+ New HTML Page</button>
+            <button style={btnPrimary} onClick={() => openPageEditor()}>+ New E-Book</button>
           </div>
 
           {loadingPages ? (
@@ -501,7 +502,7 @@ export default function ContentLibraryPage() {
       {showPageModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
           <div style={{ background: "#fff", borderRadius: "12px", padding: "24px", width: "700px", maxHeight: "90vh", overflowY: "auto" }}>
-            <h3 style={{ fontSize: "1.1rem", fontWeight: 600, margin: "0 0 16px" }}>{editingPage ? "Edit HTML Page" : "New HTML Page"}</h3>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 600, margin: "0 0 16px" }}>{editingPage ? "Edit E-Book" : "New E-Book"}</h3>
 
             <div style={{ marginBottom: "12px" }}>
               <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151" }}>Title *</label>
@@ -509,25 +510,13 @@ export default function ContentLibraryPage() {
             </div>
 
             <div style={{ marginBottom: "12px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151" }}>Body (HTML) *</label>
-                <button style={{ ...btnSmall, fontSize: "0.7rem" }} onClick={() => setShowPreview(!showPreview)}>
-                  {showPreview ? "Edit" : "Preview"}
-                </button>
-              </div>
-              {showPreview ? (
-                <div
-                  style={{ border: "1px solid #d1d5db", borderRadius: "6px", padding: "12px", minHeight: "200px", fontSize: "0.875rem", background: "#fafafa" }}
-                  dangerouslySetInnerHTML={{ __html: pageForm.body }}
-                />
-              ) : (
-                <textarea
-                  style={{ ...inputStyle, minHeight: "200px", fontFamily: "monospace", fontSize: "0.8rem" }}
-                  value={pageForm.body}
-                  onChange={(e) => setPageForm({ ...pageForm, body: e.target.value })}
-                  placeholder="Enter HTML content..."
-                />
-              )}
+              <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "6px" }}>E-Book Content *</label>
+              <RichTextEditor
+                value={pageForm.body}
+                onChange={(html) => setPageForm({ ...pageForm, body: html })}
+                placeholder="Write your E-Book content here…"
+                minHeight="280px"
+              />
             </div>
 
             <div style={{ marginBottom: "12px" }}>

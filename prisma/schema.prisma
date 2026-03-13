@@ -184,6 +184,10 @@ model User {
   activities       UserActivity[]
   contentConsents  ContentConsent[]
   itemCompletions  UserItemCompletion[]
+  infringementEvents InfringementEvent[]
+  annotations        LearnerAnnotation[]
+  infringementWarnings Int @default(0)
+  infringementBlocked  Boolean @default(false)
   @@index([role])
   @@index([isBlocked])
   @@index([deletedAt])
@@ -1046,4 +1050,68 @@ model UserItemCompletion {
   @@unique([userId, lessonItemId])
   @@index([userId])
   @@index([lessonItemId])
+}
+
+// INFRINGEMENT MONITORING
+// Tracks detectable copy/right-click/selection attempts on protected content.
+// Warnings auto-increment on User; 3rd offense triggers infringementBlocked = true.
+enum InfringementEventType {
+  COPY_ATTEMPT
+  RIGHT_CLICK_ATTEMPT
+  SELECTION_ATTEMPT
+  KEYBOARD_COPY_ATTEMPT
+}
+
+enum InfringementAction {
+  LOGGED
+  WARNING_1
+  WARNING_2
+  AUTO_BLOCKED
+}
+
+model InfringementEvent {
+  id              String               @id @default(cuid())
+  tenantId        String               @default("default")
+  userId          String
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contentType     String
+  contentId       String
+  courseId        String?
+  lessonId        String?
+  eventType       InfringementEventType
+  userAgent       String?
+  ipAddress       String?
+  warningCountAt  Int                  @default(0)
+  actionTaken     InfringementAction   @default(LOGGED)
+  createdAt       DateTime             @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([contentType, contentId])
+}
+
+// LEARNER ANNOTATIONS
+// User-specific highlights/underlines on E-Book and PDF content.
+// rangeData stores serialized DOM range info for reapplication.
+enum AnnotationType {
+  HIGHLIGHT
+  UNDERLINE
+}
+
+model LearnerAnnotation {
+  id           String         @id @default(cuid())
+  tenantId     String         @default("default")
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contentType  String
+  contentId    String
+  annotationType AnnotationType @default(HIGHLIGHT)
+  selectedText String
+  rangeData    Json
+  color        String         @default("#fef9c3")
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([userId, contentType, contentId])
+  @@index([userId])
 }

@@ -59,19 +59,20 @@ export function ContentTypeIcon({ type, size = 36, color }: ContentTypeIconProps
       return (
         <svg width={s} height={s} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect width="36" height="36" rx="8" fill={color || "#0891b2"} fillOpacity="0.12" />
-          <rect x="8" y="7" width="20" height="22" rx="3" fill={color || "#0891b2"} fillOpacity="0.15" stroke={color || "#0891b2"} strokeWidth="1.2" />
+          <rect x="8" y="5" width="15" height="20" rx="2.5" fill={color || "#0891b2"} fillOpacity="0.15" stroke={color || "#0891b2"} strokeWidth="1.2" />
+          <rect x="13" y="7" width="15" height="20" rx="2.5" fill={color || "#0891b2"} fillOpacity="0.25" stroke={color || "#0891b2"} strokeWidth="1.2" />
           <text
-            x="18"
-            y="20"
-            fontSize="5.5"
+            x="20"
+            y="18.5"
+            fontSize="5"
             fontFamily="'Arial', sans-serif"
             fontWeight="900"
             fill={color || "#0891b2"}
             textAnchor="middle"
             dominantBaseline="middle"
-            letterSpacing="0.3"
+            letterSpacing="0.2"
           >
-            HTML
+            E-Bk
           </text>
         </svg>
       );
@@ -115,7 +116,7 @@ export function contentTypeLabel(type: ItemType): string {
     case "VIDEO": return "Video";
     case "LIVE_CLASS": return "Live Class";
     case "PDF": return "PDF";
-    case "HTML_PAGE": return "HTML Material";
+    case "HTML_PAGE": return "E-Book";
     case "FLASHCARD_DECK": return "Flashcard Deck";
     case "TEST": return "Test";
     default: return type;

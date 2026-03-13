@@ -1,0 +1,397 @@
+Work on the existing Saphala Self Prep / Admin codebase carefully.
+
+First rule
+
+Before making any changes, inspect the current implementation and identify what is already completed.
+Do not rebuild, duplicate, or redesign features that are already done and working.
+
+Core instruction
+
+Implement only the pending additions, missing refinements, and incomplete parts from the locked product direction. Preserve all existing locked functionality, existing UI direction, and existing working flows unless a change is absolutely necessary for correctness or one of the new additions below.
+
+Critical constraints
+
+Do not change anything already locked and working
+
+Do not do unnecessary refactors
+
+Do not redesign completed modules
+
+Do not disturb current stable behavior
+
+Do not change schema unless it is truly required
+
+If schema changes are required for the new additions, make them minimal, safe, and aligned with the existing live schema
+
+Before changing schema, verify whether the requirement can be implemented using the current schema
+
+If a schema change is unavoidable, make sure it does not conflict with existing data and does not break current modules
+
+Quality expectation
+
+The final product quality must be premium:
+
+clean
+
+modern
+
+polished
+
+consistent
+
+reusable
+
+production-grade
+
+not a rough prototype
+
+not a temporary patchwork solution
+
+Step 1 — Audit first
+
+First inspect the current codebase and determine which of these are already done fully, partially, or missing:
+
+course structure UI
+
+subject folders/modules
+
+chapter/lesson/item hierarchy
+
+lesson item attachment flow
+
+E-Book rename from HTML
+
+E-Book editor richness
+
+flashcard editor richness
+
+flashcard card types
+
+subject color consistency
+
+product item icons
+
+student frontend lesson/content UI
+
+progress calculation and display
+
+protected content access gate
+
+consent logging
+
+learner activity tracking
+
+anti-copy deterrents
+
+detectable infringement monitoring
+
+warning/block logic
+
+admin infringement dashboard card/page
+
+E-Book/PDF learner annotations
+
+Only implement what is still missing or incomplete.
+
+Step 2 — Preserve locked product direction
+
+Preserve the already locked product direction, including:
+
+Category → Subject → Chapter → Lesson → Content item structure
+
+premium course UI with subject folders/modules
+
+left sidebar learning navigator
+
+reusable content item mapping
+
+E-Book naming in UI
+
+flashcard one-card-at-a-time design
+
+subject-color consistency across folders and flashcards
+
+premium icon language
+
+protected content gate
+
+premium overall UI direction
+
+Do not undo or weaken any locked direction.
+
+Step 3 — Focus only on pending additions and incomplete items
+
+Implement only the still-pending or incomplete parts from the following requirements.
+
+A. E-Book editor refinement
+
+If the current E-Book/page editor is still basic, upgrade it to include missing premium authoring features such as:
+
+bold
+
+italic
+
+underline
+
+text color
+
+highlight
+
+bullets
+
+numbered list
+
+headings
+
+note/info/warning blocks
+
+table insertion
+
+image insertion/upload
+
+divider
+
+preview
+
+If some of these are already done, add only the missing ones.
+
+B. Flashcard rich editor
+
+If flashcard creation/editing still lacks rich authoring, add the same premium editor capability to relevant flashcard content fields.
+
+This applies to:
+
+title card content
+
+info card content
+
+explanation fields
+
+example blocks
+
+comparison/table content
+
+other card types where formatted content is needed
+
+Do not replace working flows unnecessarily; extend them cleanly.
+
+C. Course content structure refinements
+
+If not already fully done, complete the premium course builder and student learning structure:
+
+subject modules/folders inside course
+
+chapter creation inside subject
+
+lesson creation inside chapter
+
+item attachment inside lesson
+
+add/edit/reorder/remove flows
+
+reusable item attachment from library
+
+premium student-facing subject/chapter/lesson experience
+
+Do not disturb already working builder logic if present.
+
+D. Product icon refinements
+
+If not already implemented exactly:
+
+E-Book icon should clearly show capital letters
+
+PDF icon should clearly show capital letters
+
+Flashcard icon should visually show 5 neatly visible cards
+
+If icon system already exists, update only the missing icons/refinements without redesigning the whole icon system.
+
+E. Student-side annotations
+
+If not already completed, add missing learner annotation functionality:
+
+For E-Books
+
+highlight text
+
+underline text
+
+save annotations
+
+persist across revisits
+
+undo/remove later
+
+user-specific only
+
+For PDFs
+
+highlight
+
+underline
+
+save/reload/remove
+
+user-specific only
+
+Use minimal safe schema change only if truly required.
+
+F. Protected content access gate refinements
+
+If the gate is not already fully implemented, complete it for:
+
+E-Books
+
+Flashcard decks
+
+protected PDFs
+
+Make sure:
+
+access consent is recorded
+
+content is not fully exposed before acceptance
+
+wording aligns with the locked protection direction
+
+G. Detectable infringement monitoring
+
+If not already done, implement the missing parts of detectable infringement monitoring for protected content surfaces, especially:
+
+blocked copy attempts
+
+blocked right-click attempts
+
+blocked selection/copy attempts where protection is active
+
+Track only realistically detectable actions.
+
+H. Warning and auto-block logic
+
+If not already present, implement:
+
+warning 1 on first detected offense
+
+warning 2 on second detected offense
+
+auto-block/suspend on third detected detectable offense
+
+blocked message with admin contact details
+
+admin unblock/reset capability
+
+preserve audit history
+
+Do not over-engineer. Keep it fair and grounded in detectable events only.
+
+I. Admin dashboard and review visibility
+
+If not already done, add only the missing pieces:
+
+infringement dashboard card/widget
+
+admin review table/page
+
+learner details
+
+device/login/session details where already available
+
+warning level
+
+blocked/unblocked state
+
+filters
+
+J. Progress rollup correctness
+
+Verify and complete progress rollup so it works correctly when:
+
+items are added
+
+items are removed
+
+learner completes items
+
+totals change later
+
+Ensure counts and percentages remain accurate at:
+
+lesson level
+
+chapter level
+
+subject level
+
+course level
+
+Fix only incomplete or incorrect parts.
+
+Step 4 — Schema safety requirement
+
+Very important:
+
+Before making any schema change:
+
+inspect the existing schema carefully
+
+check whether the new feature can be implemented with the current schema
+
+make schema changes only if absolutely required
+
+keep schema additions minimal and clean
+
+ensure no conflict with current live data and locked architecture
+
+do not rename or break existing fields/tables unless absolutely unavoidable
+
+If new tables/fields are required for features such as:
+
+learner annotations
+
+consent logs
+
+infringement events
+
+warning counters
+then implement them in the safest minimal way possible.
+
+Do not make speculative schema redesigns.
+
+Step 5 — Preserve existing quality and upgrade only missing parts
+
+The app should feel like one unified premium product.
+
+While implementing pending pieces:
+
+preserve existing brand direction
+
+preserve existing purple primary/admin branding where already used
+
+preserve existing subject color system
+
+preserve existing working page flows
+
+improve polish where necessary, but do not introduce inconsistency
+
+Step 6 — Final output expectation
+
+At the end of this work:
+
+only missing/incomplete tasks should be added
+
+already completed features should remain intact
+
+schema should remain safe and clean
+
+product quality should feel premium
+
+no locked decision should be broken
+
+no unnecessary rebuild should be done
+
+If a part is already implemented well, leave it as is.
+
+If a part is partially implemented, complete it rather than replacing it.
+
+If a schema change is required, make the smallest correct change.
