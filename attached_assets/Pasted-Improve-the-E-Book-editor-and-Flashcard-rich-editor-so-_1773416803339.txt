@@ -1,0 +1,265 @@
+Improve the E-Book editor and Flashcard rich editor so they feel premium, fast, and flexible for educational content creation. Preserve all existing functionality and locked design decisions. Only improve editor UX and extend capabilities where required.
+
+1. Fix placeholder behavior in rich editor blocks
+
+Currently the editor inserts default text like:
+
+"Tip: Write your note here"
+
+This must not behave as real stored text.
+
+Instead implement placeholder-style behavior.
+
+Correct behavior
+
+When admin inserts a block such as:
+
+Tip
+
+Note
+
+Warn
+
+the editor should:
+
+create an empty styled block
+
+show placeholder guidance text visually only
+
+not store placeholder text in the actual content
+
+allow typing immediately without needing to delete default text
+
+allow easy deletion of the entire block if empty
+
+Backspace behavior
+
+If a block is empty:
+
+pressing backspace/delete should remove the entire block
+
+not delete characters one-by-one
+
+Typing/editing must feel smooth and responsive.
+
+Apply this to:
+
+E-Book editor
+
+Flashcard editor
+
+2. Flexible Custom Box / Callout System
+
+The editor must support custom content boxes, not just fixed blocks like Tip / Note / Warn.
+
+Add a "Box / Callout" tool in the editor toolbar.
+
+This tool should allow admin to create structured highlight boxes with custom titles.
+
+Box structure
+
+Each box should include:
+
+[ Box Header Title ]
+--------------------------------
+Box Content
+--------------------------------
+
+Example boxes:
+
+IMPORTANT
+Remember this point for exams.
+CONCEPT
+Fundamental Rights are enforceable in courts.
+EXAM FOCUS
+Article 32 is called the Heart and Soul of the Constitution.
+FORMULA
+Speed = Distance / Time
+Box configuration
+
+When inserting a box, admin should be able to configure:
+
+Box title (editable)
+
+Box color/theme
+
+Optional icon
+
+Body content using rich editor
+
+Title must be editable, not fixed.
+
+Default box templates
+
+Provide several preset styles such as:
+
+Tip
+
+Important
+
+Remember
+
+Example
+
+Concept
+
+Definition
+
+Warning
+
+Exam Focus
+
+Formula
+
+Case Study
+
+But allow custom title entry as well.
+
+Box styling
+
+Boxes should have:
+
+colored accent border or header
+
+icon support
+
+clear spacing
+
+rounded edges
+
+visually clean look
+
+consistent styling with Saphala UI theme
+
+Example structure:
+
+🟡 EXAM FOCUS
+---------------------------
+Directive Principles are non-justiciable.
+3. Apply custom boxes to both editors
+
+This feature must work in both:
+
+E-Book editor
+
+Used for structured notes and learning materials.
+
+Flashcard editor
+
+Used for:
+
+Info cards
+
+Quiz explanations
+
+Comparison cards
+
+Example blocks
+
+Additional explanation sections
+
+Boxes should render correctly in both admin preview and student view.
+
+4. Editor performance improvements
+
+Ensure the rich editors feel fast and responsive.
+
+Improve:
+
+typing responsiveness
+
+toolbar actions
+
+inserting blocks
+
+deleting blocks
+
+preview rendering
+
+save operations
+
+Avoid slow behavior caused by:
+
+unnecessary full editor re-renders
+
+blocking operations during typing
+
+inefficient state updates
+
+5. Admin performance improvements
+
+Improve speed for the following admin interactions:
+
+login
+
+redirect after login
+
+page navigation
+
+opening editor modals
+
+saving content
+
+flashcard creation
+
+content library browsing
+
+Ensure the system avoids unnecessary reloads and heavy blocking operations.
+
+6. Student frontend performance improvements
+
+Ensure fast loading for:
+
+course dashboard
+
+subject folders
+
+chapter navigation
+
+lesson opening
+
+E-Book reading
+
+flashcard decks
+
+PDFs
+
+progress updates
+
+Navigation should feel smooth and responsive.
+
+7. Content integrity
+
+Ensure:
+
+placeholder text is not saved as content
+
+empty blocks are not stored unnecessarily
+
+custom boxes store only:
+
+title
+
+type/style
+
+body content
+
+Maintain compatibility with existing saved content.
+
+8. Final expectation
+
+After these changes the editors should:
+
+feel smooth and responsive
+
+allow fast writing and editing
+
+support flexible structured learning content
+
+support custom highlight boxes
+
+avoid annoying deletion behavior
+
+produce clean structured content for both E-Books and Flashcards
+
+The overall editing experience should feel professional and premium, suitable for building high-quality exam preparation material.
