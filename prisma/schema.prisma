@@ -183,6 +183,7 @@ model User {
   devices          UserDevice[]
   activities       UserActivity[]
   contentConsents  ContentConsent[]
+  itemCompletions  UserItemCompletion[]
   @@index([role])
   @@index([isBlocked])
   @@index([deletedAt])
@@ -811,6 +812,12 @@ enum CourseItemType {
   LIVE_CLASS
   PDF
   FLASHCARD_DECK
+  HTML_PAGE
+}
+
+enum LessonStatus {
+  DRAFT
+  PUBLISHED
 }
 
 model CourseFolder {
@@ -935,6 +942,13 @@ enum ActivityType {
   USER_SOFT_DELETED
   USER_RESTORED
   SESSION_REVOKED
+  CONTENT_OPENED
+  TERMS_ACCEPTED
+  TERMS_DECLINED
+  CONTENT_COMPLETED
+  DECK_OPENED
+  DECK_COMPLETED
+  CARD_VIEWED
 }
 
 model UserActivity {
@@ -950,4 +964,86 @@ model UserActivity {
   @@index([userId])
   @@index([userId, activityType])
   @@index([createdAt])
+}
+
+// COURSE CURRICULUM STRUCTURE
+// Subject Section → Chapter → Lesson → LessonItem
+// Each level is semantically distinct and named for clarity.
+
+model CourseSubjectSection {
+  id          String   @id @default(cuid())
+  tenantId    String   @default("default")
+  courseId    String
+  subjectId   String
+  label       String?
+  subtitle    String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  chapters    Chapter[]
+
+  @@unique([courseId, subjectId])
+  @@index([courseId, sortOrder])
+}
+
+model Chapter {
+  id          String               @id @default(cuid())
+  tenantId    String               @default("default")
+  sectionId   String
+  section     CourseSubjectSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  sortOrder   Int                  @default(0)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  lessons     Lesson[]
+
+  @@index([sectionId, sortOrder])
+}
+
+model Lesson {
+  id          String       @id @default(cuid())
+  tenantId    String       @default("default")
+  chapterId   String
+  chapter     Chapter      @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  status      LessonStatus @default(PUBLISHED)
+  sortOrder   Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  items       LessonItem[]
+
+  @@index([chapterId, sortOrder])
+}
+
+model LessonItem {
+  id            String         @id @default(cuid())
+  tenantId      String         @default("default")
+  lessonId      String
+  lesson        Lesson         @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  itemType      CourseItemType
+  sourceId      String
+  titleSnapshot String?
+  sortOrder     Int            @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  completions   UserItemCompletion[]
+
+  @@unique([lessonId, itemType, sourceId])
+  @@index([lessonId, sortOrder])
+}
+
+model UserItemCompletion {
+  id           String     @id @default(cuid())
+  tenantId     String     @default("default")
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonItemId String
+  lessonItem   LessonItem @relation(fields: [lessonItemId], references: [id], onDelete: Cascade)
+  completedAt  DateTime   @default(now())
+
+  @@unique([userId, lessonItemId])
+  @@index([userId])
+  @@index([lessonItemId])
 }

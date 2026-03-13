@@ -1,0 +1,857 @@
+Build the next production-grade phase of the Saphala Self Prep / Admin system for course structure, content mapping, premium learning UI, progress tracking, and protected content access, using the existing stack and current live schema as safely as possible. Follow the already locked architecture direction: do not make unnecessary schema changes or disruptive refactors. Keep DB changes minimal and only add what is truly required.
+
+Core goal
+
+Implement a structured course builder and student learning experience where a course is organized as:
+
+Category → Subject → Chapter → Lesson → Content Items
+
+This must work for these content types:
+
+Video
+
+HTML Material
+
+PDF Material
+
+Flashcard Deck
+
+The result must feel modern, premium, clean, and unique, not like a generic file manager or dull admin tree.
+
+1) Course creation structure
+
+Update course creation/editing so that every course must first be assigned to a Category.
+
+Once a category is selected, the course should support this internal learning structure:
+
+Category
+
+Subject sections / subject folders
+
+Chapters
+
+Lessons
+
+Content items
+
+Important:
+
+Subject is the first visible grouping under a course
+
+Subject UI should look like a premium learning module card/folder, not a standard computer folder icon
+
+Chapters and lessons should be clearly nested and easy to navigate
+
+Lessons are the actual content layer
+
+Subject and chapter are structural headers/grouping layers
+
+Actual study items live inside lessons
+
+2) Product-type-aware course structure
+
+During course creation, the admin already selects product types such as:
+
+HTML Course
+
+Video Course
+
+PDF Course
+
+Flashcard support
+
+Test Series, etc.
+
+Use those selected product types to control what item types can be added inside lessons.
+
+Example:
+If a course is configured with:
+
+Video
+
+HTML
+
+PDF
+
+Flashcards
+
+then inside lessons, admin should be able to add:
+
+video items
+
+HTML material items
+
+PDF material items
+
+flashcard decks
+
+If a product type is not enabled for that course, do not show that item type in the lesson item picker unless course config is later updated.
+
+3) Course overview UI — subject folders
+
+At the course level, subjects should be displayed as clean module cards / subject folders, not traditional folder icons.
+
+Each subject folder card should include:
+
+subject icon
+
+subject color accent
+
+subject title
+
+optional short subtitle/descriptor
+
+completed item count (example: 10 / 250 items completed)
+
+progress percentage
+
+progress bar
+
+click/open behavior
+
+Visual direction
+
+These subject cards must feel premium:
+
+rounded corners
+
+subtle shadow
+
+subject-color accent strip or border
+
+soft hover/active states
+
+clean spacing
+
+strong readability
+
+no Windows/macOS-style folder visuals
+
+Use a polished card-based learning UI.
+
+4) Subject-inside-course layout
+
+When the learner opens a subject, use a split layout:
+
+Left sidebar = chapter and lesson navigation
+
+Right content area = current lesson details and content items
+
+This must work beautifully on the web and degrade responsively on smaller screens.
+
+5) Left sidebar learning navigator
+
+The left sidebar must feel like a learning navigator, not a raw nested file tree.
+
+Inside a subject:
+
+show subject title at top
+
+show subject progress summary (e.g. 18 / 52 completed)
+
+show chapters as clean accordion sections
+
+show lessons as elegant rows under expanded chapters
+
+active lesson should be visibly highlighted
+
+completed lessons should show green tick/completed state
+
+incomplete lessons should show neutral state
+
+chapter progress should be visible in a subtle way
+
+Example feel:
+
+modern accordion navigation
+
+lesson list with checkmarks/status indicators
+
+active lesson pill/card highlight
+
+no clunky nested border tree UI
+
+6) Chapter structure
+
+Inside each subject, admin must be able to create multiple chapters.
+
+Each chapter should support:
+
+chapter title
+
+optional short description
+
+manual ordering
+
+expand/collapse
+
+item completion summary
+
+Example:
+
+Chapter 1: Fundamental Rights
+
+2 / 10 items completed
+
+Chapters are organizational, not the final content unit.
+
+7) Lesson structure
+
+Inside each chapter, admin must be able to create multiple lessons.
+
+Lessons are the actual content layer.
+
+Each lesson should support:
+
+lesson title
+
+optional short description
+
+manual ordering
+
+published/draft status if needed
+
+content item count
+
+progress tracking based on underlying items
+
+Inside each lesson, admin can add the actual content items.
+
+8) Content items inside lesson
+
+Inside a lesson, admin should be able to add content items depending on selected product types for the course.
+
+Supported item types now:
+
+Video
+
+HTML Material
+
+PDF Material
+
+Flashcard Deck
+
+Architecture should remain extensible.
+
+Lesson item capabilities
+
+Each lesson should allow:
+
+add existing item from library
+
+create new item where appropriate
+
+reorder items manually
+
+edit attached item
+
+remove item from lesson without deleting the underlying library item
+
+9) Library item architecture
+
+Follow this rule across the system:
+
+Every learning item must first belong to taxonomy, then may optionally be attached to one or more courses/lessons.
+
+This should apply to:
+
+Video
+
+HTML Material
+
+PDF Material
+
+Flashcard Deck
+
+Each library item should support:
+
+Category (required)
+
+Subject (required)
+
+Topic (optional/recommended)
+
+Subtopic (optional/recommended)
+
+title
+
+description where relevant
+
+content-specific fields
+
+edit option
+
+publish/unpublish where relevant
+
+Then that item can be attached to lesson(s) inside course(s).
+
+Removing from a lesson must not delete the underlying content item.
+
+10) Flashcard deck mapping rules
+
+Before creating a flashcard deck, require mapping to:
+
+Category
+
+Subject
+
+Also support:
+
+Topic
+
+Subtopic
+
+title card template
+
+title card image
+
+attached courses / attached lessons later
+
+Flashcard decks should be reusable and attachable to lessons the same way as other content items.
+
+11) Item edit options
+
+Every content item type must have edit capability.
+
+For:
+
+Video
+
+HTML Material
+
+PDF Material
+
+Flashcard Deck
+
+support edit flows/pages for:
+
+metadata
+
+taxonomy mapping
+
+course/lesson attachment
+
+publish status
+
+display order where relevant
+
+For flashcard decks specifically:
+
+edit deck metadata
+
+edit title card
+
+edit card list
+
+reorder cards
+
+preview deck
+
+12) Product-type icons
+
+Use a dedicated, consistent icon system for each content type.
+
+If good icons already exist, reuse them. Otherwise create/update them.
+
+Minimum icon mappings
+
+Video
+
+HTML Material
+
+PDF Material
+
+Flashcard Deck
+
+Test Series (where relevant)
+
+LIVE Class (where relevant)
+
+Special icon requirements
+
+HTML icon should clearly engrave/show capital letters: HTML
+
+PDF icon should clearly engrave/show capital letters: PDF
+
+Flashcard Deck icon should visually show 5 neatly visible cards
+
+Icons must be modern, clean, clearly distinguishable, and consistent across admin and student UI
+
+13) Flashcard subject color consistency
+
+Maintain strict subject-color consistency across all product surfaces.
+
+The same subject color used in subject folders must also be used in:
+
+flashcard decks
+
+flashcard headers
+
+flashcard title card accents
+
+lesson highlights
+
+progress bars
+
+relevant content item UI
+
+subject-level navigator accents
+
+A learner should experience one unified visual language.
+
+Locked subject colors
+
+Polity — #8050C0
+
+History — #8B5E3C
+
+Geography — #2E8B57
+
+Economy — #2563EB
+
+Environment & Ecology — #0F766E
+
+General Science — #10B981
+
+Science & Technology — #0891B2
+
+Current Affairs — #F97316
+
+Reasoning — #4F46E5
+
+Quant — #1D4ED8
+
+English — #7C2D12
+
+Important distinctions:
+
+General Science = Biology, Physics, Chemistry
+
+Science & Technology = technology/current developments only
+
+Environment & Ecology = separate deep teal
+
+14) Progress tracking and completion
+
+When a learner completes an item, that item must be marked completed visually and the system must roll progress upward automatically.
+
+Completion rollup
+
+Item completed
+→ lesson progress updates
+→ chapter progress updates
+→ subject progress updates
+→ course progress updates
+
+Examples
+
+At subject level:
+
+10 / 250 items completed
+
+At chapter level:
+
+Chapter 1 — 2 / 10 items completed
+
+At course level:
+
+overall progress percentage
+
+If more items are added later, counts and percentages must recalculate dynamically and correctly.
+
+No stale hardcoded progress.
+
+15) Completion display in student UI
+
+In the student-facing course view, show progress clearly at multiple levels.
+
+Recommended:
+
+overall course progress %
+
+subject-level summary
+
+chapter-level summary
+
+lesson item completion states
+
+Each completed item should visually appear completed using:
+
+green check
+
+green badge/accent
+
+completed label where helpful
+
+Keep it premium and uncluttered.
+
+16) Completion rules by item type
+
+Implement practical completion logic for now.
+
+Video
+
+Completed based on existing/defined watched threshold or explicit completion signal
+
+HTML Material
+
+Completed based on existing/defined completion rule (end reached or mark complete)
+
+PDF Material
+
+Completed based on defined viewer completion rule (pages viewed or mark complete)
+
+Flashcard Deck
+
+Completed when learner completes the deck/session based on deck completion logic
+
+Keep implementation practical and honest.
+
+17) Admin course builder actions
+
+Admin must be able to:
+
+Course level
+
+create/edit course
+
+assign category
+
+choose product types
+
+manage subject structure
+
+Subject level
+
+add subject section
+
+reorder subject sections
+
+edit subject display label if needed
+
+Chapter level
+
+add/edit/delete/reorder chapters
+
+Lesson level
+
+add/edit/delete/reorder lessons
+
+Lesson item level
+
+add existing content item
+
+create new content item where needed
+
+reorder items
+
+edit item
+
+remove from lesson
+
+Removing from lesson must not delete the master library item.
+
+18) Item attachment UX
+
+Inside lessons, support adding items cleanly.
+
+Preferred flow:
+
+click Add Item
+
+choose type:
+
+Video
+
+HTML Material
+
+PDF Material
+
+Flashcard Deck
+
+then either:
+
+select existing item from library filtered by category/subject
+
+or create new item
+
+Filter intelligently based on:
+
+course category
+
+lesson subject
+
+lesson/chapter context where relevant
+
+19) Taxonomy consistency
+
+Keep taxonomy consistent across the system.
+
+At minimum:
+
+Category required
+
+Subject required
+
+Also support:
+
+Topic
+
+Subtopic
+
+Where topic/subtopic are set, relationships should remain consistent with the existing taxonomy hierarchy rules.
+
+Avoid mismatched mappings.
+
+20) Reuse and combo readiness
+
+Design this architecture so it supports future combo-package and reusable-course logic cleanly.
+
+Meaning:
+
+content items are reusable
+
+the same item can appear in more than one course/lesson if allowed
+
+placement/order inside each course/lesson is separate from the master library item
+
+course structure remains compatible with later package/combo building
+
+21) Protected Content Access Gate
+
+Implement a reusable Protected Content Access Gate before opening any protected:
+
+HTML material
+
+Flashcard deck
+
+protected PDF
+
+This must not be just a frontend popup. It should be backend-recorded and meaningful.
+
+Modal/dialog content
+
+Use wording close to:
+
+Protected Content Notice
+This content belongs to Saphala Pathshala and is provided only for your personal learning use.
+Copying, sharing, recording, downloading, redistributing, or publishing this content without permission is prohibited.
+All your activities inside Saphala may be monitored for security and content protection purposes. If misuse or redistribution is detected, your account may be suspended or blocked as per platform policy.
+
+Checkbox:
+
+I have read and agree to the Terms & Conditions
+
+Buttons:
+
+Accept and Continue
+
+Cancel
+
+User must explicitly accept before content loads.
+
+Important:
+
+do not preload full HTML material before acceptance
+
+do not fetch full flashcard deck before acceptance
+
+do not open/generate protected PDF URL before acceptance
+
+22) Consent logging
+
+Log protected content consent events at backend level.
+
+For each accepted/declined access attempt, record at least:
+
+user id
+
+content type (html_material, flashcard_deck, pdf_material)
+
+content id
+
+accepted/declined
+
+timestamp
+
+terms version
+
+session/device/user-agent details if already available
+
+Use a simple version such as:
+
+content_protection_terms_v1
+
+Add only minimal schema support required.
+
+23) Learner activity tracking
+
+Extend learner activity tracking for protected content usage.
+
+At minimum, log:
+
+content opened
+
+terms accepted
+
+time spent
+
+session end / exit
+
+Flashcards
+
+Also track:
+
+deck opened
+
+card viewed
+
+flip action
+
+answer submitted
+
+deck completed / exited
+
+HTML materials
+
+Also track where practical:
+
+sections visited
+
+scroll depth / completion
+
+PDFs
+
+Also track where practical:
+
+pages viewed
+
+total duration
+
+Keep it lightweight but structured.
+
+24) Casual anti-copy deterrence
+
+Implement reasonable deterrents on protected views, especially for:
+
+HTML materials
+
+flashcards
+
+protected PDF viewers
+
+test-like question content where applicable
+
+Add deterrents such as:
+
+disable easy text selection in protected content areas where reasonable
+
+block right-click/context menu on protected areas
+
+block common copy shortcuts on protected content where reasonable
+
+This is only a deterrent, not perfect security.
+
+25) Watermark-ready protected layout
+
+Make protected content views watermark-ready.
+
+Prefer architecture that can support subtle watermark overlays with user/session binding later.
+
+If easy, include a subtle watermark now on protected screens such as:
+
+Saphala Pathshala
+
+protected content marker
+
+masked user identifier if feasible
+
+Do this without cluttering the UI.
+
+26) Premium UI requirements
+
+Build the course structure UI with a modern, premium, and unique learning-navigation design.
+
+Avoid:
+
+default OS folder/file-manager look
+
+ugly nested borders
+
+cramped tree UI
+
+repeated dull icons
+
+overly technical admin-only styling
+
+Prefer:
+
+card-based subject containers
+
+elegant accordion navigation
+
+clean split layout
+
+subtle shadows
+
+rounded corners
+
+strong spacing
+
+visible progress
+
+beautiful active/completed states
+
+subject-color accents
+
+polished product-item rows/cards
+
+The end result should feel close to a premium EdTech product, not a generic admin CMS.
+
+27) Deliverables expected
+
+At the end, the system should support:
+
+course creation with category assignment
+
+subject folders/modules inside a course
+
+chapter creation inside subject
+
+lesson creation inside chapter
+
+lesson-level item attachment
+
+product-type-aware item addition based on selected course product types
+
+reusable library item model for Video / HTML / PDF / Flashcard Deck
+
+edit options for each content item
+
+manual ordering at subject/chapter/lesson/item levels
+
+visible progress summaries like:
+
+subject: 10 / 250 items completed
+
+chapter: 2 / 10 items completed
+
+dynamic course progress calculation
+
+completed item visual state in green
+
+product icons including HTML/PDF engraved letters and 5-card flashcard icon
+
+strict subject color consistency across folders and flashcards
+
+protected content modal for flashcards, HTML materials, and PDFs
+
+consent logging
+
+learner activity tracking foundation
+
+anti-casual-copy deterrents
+
+clean modern UI for both admin builder and student learning flow
+
+Use the existing system carefully and extend it cleanly.

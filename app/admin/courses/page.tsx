@@ -464,7 +464,8 @@ export default function CoursesPage() {
                     {course.courseType === "PACKAGE" ? (
                       <Link href={`/admin/courses/${course.id}/package`} style={{ padding: "0.25rem 0.75rem", borderRadius: "5px", border: "1px solid #92400e", color: "#92400e", background: "#fefce8", textDecoration: "none", fontSize: "0.8125rem", fontWeight: 700, whiteSpace: "nowrap" }}>📦 Package</Link>
                     ) : (
-                      <Link href={`/admin/courses/${course.id}/content`} style={{ padding: "0.25rem 0.75rem", borderRadius: "5px", border: "1px solid #0369a1", color: "#0369a1", background: "#f0f9ff", textDecoration: "none", fontSize: "0.8125rem", fontWeight: 700, whiteSpace: "nowrap" }}>📂 Content</Link>
+                      <><Link href={`/admin/courses/${course.id}/content`} style={{ padding: "0.25rem 0.75rem", borderRadius: "5px", border: "1px solid #0369a1", color: "#0369a1", background: "#f0f9ff", textDecoration: "none", fontSize: "0.8125rem", fontWeight: 700, whiteSpace: "nowrap" }}>📂 Content</Link>
+                      <Link href={`/admin/courses/${course.id}/curriculum`} style={{ padding: "0.25rem 0.75rem", borderRadius: "5px", border: "1px solid #7c3aed", color: "#7c3aed", background: "#f5f3ff", textDecoration: "none", fontSize: "0.8125rem", fontWeight: 700, whiteSpace: "nowrap" }}>📚 Curriculum</Link></>
                     )}
                     <button onClick={() => openEdit(course)} style={{ padding: "0.25rem 0.75rem", borderRadius: "5px", border: `1px solid ${PURPLE}`, color: PURPLE, background: "#fff", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 }}>Edit</button>
                     <button onClick={() => setConfirmDeleteId(course.id)} style={{ padding: "0.25rem 0.625rem", borderRadius: "5px", border: "1px solid #fca5a5", color: "#dc2626", background: "#fff", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 }}>Del</button>
