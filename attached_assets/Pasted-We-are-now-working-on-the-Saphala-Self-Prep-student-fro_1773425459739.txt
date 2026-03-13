@@ -1,0 +1,220 @@
+We are now working on the Saphala Self Prep student frontend app. Before making homepage and frontend feature changes, I want you to first perform a full alignment audit so that schema, API wiring, admin data, and frontend behavior all stay consistent.
+
+Do not jump straight into coding.
+First inspect the current implementation carefully and then respond with a structured audit.
+
+Core objective
+
+Ensure that:
+
+frontend categories and homepage sections are fully backed by admin/backend truth
+
+schema and API wiring are safe
+
+no frontend feature is designed in a way that conflicts with existing admin architecture
+
+future changes remain scalable and do not require hardcoding
+
+Important locked context
+
+Please respect these locked meanings and decisions:
+
+1. Existing admin meaning
+
+Category already means exam category
+
+Example exam categories: AP Police, APPSC Group 2, APPSC Group 1, SSC, Banking, etc.
+
+Do not change this meaning
+
+2. Student frontend product buckets
+
+For the student frontend, we have locked these 8 product categories / learning buckets:
+
+Free (Demo) Courses and Tests
+
+Complete Prep Packs
+
+Video Only Courses
+
+Self Prep Courses
+
+PDF Courses
+
+Test Series
+
+Flash Cards
+
+Current Affairs
+
+3. Product category mapping decision
+
+This new frontend placement/categorying is decided at the course page / student-facing course level, not at every internal product/content type separately.
+
+So please evaluate whether the current system supports or can safely support:
+
+existing exam category mapping
+
+student-facing product category mapping at course/page level
+
+frontend listing by both exam category and product category
+
+4. Homepage direction
+
+We are redesigning homepage with:
+
+hero slider banners
+
+exam category cards section
+
+learning/product category discovery
+
+featured offerings
+
+free/demo content
+
+footer with important links
+
+5. Visibility and access rule
+
+Guest users should be able to:
+
+browse homepage
+
+browse exam categories
+
+browse product categories
+
+see descriptions
+
+see pricing
+
+see benefits/highlights
+
+But to actually access any course/test/video/pdf/flashcard content, student must login.
+
+So inspect whether this behavior is already supported or what is needed.
+
+What I want you to inspect
+
+Please inspect the current codebase and report on these areas:
+
+A. Schema / model alignment
+
+Check whether the current schema/models support:
+
+exam categories
+
+course/page-level categorization
+
+pricing fields (MRP, discounted price, free/paid)
+
+thumbnails/images
+
+descriptions
+
+published/visible status
+
+guest-visible vs login-required behavior
+
+any field that can support student-facing product category placement
+
+If student-facing product category is not yet implemented, clearly say where it should be added safely.
+
+B. API / data wiring alignment
+
+Check whether current APIs/routes already support or can safely support:
+
+fetching homepage categories dynamically from admin/backend
+
+fetching courses/products by exam category
+
+fetching courses/products by student-facing product category
+
+combining exam category + product category filters
+
+guest browsing of descriptions/pricing without actual access
+
+login-gated content access
+
+C. Admin/frontend consistency risks
+
+Identify anything that could make frontend inconsistent with admin, such as:
+
+hardcoded category cards
+
+missing category visibility flags
+
+no published filter
+
+no reliable way to place a course in a frontend bucket
+
+missing fields needed for pricing/benefits/thumbnails
+
+ambiguous or duplicated category logic
+
+D. Homepage auto-reflection requirement
+
+I want homepage Section 1 (exam category cards) to automatically reflect admin changes.
+
+So please inspect whether:
+
+exam categories are already admin-driven
+
+frontend can fetch them dynamically
+
+a new exam category added in admin can appear automatically on homepage
+
+any active/published/visible guard is needed
+
+E. Banner and product-discovery readiness
+
+We will redesign hero banners with clear benefit-based messaging for major product types:
+
+Saphala Pathshala
+
+Self Prep / E-Books
+
+Video Learning
+
+Flash Cards
+
+Tests
+
+Check whether homepage/product pages already have or need fields for:
+
+benefits/highlights
+
+short explanation
+
+product description
+
+pricing
+
+thumbnail
+
+F. Footer/support link readiness
+
+Homepage footer will contain important links such as:
+
+Home
+
+Exams
+
+Product category pages
+
+Login / Sign Up
+
+Contact / Support
+
+FAQ
+
+Privacy Policy
+
+Terms
+
+Refund Policy
+
+social/community links
+
+Check whether any routes/pages are missing or inconsistent.
