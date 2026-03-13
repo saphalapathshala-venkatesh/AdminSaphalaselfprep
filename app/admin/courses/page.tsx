@@ -34,7 +34,7 @@ type CourseType = "STANDARD" | "PACKAGE";
 
 type Course = ProductTypes & {
   id: string; name: string; description: string | null;
-  courseType: CourseType; isActive: boolean; createdAt: string;
+  courseType: CourseType; isActive: boolean; featured: boolean; createdAt: string;
   thumbnailUrl?: string | null;
   productCategory?: string | null;
   xpRedemptionEnabled?: boolean;
@@ -45,7 +45,7 @@ type Course = ProductTypes & {
 type FormData = {
   name: string; description: string; courseType: CourseType;
   productCategory: string;
-  isActive: boolean; thumbnailUrl: string;
+  isActive: boolean; featured: boolean; thumbnailUrl: string;
   xpRedemptionEnabled: boolean;
   xpRedemptionMaxPercent: number;
 } & ProductTypes;
@@ -61,7 +61,7 @@ const TYPE_CONFIG = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const defaultForm = (): FormData => ({
-  name: "", description: "", courseType: "STANDARD", productCategory: "", isActive: true, thumbnailUrl: "",
+  name: "", description: "", courseType: "STANDARD", productCategory: "", isActive: true, featured: false, thumbnailUrl: "",
   hasHtmlCourse: false, hasVideoCourse: false, hasPdfCourse: false, hasTestSeries: false, hasFlashcardDecks: false,
   xpRedemptionEnabled: false, xpRedemptionMaxPercent: 1,
 });
@@ -71,6 +71,7 @@ function courseToForm(c: Course): FormData {
     name: c.name, description: c.description || "", courseType: c.courseType || "STANDARD",
     productCategory: c.productCategory || "",
     isActive: c.isActive,
+    featured: c.featured ?? false,
     thumbnailUrl: c.thumbnailUrl || "",
     hasHtmlCourse: c.hasHtmlCourse, hasVideoCourse: c.hasVideoCourse,
     hasPdfCourse: c.hasPdfCourse, hasTestSeries: c.hasTestSeries,
@@ -218,10 +219,15 @@ function CourseForm({ form, onChange, error, isEdit }: {
         </div>
       </div>
 
-      <div>
+      <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
         <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
           <input type="checkbox" checked={form.isActive} onChange={e => set({ isActive: e.target.checked })} style={{ width: 16, height: 16, accentColor: PURPLE }} />
           <span style={{ fontSize: "0.875rem", fontWeight: 500, color: "#374151" }}>Active (visible in dropdowns)</span>
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", padding: "0.25rem 0.75rem", borderRadius: "8px", background: form.featured ? "#fefce8" : "#f8fafc", border: `2px solid ${form.featured ? "#d97706" : "#e2e8f0"}`, transition: "border-color 0.15s, background 0.15s" }}>
+          <input type="checkbox" checked={form.featured} onChange={e => set({ featured: e.target.checked })} style={{ width: 16, height: 16, accentColor: "#d97706" }} />
+          <span style={{ fontSize: "0.875rem", fontWeight: form.featured ? 700 : 500, color: form.featured ? "#92400e" : "#374151" }}>⭐ Featured</span>
+          <span style={{ fontSize: "0.72rem", color: "#b45309", marginLeft: "0.25rem" }}>shows in homepage featured section</span>
         </label>
       </div>
 
@@ -479,7 +485,12 @@ export default function CoursesPage() {
                   )}
                 </td>
                 <td style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
-                  <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a" }}>{course.name}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                    <span style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a" }}>{course.name}</span>
+                    {course.featured && (
+                      <span title="Featured" style={{ display: "inline-flex", alignItems: "center", gap: "2px", padding: "1px 6px", borderRadius: "8px", background: "#fefce8", color: "#92400e", fontSize: "0.68rem", fontWeight: 700, border: "1px solid #fde68a", flexShrink: 0 }}>⭐ Featured</span>
+                    )}
+                  </div>
                   {course.description && <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.125rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 240 }}>{course.description}</div>}
                   {(() => {
                     const meta = getProductCategoryMeta(course.productCategory);

@@ -1,0 +1,61 @@
+Task: Implement one isolated feature only in the Saphala Admin App — add a Featured checkbox/toggle for Courses.
+
+Read the existing architecture first before making changes. Keep scope strictly limited.
+
+Context:
+- We have two separate apps:
+  1) Saphala Admin App
+  2) Saphala Self Prep student frontend app
+- They are separate applications but share the same database.
+- On the student homepage, a small featured/recommended courses section will later show only courses explicitly marked by admin.
+- This task is only to support that through the Admin app course create/edit flow.
+
+Feature required:
+Add a simple boolean field on Course:
+- Label: Featured
+- Type: checkbox or toggle
+- Meaning: when enabled, the course is eligible to appear in the homepage featured/recommended section in the student frontend
+
+Strict scope:
+- Do NOT redesign unrelated parts of the admin app
+- Do NOT change homepage logic
+- Do NOT change exam category logic
+- Do NOT change product category logic
+- Do NOT change pricing logic
+- Do NOT touch unrelated modules
+- Do NOT broaden to videos, PDFs, tests, or other entities
+
+Implementation requirements:
+1. Inspect the current Course schema/model, courses create/edit page, and create/update API routes first.
+2. Add the safest minimal persistent field for this feature.
+3. Existing courses must continue to work without breakage.
+4. Create/edit form must support Featured cleanly.
+5. APIs must accept and persist the field safely.
+6. Validation should remain minimal and clean.
+7. If useful, show a small Featured badge/indicator in the course list table or detail area, but keep it minimal.
+8. Avoid broad refactors unless absolutely necessary.
+
+Recommended implementation approach:
+- Add a boolean `featured` field to Course
+- Default should be `false`
+- This is the safest approach because:
+  - existing records remain valid
+  - no backfill complexity is needed if DB default is false
+  - frontend filtering later becomes simple and reliable
+
+Migration/data safety:
+- If schema migration is required, do it in the safest way
+- Existing course rows should automatically behave as not featured
+- Mention explicitly whether any backfill is needed
+
+Expected output after implementation:
+1) exact files changed
+2) what schema change was made
+3) whether migration/backfill was needed
+4) where the Featured field appears in the admin UI
+5) how POST/PUT handling was updated
+6) whether list view shows the field
+7) build/typecheck result
+
+Important:
+This task is only for the Featured checkbox/toggle on Courses. Nothing else.

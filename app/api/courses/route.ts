@@ -105,6 +105,7 @@ export async function POST(req: NextRequest) {
         courseType,
         productCategory: productCategory as any,
         isActive:     isActive !== undefined ? Boolean(isActive) : true,
+        featured:     Boolean(body.featured),
         thumbnailUrl:           body.thumbnailUrl?.trim() || null,
         xpRedemptionEnabled:    Boolean(body.xpRedemptionEnabled),
         xpRedemptionMaxPercent: body.xpRedemptionMaxPercent

@@ -83,6 +83,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         courseType,
         productCategory: productCategory as any,
         isActive:       body.isActive      !== undefined ? Boolean(body.isActive)     : existing.isActive,
+        featured:       body.featured      !== undefined ? Boolean(body.featured)      : existing.featured,
         hasHtmlCourse:     body.hasHtmlCourse     !== undefined ? Boolean(body.hasHtmlCourse)     : existing.hasHtmlCourse,
         hasVideoCourse:    body.hasVideoCourse    !== undefined ? Boolean(body.hasVideoCourse)    : existing.hasVideoCourse,
         hasPdfCourse:      body.hasPdfCourse      !== undefined ? Boolean(body.hasPdfCourse)      : existing.hasPdfCourse,
