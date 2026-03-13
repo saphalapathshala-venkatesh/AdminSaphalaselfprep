@@ -22,6 +22,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       prisma.user.update({
         where: { id: params.id },
         data: { isBlocked: block, blockedReason: reason },
+        select: { id: true, isBlocked: true, blockedReason: true, isActive: true },
       }),
     ];
 

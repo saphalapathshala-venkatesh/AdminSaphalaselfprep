@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { title, instructions, mode, isTimed, durationSec, allowPause, strictSectionMode,
             shuffleQuestions, shuffleOptions, shuffleGroups, shuffleGroupChildren, seriesId,
-            xpEnabled, xpValue } = body;
+            xpEnabled, xpValue, testStartTime } = body;
     let { categoryId } = body;
 
     if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -94,6 +94,7 @@ export async function POST(req: NextRequest) {
         categoryId: categoryId || null,
         xpEnabled: xpEnabled === true,
         xpValue: xpValue !== undefined ? Math.max(0, parseInt(xpValue) || 0) : 0,
+        testStartTime: testStartTime ? new Date(testStartTime) : null,
         createdById: user.id,
       },
       include: {
@@ -125,7 +126,7 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     const { id, title, instructions, mode, isTimed, durationSec, allowPause, strictSectionMode,
             shuffleQuestions, shuffleOptions, shuffleGroups, shuffleGroupChildren,
-            seriesId, sections, questions, xpEnabled, xpValue } = body;
+            seriesId, sections, questions, xpEnabled, xpValue, testStartTime } = body;
     let { categoryId } = body;
 
     if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
@@ -169,6 +170,7 @@ export async function PUT(req: NextRequest) {
           categoryId: categoryId !== undefined ? (categoryId || null) : existing.categoryId,
           xpEnabled: xpEnabled !== undefined ? xpEnabled === true : existing.xpEnabled,
           xpValue: xpValue !== undefined ? Math.max(0, parseInt(xpValue) || 0) : existing.xpValue,
+          testStartTime: testStartTime !== undefined ? (testStartTime ? new Date(testStartTime) : null) : existing.testStartTime,
         },
       });
 

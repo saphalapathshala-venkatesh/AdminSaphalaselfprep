@@ -32,6 +32,7 @@ type TestDetail = {
   shuffleQuestions: boolean; shuffleOptions: boolean;
   shuffleGroups: boolean; shuffleGroupChildren: boolean;
   seriesId?: string; isPublished: boolean;
+  testStartTime?: string | null;
   series?: { id: string; title: string };
   sections: { id: string; title: string; order: number; durationSec?: number; targetCount?: number; parentSectionId?: string }[];
   questions: {
@@ -937,7 +938,7 @@ export default function TestsPage() {
 
   const [testId, setTestId] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(false);
-  const [form, setForm] = useState({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", xpEnabled: false, xpValue: "0" });
+  const [form, setForm] = useState({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", xpEnabled: false, xpValue: "0", testStartTime: "" });
   const [hasSectionsManual, setHasSectionsManual] = useState(false);
   const [sectionPresetOpen, setSectionPresetOpen] = useState<number | null>(null);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
@@ -980,7 +981,7 @@ export default function TestsPage() {
 
   function openCreate() {
     setTestId(null); setIsPublished(false);
-    setForm({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", xpEnabled: false, xpValue: "0" });
+    setForm({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", xpEnabled: false, xpValue: "0", testStartTime: "" });
     setHasSectionsManual(false);
     setSections([]); setTestQuestions([]); setValidation(null);
     setView("builder");
@@ -993,7 +994,7 @@ export default function TestsPage() {
       if (!res.ok) { showToast(d.error || "Failed", "error"); return; }
       const t: TestDetail = d.data;
       setTestId(t.id); setIsPublished(t.isPublished);
-      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(t.durationSec) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, shuffleQuestions: t.shuffleQuestions, shuffleOptions: t.shuffleOptions, shuffleGroups: t.shuffleGroups, shuffleGroupChildren: t.shuffleGroupChildren, seriesId: t.seriesId || "", categoryId: (t as any).categoryId || "", xpEnabled: !!(t as any).xpEnabled, xpValue: (t as any).xpValue != null ? String((t as any).xpValue) : "0" });
+      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(t.durationSec) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, shuffleQuestions: t.shuffleQuestions, shuffleOptions: t.shuffleOptions, shuffleGroups: t.shuffleGroups, shuffleGroupChildren: t.shuffleGroupChildren, seriesId: t.seriesId || "", categoryId: (t as any).categoryId || "", xpEnabled: !!(t as any).xpEnabled, xpValue: (t as any).xpValue != null ? String((t as any).xpValue) : "0", testStartTime: t.testStartTime ? t.testStartTime.slice(0, 16) : "" });
       setHasSectionsManual(t.sections.length > 0 || ["SECTIONAL", "MULTI_SECTION"].includes(t.mode));
       const flatSecs: SectionState[] = t.sections.map((s, i) => {
         const parentIndex = s.parentSectionId ? t.sections.findIndex(p => p.id === s.parentSectionId) : null;
@@ -1023,6 +1024,7 @@ export default function TestsPage() {
         shuffleGroups: form.shuffleGroups, shuffleGroupChildren: form.shuffleGroupChildren,
         seriesId: form.seriesId || null, categoryId: form.categoryId || null,
         xpEnabled: form.xpEnabled, xpValue: parseInt(form.xpValue) || 0,
+        testStartTime: form.testStartTime || null,
         sections: sections.map(s => ({ title: s.title, durationSec: s.durationSec || null, targetCount: s.targetCount || null, parentIndex: s.parentIndex })),
         questions: testQuestions.map(q => ({ questionId: q.questionId, sectionIndex: q.sectionIndex, marks: q.marks, negativeMarks: q.negativeMarks })),
       };
@@ -1283,6 +1285,12 @@ export default function TestsPage() {
                       <span style={{ fontSize: "0.75rem", color: "#0369a1" }}>XP awarded on completion (1st attempt = 100%, 2nd = 50%, 3rd+ = 0)</span>
                     </div>
                   )}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                  <div>
+                    <label style={lbl}>Scheduled Start Time <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: "0.72rem" }}>(optional)</span></label>
+                    <input type="datetime-local" value={form.testStartTime} onChange={e => setForm({ ...form, testStartTime: e.target.value })} style={inp} />
+                  </div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem" }}>
                   <div>

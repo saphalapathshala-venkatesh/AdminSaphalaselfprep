@@ -370,6 +370,7 @@ model Test {
   shuffleGroupChildren Boolean  @default(false)
   xpEnabled            Boolean  @default(false)
   xpValue              Int      @default(0)
+  testStartTime        DateTime?
   isPublished          Boolean  @default(false)
   publishedAt    DateTime?
   createdById    String
@@ -736,6 +737,10 @@ model Course {
   featured                Boolean    @default(false)
   xpRedemptionEnabled     Boolean    @default(false)
   xpRedemptionMaxPercent  Int        @default(1)
+  validityType            String?
+  validityDays            Int?
+  validityMonths          Int?
+  validUntil              DateTime?
   createdAt               DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   videos         Video[]

@@ -106,6 +106,10 @@ export async function POST(req: NextRequest) {
         productCategory: productCategory as any,
         isActive:     isActive !== undefined ? Boolean(isActive) : true,
         featured:     Boolean(body.featured),
+        validityType:   body.validityType   || null,
+        validityDays:   body.validityDays   ? Math.max(1, parseInt(body.validityDays) || 0)   : null,
+        validityMonths: body.validityMonths ? Math.max(1, parseInt(body.validityMonths) || 0) : null,
+        validUntil:     body.validUntil     ? new Date(body.validUntil)  : null,
         thumbnailUrl:           body.thumbnailUrl?.trim() || null,
         xpRedemptionEnabled:    Boolean(body.xpRedemptionEnabled),
         xpRedemptionMaxPercent: body.xpRedemptionMaxPercent

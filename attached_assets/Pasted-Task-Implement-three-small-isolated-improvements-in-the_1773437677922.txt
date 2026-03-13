@@ -1,0 +1,187 @@
+Task: Implement three small isolated improvements in the Saphala Admin App.
+
+Read the existing architecture first. Do not broaden the scope.
+
+Context:
+The Admin App manages Courses, Tests, and other learning products. We want to add three improvements:
+
+1) Flexible Course Validity
+2) Scheduled Test Start Date/Time
+3) Scrollable product creation cards (UI improvement)
+
+Do not redesign unrelated modules.
+
+Strict scope:
+- Do not change pricing logic
+- Do not change taxonomy logic
+- Do not change homepage logic
+- Do not modify student frontend behavior in this task
+- Do not redesign admin layout beyond what is required
+- Only implement the features described below
+
+--------------------------------------------------
+
+FEATURE 1 — Course Validity Options
+
+Add flexible validity configuration in the Course create/edit form.
+
+Admin should be able to choose one of:
+
+Course Validity Type
+
+( ) Days
+( ) Months
+( ) Custom End Date
+
+If Days selected:
+Input field → validityDays
+
+If Months selected:
+Input field → validityMonths
+
+If Custom End Date selected:
+Calendar date picker → validUntil
+
+IMPORTANT BUSINESS RULE:
+
+Course validity must always be calculated from the STUDENT PURCHASE DATE,
+not from course publish date.
+
+Example:
+
+Course validity = 90 days
+Student purchases on: 10 March
+Course expires for that student on: 8 June
+
+Another student purchases same course on: 1 April
+Their expiry becomes: 30 June
+
+Meaning:
+Validity must be applied individually per purchase.
+
+Therefore:
+
+validUntil = purchaseDate + validityDays OR validityMonths
+
+If Custom End Date is used:
+That date is absolute and applies to all users.
+
+Database expectations:
+
+Add minimal fields needed to store validity configuration safely, for example:
+
+validityType
+validityDays
+validityMonths
+validUntil
+
+Existing courses must remain valid and unaffected.
+
+If validity is not configured:
+Existing behavior should continue (treated as unlimited or current default).
+
+Update Course create/update APIs to accept these fields.
+
+--------------------------------------------------
+
+FEATURE 2 — Test Scheduled Start DateTime
+
+Add a field in Test creation/edit:
+
+Label:
+Test Start Time
+
+Type:
+Calendar + Time picker (datetime)
+
+Purpose:
+
+Even if the test is Published,
+students cannot attempt the test until the selected start time.
+
+Database field example:
+
+testStartTime (datetime)
+
+Example:
+
+Test published today
+Start time set to:
+10 June 2026
+08:00 PM
+
+Students will see the test but cannot attempt until that time.
+
+Student logic later will be:
+
+NOW >= testStartTime
+
+Until then:
+Attempt button should remain disabled.
+
+IMPORTANT:
+
+Test expiration should NOT be stored separately.
+
+Test availability automatically ends when the student's course validity expires.
+
+Existing tests must remain unaffected if no start time is configured.
+
+--------------------------------------------------
+
+FEATURE 3 — Scrollable Product Creation Cards
+
+Currently product creation cards/modals are very tall and require browser zoom-out to close.
+
+Improve usability by enabling vertical scrolling inside creation cards.
+
+Apply this behavior to:
+
+- Course creation/edit card
+- Test creation/edit card
+- E-Book creation/edit card
+- Flashcard creation/edit card
+- Product creation card
+- Video creation card
+- Live class creation card
+
+Implementation guidance:
+
+Add scroll container styling such as:
+
+max-height: 90vh
+overflow-y: auto
+
+The goal:
+Forms should scroll internally without changing the overall modal layout.
+
+Do NOT redesign layouts — only add scroll capability.
+
+--------------------------------------------------
+
+Safety rules
+
+- Do not break existing records
+- Avoid large refactors
+- Avoid renaming existing fields unless absolutely required
+- Keep APIs backward compatible
+- Ensure build and typecheck pass cleanly
+
+--------------------------------------------------
+
+Deliverables
+
+After implementing, provide:
+
+1) exact files changed
+2) schema/model changes made
+3) whether migration/backfill was needed
+4) how course validity is stored
+5) confirmation that validity is calculated from purchase date
+6) how testStartTime works
+7) confirmation that product creation cards now scroll
+8) build/typecheck result
+
+Important:
+This task must remain isolated to the features described above.
+Do not introduce additional system changes.

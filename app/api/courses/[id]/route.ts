@@ -94,6 +94,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         xpRedemptionMaxPercent: body.xpRedemptionMaxPercent !== undefined
           ? Math.min(3, Math.max(1, parseInt(body.xpRedemptionMaxPercent) || 1))
           : existing.xpRedemptionMaxPercent,
+        validityType:   body.validityType   !== undefined ? (body.validityType || null)   : existing.validityType,
+        validityDays:   body.validityDays   !== undefined ? (body.validityDays   ? Math.max(1, parseInt(body.validityDays) || 0)   : null) : existing.validityDays,
+        validityMonths: body.validityMonths !== undefined ? (body.validityMonths ? Math.max(1, parseInt(body.validityMonths) || 0) : null) : existing.validityMonths,
+        validUntil:     body.validUntil     !== undefined ? (body.validUntil ? new Date(body.validUntil) : null) : existing.validUntil,
       },
     });
 

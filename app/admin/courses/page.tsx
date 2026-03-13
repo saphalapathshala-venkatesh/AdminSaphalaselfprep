@@ -39,6 +39,10 @@ type Course = ProductTypes & {
   productCategory?: string | null;
   xpRedemptionEnabled?: boolean;
   xpRedemptionMaxPercent?: number;
+  validityType?: string | null;
+  validityDays?: number | null;
+  validityMonths?: number | null;
+  validUntil?: string | null;
   _count?: { videos: number; liveClasses: number };
 };
 
@@ -48,6 +52,10 @@ type FormData = {
   isActive: boolean; featured: boolean; thumbnailUrl: string;
   xpRedemptionEnabled: boolean;
   xpRedemptionMaxPercent: number;
+  validityType: string;
+  validityDays: string;
+  validityMonths: string;
+  validUntil: string;
 } & ProductTypes;
 
 // ─── Product type config ──────────────────────────────────────────────────────
@@ -64,6 +72,7 @@ const defaultForm = (): FormData => ({
   name: "", description: "", courseType: "STANDARD", productCategory: "", isActive: true, featured: false, thumbnailUrl: "",
   hasHtmlCourse: false, hasVideoCourse: false, hasPdfCourse: false, hasTestSeries: false, hasFlashcardDecks: false,
   xpRedemptionEnabled: false, xpRedemptionMaxPercent: 1,
+  validityType: "", validityDays: "", validityMonths: "", validUntil: "",
 });
 
 function courseToForm(c: Course): FormData {
@@ -78,6 +87,10 @@ function courseToForm(c: Course): FormData {
     hasFlashcardDecks: c.hasFlashcardDecks,
     xpRedemptionEnabled: c.xpRedemptionEnabled || false,
     xpRedemptionMaxPercent: c.xpRedemptionMaxPercent || 1,
+    validityType: c.validityType || "",
+    validityDays: c.validityDays != null ? String(c.validityDays) : "",
+    validityMonths: c.validityMonths != null ? String(c.validityMonths) : "",
+    validUntil: c.validUntil ? c.validUntil.slice(0, 10) : "",
   };
 }
 
@@ -231,6 +244,50 @@ function CourseForm({ form, onChange, error, isEdit }: {
         </label>
       </div>
 
+      {/* Course Validity */}
+      <div style={{ padding: "0.875rem", background: "#f0fdf4", borderRadius: "8px", border: "1px solid #bbf7d0" }}>
+        <label style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#15803d", display: "block", marginBottom: "0.625rem" }}>
+          Course Validity
+          <span style={{ fontWeight: 400, color: "#64748b", marginLeft: "0.5rem", fontSize: "0.75rem" }}>Leave unset for unlimited access</span>
+        </label>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.625rem" }}>
+          {[
+            { value: "",      label: "Unlimited" },
+            { value: "days",  label: "Days" },
+            { value: "months",label: "Months" },
+            { value: "date",  label: "Fixed End Date" },
+          ].map(opt => (
+            <label key={opt.value} style={{ display: "flex", alignItems: "center", gap: "0.3rem", padding: "0.3rem 0.75rem", borderRadius: "6px", border: `2px solid ${form.validityType === opt.value ? "#15803d" : "#e2e8f0"}`, background: form.validityType === opt.value ? "#dcfce7" : "#f8fafc", cursor: "pointer", fontSize: "0.8rem", fontWeight: form.validityType === opt.value ? 700 : 400 }}>
+              <input type="radio" name="validityType" checked={form.validityType === opt.value} onChange={() => set({ validityType: opt.value, validityDays: "", validityMonths: "", validUntil: "" })} style={{ accentColor: "#15803d" }} />
+              {opt.label}
+            </label>
+          ))}
+        </div>
+        {form.validityType === "days" && (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <input type="number" min="1" value={form.validityDays} onChange={e => set({ validityDays: e.target.value })} placeholder="e.g. 90" style={{ ...inputSt, width: "120px" }} />
+            <span style={{ fontSize: "0.8125rem", color: "#15803d" }}>days from purchase date</span>
+          </div>
+        )}
+        {form.validityType === "months" && (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <input type="number" min="1" value={form.validityMonths} onChange={e => set({ validityMonths: e.target.value })} placeholder="e.g. 6" style={{ ...inputSt, width: "120px" }} />
+            <span style={{ fontSize: "0.8125rem", color: "#15803d" }}>months from purchase date</span>
+          </div>
+        )}
+        {form.validityType === "date" && (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <input type="date" value={form.validUntil} onChange={e => set({ validUntil: e.target.value })} style={{ ...inputSt, width: "180px" }} />
+            <span style={{ fontSize: "0.75rem", color: "#64748b" }}>Fixed date — applies to all students regardless of purchase date</span>
+          </div>
+        )}
+        {(form.validityType === "days" || form.validityType === "months") && (
+          <div style={{ marginTop: "0.375rem", fontSize: "0.72rem", color: "#15803d", background: "#dcfce7", padding: "0.3rem 0.625rem", borderRadius: "5px" }}>
+            ✓ Validity is calculated from each student's individual purchase date
+          </div>
+        )}
+      </div>
+
       {/* XP Redemption */}
       <div style={{ padding: "0.875rem", background: "#f0f9ff", borderRadius: "8px", border: "1px solid #bae6fd" }}>
         <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", marginBottom: form.xpRedemptionEnabled ? "0.75rem" : 0 }}>
@@ -368,8 +425,8 @@ export default function CoursesPage() {
 
       {/* ── Create/Edit modal ────────────────────────────────────────────────── */}
       {modalMode && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 8000, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
-          <div style={{ background: "#fff", borderRadius: "14px", width: "100%", maxWidth: 520, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 8000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "3vh 1rem 2rem", overflowY: "auto" }}>
+          <div style={{ background: "#fff", borderRadius: "14px", width: "100%", maxWidth: 520, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", maxHeight: "92vh", overflowY: "auto" }}>
             <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <h2 style={{ margin: 0, fontSize: "1.0625rem", fontWeight: 700, color: "#0f172a" }}>
                 {modalMode === "create" ? "New Course" : `Edit: ${editTarget?.name}`}
