@@ -1171,7 +1171,7 @@ export default function TestsPage() {
 
   const [testId, setTestId] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(false);
-  const [form, setForm] = useState({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", xpEnabled: false, xpValue: "0", testStartTime: "" });
+  const [form, setForm] = useState({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", totalQuestions: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", xpEnabled: false, xpValue: "0", testStartTime: "" });
   const [hasSectionsManual, setHasSectionsManual] = useState(false);
   const [sectionPresetOpen, setSectionPresetOpen] = useState<number | null>(null);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
@@ -1214,7 +1214,7 @@ export default function TestsPage() {
 
   function openCreate() {
     setTestId(null); setIsPublished(false);
-    setForm({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", xpEnabled: false, xpValue: "0", testStartTime: "" });
+    setForm({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", totalQuestions: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", xpEnabled: false, xpValue: "0", testStartTime: "" });
     setHasSectionsManual(false);
     setSections([]); setTestQuestions([]); setValidation(null);
     setView("builder");
@@ -1227,11 +1227,11 @@ export default function TestsPage() {
       if (!res.ok) { showToast(d.error || "Failed", "error"); return; }
       const t: TestDetail = d.data;
       setTestId(t.id); setIsPublished(t.isPublished);
-      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(t.durationSec) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, shuffleQuestions: t.shuffleQuestions, shuffleOptions: t.shuffleOptions, shuffleGroups: t.shuffleGroups, shuffleGroupChildren: t.shuffleGroupChildren, seriesId: t.seriesId || "", categoryId: (t as any).categoryId || "", xpEnabled: !!(t as any).xpEnabled, xpValue: (t as any).xpValue != null ? String((t as any).xpValue) : "0", testStartTime: t.testStartTime ? t.testStartTime.slice(0, 16) : "" });
+      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(Math.round(t.durationSec / 60)) : "", totalQuestions: t.questions ? String(t.questions.length) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, shuffleQuestions: t.shuffleQuestions, shuffleOptions: t.shuffleOptions, shuffleGroups: t.shuffleGroups, shuffleGroupChildren: t.shuffleGroupChildren, seriesId: t.seriesId || "", categoryId: (t as any).categoryId || "", xpEnabled: !!(t as any).xpEnabled, xpValue: (t as any).xpValue != null ? String((t as any).xpValue) : "0", testStartTime: t.testStartTime ? t.testStartTime.slice(0, 16) : "" });
       setHasSectionsManual(t.sections.length > 0 || ["SECTIONAL", "MULTI_SECTION"].includes(t.mode));
       const flatSecs: SectionState[] = t.sections.map((s, i) => {
         const parentIndex = s.parentSectionId ? t.sections.findIndex(p => p.id === s.parentSectionId) : null;
-        return { id: s.id, title: s.title, durationSec: s.durationSec ? String(s.durationSec) : "", targetCount: s.targetCount ? String(s.targetCount) : "", parentIndex: parentIndex === -1 ? null : parentIndex };
+        return { id: s.id, title: s.title, durationSec: s.durationSec ? String(Math.round(s.durationSec / 60)) : "", targetCount: s.targetCount ? String(s.targetCount) : "", parentIndex: parentIndex === -1 ? null : parentIndex };
       });
       setSections(flatSecs);
       setTestQuestions(t.questions.map(tq => ({
@@ -1251,14 +1251,14 @@ export default function TestsPage() {
     try {
       const payload: any = {
         title: form.title, instructions: form.instructions, mode: form.mode,
-        isTimed: form.isTimed, durationSec: form.durationSec || null,
+        isTimed: form.isTimed, durationSec: form.durationSec ? String(parseInt(form.durationSec) * 60) : null,
         allowPause: form.allowPause, strictSectionMode: form.strictSectionMode,
         shuffleQuestions: form.shuffleQuestions, shuffleOptions: form.shuffleOptions,
         shuffleGroups: form.shuffleGroups, shuffleGroupChildren: form.shuffleGroupChildren,
         seriesId: form.seriesId || null, categoryId: form.categoryId || null,
         xpEnabled: form.xpEnabled, xpValue: parseInt(form.xpValue) || 0,
         testStartTime: form.testStartTime || null,
-        sections: sections.map(s => ({ title: s.title, durationSec: s.durationSec || null, targetCount: s.targetCount || null, parentIndex: s.parentIndex })),
+        sections: sections.map(s => ({ title: s.title, durationSec: s.durationSec ? String(parseInt(s.durationSec) * 60) : null, targetCount: s.targetCount || null, parentIndex: s.parentIndex })),
         questions: testQuestions.map(q => ({ questionId: q.questionId, sectionIndex: q.sectionIndex, marks: q.marks, negativeMarks: q.negativeMarks })),
       };
       if (testId) payload.id = testId;
@@ -1273,7 +1273,7 @@ export default function TestsPage() {
       setTestId(newTest.id); setIsPublished(newTest.isPublished);
       const flatSecs: SectionState[] = newTest.sections.map(s => {
         const parentIndex = s.parentSectionId ? newTest.sections.findIndex(p => p.id === s.parentSectionId) : null;
-        return { id: s.id, title: s.title, durationSec: s.durationSec ? String(s.durationSec) : "", targetCount: s.targetCount ? String(s.targetCount) : "", parentIndex: parentIndex === -1 ? null : parentIndex };
+        return { id: s.id, title: s.title, durationSec: s.durationSec ? String(Math.round(s.durationSec / 60)) : "", targetCount: s.targetCount ? String(s.targetCount) : "", parentIndex: parentIndex === -1 ? null : parentIndex };
       });
       setSections(flatSecs);
       setTestQuestions(newTest.questions.map(tq => ({
@@ -1385,7 +1385,7 @@ export default function TestsPage() {
   function handleAddQCommitted(newSections: any[], newQuestions: any[]) {
     const flatSecs: SectionState[] = newSections.map(s => {
       const parentIndex = s.parentSectionId ? newSections.findIndex((p: any) => p.id === s.parentSectionId) : null;
-      return { id: s.id, title: s.title, durationSec: s.durationSec ? String(s.durationSec) : "", targetCount: s.targetCount ? String(s.targetCount) : "", parentIndex: parentIndex === -1 ? null : parentIndex };
+      return { id: s.id, title: s.title, durationSec: s.durationSec ? String(Math.round(s.durationSec / 60)) : "", targetCount: s.targetCount ? String(s.targetCount) : "", parentIndex: parentIndex === -1 ? null : parentIndex };
     });
     setSections(flatSecs);
     setTestQuestions(newQuestions.map((tq: any) => ({
@@ -1533,8 +1533,12 @@ export default function TestsPage() {
                     </select>
                   </div>
                   <div>
-                    <label style={lbl}>Total Duration (sec)</label>
-                    <input type="number" value={form.durationSec} onChange={e => setForm({ ...form, durationSec: e.target.value })} style={inp} placeholder="e.g. 3600" />
+                    <label style={lbl}>Total Time (min)</label>
+                    <input type="number" value={form.durationSec} onChange={e => setForm({ ...form, durationSec: e.target.value })} style={inp} placeholder="e.g. 60" />
+                  </div>
+                  <div>
+                    <label style={lbl}>Total Questions (target)</label>
+                    <input type="number" value={form.totalQuestions} onChange={e => setForm({ ...form, totalQuestions: e.target.value })} style={inp} placeholder="e.g. 100" title="Planned total questions — used to validate section targets" />
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap", alignItems: "center" }}>
@@ -1647,6 +1651,23 @@ export default function TestsPage() {
                   </div>
                 </div>
                 {sections.length === 0 && <p style={{ color: "#888", fontSize: "0.8rem" }}>No sections yet.</p>}
+                {(() => {
+                  if (topLevelSections.length === 0) return null;
+                  const totalTargetQs = topLevelSections.reduce((sum, s) => sum + (parseInt(s.targetCount || "0") || 0), 0);
+                  const totalTimedMin = topLevelSections.filter(s => s.durationSec).reduce((sum, s) => sum + (parseInt(s.durationSec || "0") || 0), 0);
+                  const allSectionsTimed = topLevelSections.length > 0 && topLevelSections.every(s => s.durationSec);
+                  const testTotalMin = parseInt(form.durationSec || "0") || 0;
+                  const targetQs = parseInt(form.totalQuestions || "0") || 0;
+                  const qsMismatch = targetQs > 0 && totalTargetQs > 0 && totalTargetQs !== targetQs;
+                  const timeMismatch = allSectionsTimed && testTotalMin > 0 && totalTimedMin !== testTotalMin;
+                  if (!qsMismatch && !timeMismatch) return null;
+                  return (
+                    <div style={{ marginBottom: "0.75rem", padding: "0.5rem 0.75rem", background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: "6px", fontSize: "0.78rem", color: "#92400e", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                      {qsMismatch && <span>⚠ Section targets sum to <strong>{totalTargetQs} Q</strong> — expected <strong>{targetQs} Q</strong> (Total Questions field)</span>}
+                      {timeMismatch && <span>⚠ Section times sum to <strong>{totalTimedMin} min</strong> — expected <strong>{testTotalMin} min</strong> (Total Time field)</span>}
+                    </div>
+                  );
+                })()}
                 {topLevelSections.map(sec => {
                   const idx = sections.indexOf(sec);
                   const children = sections.map((s, i) => ({ s, i })).filter(({ s }) => s.parentIndex === idx);
@@ -1659,7 +1680,7 @@ export default function TestsPage() {
                         <span style={{ fontSize: "0.75rem", color: "#6b7280", minWidth: "1.25rem" }}>§{topLevelSections.indexOf(sec) + 1}</span>
                         <input value={sec.title} onChange={e => updateSection(idx, { title: e.target.value })} style={{ ...inp, flex: 1 }} placeholder="Section title" />
                         <div>
-                          <input type="number" value={sec.durationSec} onChange={e => updateSection(idx, { durationSec: e.target.value })} style={{ ...inp, width: "80px" }} placeholder="sec" title="Section total time (seconds)" />
+                          <input type="number" value={sec.durationSec} onChange={e => updateSection(idx, { durationSec: e.target.value })} style={{ ...inp, width: "80px" }} placeholder="min" title="Section total time (minutes)" />
                         </div>
                         <div>
                           <input type="number" value={sec.targetCount} onChange={e => updateSection(idx, { targetCount: e.target.value })} style={{ ...inp, width: "60px" }} placeholder="# Q" title="Target question count" />
@@ -1673,10 +1694,10 @@ export default function TestsPage() {
                       {/* Timer pool display */}
                       {info && children.length > 0 && (
                         <div style={{ padding: "0.25rem 0.875rem 0.25rem", fontSize: "0.75rem", background: info.isOverrun ? "#fef2f2" : "#f0fdf4", color: info.isOverrun ? "#dc2626" : "#065f46", display: "flex", gap: "1.25rem" }}>
-                          <span>Section: {Math.floor(info.sectionTotal / 60)}m</span>
-                          <span>Timed subsections: {Math.floor(info.timedTotal / 60)}m</span>
+                          <span>Section: {info.sectionTotal} min</span>
+                          <span>Timed subsections: {info.timedTotal} min</span>
                           <span style={{ fontWeight: 700 }}>
-                            {info.isOverrun ? `⚠ Overrun by ${Math.floor((info.timedTotal - info.sectionTotal) / 60)}m` : `Remaining shared pool: ${Math.floor(info.remaining / 60)}m`}
+                            {info.isOverrun ? `⚠ Overrun by ${info.timedTotal - info.sectionTotal} min` : `Remaining shared pool: ${info.remaining} min`}
                           </span>
                         </div>
                       )}
@@ -1686,13 +1707,24 @@ export default function TestsPage() {
                         <div key={subIdx} style={{ display: "flex", gap: "0.5rem", alignItems: "center", padding: "0.375rem 0.75rem 0.375rem 2.5rem", borderTop: "1px solid #f1f5f9", background: "#fafbff" }}>
                           <span style={{ fontSize: "0.7rem", color: "#a78bfa" }}>└─</span>
                           <input value={sub.title} onChange={e => updateSection(subIdx, { title: e.target.value })} style={{ ...inp, flex: 1 }} placeholder="Subsection title" />
-                          <input type="number" value={sub.durationSec} onChange={e => updateSection(subIdx, { durationSec: e.target.value })} style={{ ...inp, width: "70px" }} placeholder="sec" title="Subsection timer (optional)" />
+                          <input type="number" value={sub.durationSec} onChange={e => updateSection(subIdx, { durationSec: e.target.value })} style={{ ...inp, width: "70px" }} placeholder="min" title="Subsection time in minutes (optional)" />
                           <input type="number" value={sub.targetCount} onChange={e => updateSection(subIdx, { targetCount: e.target.value })} style={{ ...inp, width: "55px" }} placeholder="# Q" title="Target question count" />
                           {countBadge(subIdx)}
                           <button onClick={() => openAddQ(subIdx)} style={btn("#059669")} title="Add questions to this subsection">+ Q</button>
                           <button onClick={() => deleteSection(subIdx)} style={{ ...btn("#dc2626"), fontSize: "0.7rem" }} title="Remove this subsection from the test">✕ Remove</button>
                         </div>
                       ))}
+                      {(() => {
+                        const secTarget = parseInt(sec.targetCount || "0") || 0;
+                        if (children.length === 0 || secTarget === 0) return null;
+                        const subSum = children.reduce((sum, { s }) => sum + (parseInt(s.targetCount || "0") || 0), 0);
+                        if (subSum === secTarget) return null;
+                        return (
+                          <div style={{ padding: "0.25rem 0.875rem", fontSize: "0.75rem", background: "#fef2f2", color: "#dc2626", borderTop: "1px solid #fecaca" }}>
+                            ⚠ Subsection targets sum to <strong>{subSum} Q</strong> — expected <strong>{secTarget} Q</strong>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })}

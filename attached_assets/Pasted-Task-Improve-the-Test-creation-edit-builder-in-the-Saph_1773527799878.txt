@@ -1,0 +1,171 @@
+Task: Improve the Test creation/edit builder in the Saphala Admin App so it properly supports basic test details, section/subsection question counts, admin-friendly time inputs in minutes, and clear structural validation.
+
+Read the existing test builder architecture first before making changes. Keep scope strictly limited to test-builder create/edit UX and validation.
+
+Context:
+The current test creation window is missing important structured controls:
+- it does not clearly ask for total number of questions
+- time is currently exposed in seconds, which is not admin-friendly
+- when sections exist, each section should ask for number of questions
+- when subsections exist, each subsection should also ask for number of questions
+- the builder should validate totals properly
+- similarly, if sectional/subsection timing is enabled, total time allocations must match correctly
+
+This task is only to improve the Test create/edit builder. Do not redesign unrelated modules.
+
+--------------------------------------------------
+STRICT SCOPE
+
+Only improve:
+- Test basic details in create/edit
+- Section/subsection configuration UI
+- Question-count validation
+- Time input UX and validation
+
+Do NOT:
+- redesign question picker
+- redesign attempt engine
+- redesign results engine
+- redesign unrelated admin modules
+- change unrelated product logic
+
+--------------------------------------------------
+REQUIRED FEATURE BEHAVIOR
+
+1. BASIC TEST DETAILS
+In the test create/edit form, add or fix these admin-facing basic fields:
+- Total Questions
+- Total Time (in minutes, not seconds)
+
+Important:
+- Admin should enter time in minutes only
+- If the backend currently stores seconds internally, convert minutes → seconds behind the scenes safely
+- Do not expose raw seconds in the admin UI
+
+2. MULTI-SECTION SUPPORT
+If the test supports multiple sections:
+- each section must have:
+  - Section Name
+  - Number of Questions
+  - Time in minutes if sectional timing is enabled
+
+3. SUBSECTION SUPPORT
+If subsections are enabled inside a section:
+- each subsection must have:
+  - Subsection Name
+  - Number of Questions
+  - Time in minutes if subsection timing is enabled
+
+4. VALIDATION — QUESTION COUNTS
+Implement clear validation rules:
+
+A. Test-level:
+- sum of all section question counts must equal total test question count
+
+B. Section-level:
+- if subsections exist, sum of subsection question counts must equal parent section question count
+
+Show clean inline validation messages if mismatched.
+
+5. VALIDATION — TIME
+Implement time validation rules:
+
+A. If sectional timing is enabled:
+- sum of section times must equal total test time
+
+B. If subsection timing is enabled:
+- sum of subsection times must equal parent section time
+
+C. Overall:
+- section/subsection timing allocations must remain consistent with total test time
+
+Again, show clean inline validation messages when mismatched.
+
+6. ADMIN UX EXPECTATION
+Keep the UI clean and practical:
+- basic details first
+- then sections
+- then subsections
+- show totals clearly
+- show mismatch warnings before save
+- avoid forcing admin to manually calculate everything externally
+
+7. EDIT MODE
+Existing tests should still open safely in edit mode.
+If time is currently stored in seconds:
+- convert and display correctly in minutes in the UI
+- preserve existing saved data correctly on update
+
+8. BACKWARD COMPATIBILITY
+Do not break existing tests.
+Handle older records safely if they do not yet have full section/subsection structure.
+
+--------------------------------------------------
+WHAT TO INSPECT FIRST
+
+Please inspect:
+1. current Test schema/model
+2. current Test create/edit form
+3. how sections/subsections are currently stored
+4. how time is currently stored (seconds/minutes)
+5. how validation is currently handled
+6. whether existing test records rely on old formats
+
+--------------------------------------------------
+IMPLEMENTATION EXPECTATIONS
+
+- Keep implementation production-safe and minimal
+- Reuse existing section/subsection structures where possible
+- Convert minutes to seconds only internally if current backend requires it
+- Use inline validation and clear save-blocking only when data is inconsistent
+- Avoid broad test-engine refactors unless absolutely necessary
+
+--------------------------------------------------
+TEST CASES TO VERIFY
+
+1. Create a simple test:
+- total questions = 100
+- total time = 60 minutes
+- no sections
+- save should work
+
+2. Create a sectional test:
+- total questions = 100
+- total time = 60 minutes
+- Section A = 50 questions, 30 min
+- Section B = 50 questions, 30 min
+- save should work
+
+3. Create invalid sectional test:
+- total questions = 100
+- section totals = 90
+- should show validation error
+
+4. Create subsectional test:
+- total questions = 100
+- total time = 60 minutes
+- Section A = 40 questions, 20 min
+- subsection totals under A must match 40 and 20
+- save should work only when valid
+
+5. Open existing tests in edit mode
+- current saved values should display correctly
+- minutes should display properly in UI
+- update should save safely
+
+6. Build/typecheck should pass cleanly
+
+--------------------------------------------------
+DELIVERABLES
+
+After implementation, provide:
+1) exact files changed
+2) what basic test detail fields were added/fixed
+3) how time is shown in minutes in admin UI
+4) whether backend still stores seconds internally or was normalized
+5) what section/subsection validation rules were added
+6) how existing tests are handled safely
+7) build/typecheck result
+
+Important:
+This task is only for improving Test create/edit builder basic details + section/subsection counts/time validation. Nothing else.
