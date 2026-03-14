@@ -1,0 +1,74 @@
+Task: Fix one isolated bug in the Saphala Admin App / shared auth-user data logic.
+
+Read the current user/auth architecture first before making changes. Keep scope strictly limited.
+
+Bug summary:
+When admin edits a user's Email and/or Mobile number, the updated values are correctly shown in the Admin UI.
+However, when trying to register a new account using the OLD email/mobile values that were replaced, the system still says:
+- email already exists
+- mobile already exists
+
+This means the old values are still being treated as occupied somewhere in the system, even though the user record was updated.
+
+Expected correct behavior:
+If admin changes a user's email/mobile to new values, the old email/mobile should become available again for new registration, unless there is an intentional reservation rule (there is no such rule here).
+
+Strict scope:
+- Fix this inconsistency only
+- Do not redesign unrelated modules
+- Do not broaden into a full auth refactor unless absolutely necessary
+- Do not change pricing, products, courses, tests, or other modules
+
+What to inspect first:
+1. User schema/model
+2. Admin Edit User API / action
+3. Registration API / action
+4. Any login normalization helpers
+5. Any duplicate-check logic
+6. Any fields like:
+   - normalizedEmail
+   - normalizedMobile
+   - identifier
+   - emailLower
+   - mobileNormalized
+   - search fields
+   - unique indexed auth fields
+
+Most likely issue:
+Admin edit is updating visible fields only, but not all canonical identity / normalized / duplicate-check fields.
+OR registration duplicate checks are reading from a different field than admin edit updates.
+
+Required fix:
+1. Identify the canonical source of truth for email/mobile uniqueness.
+2. Ensure admin edit updates all relevant identity-related fields consistently.
+3. Ensure registration checks the same canonical fields.
+4. After updating a user’s email/mobile, the previous values must no longer block new registration.
+5. Preserve uniqueness rules correctly for current values.
+6. Keep backward compatibility and do not break login.
+
+Implementation expectations:
+- Apply trimming/normalization consistently
+- Lowercase email if system already does that
+- Normalize mobile according to existing auth rules
+- Update all relevant linked fields atomically in the edit flow
+- Keep registration duplicate checks aligned with the same canonical fields
+
+Please test these cases after fixing:
+1. User A email changes from old1@example.com to new1@example.com
+   -> new registration with old1@example.com should succeed
+2. User A mobile changes from 9000000001 to 9000000002
+   -> new registration with 9000000001 should succeed
+3. Registration with currently used new email/mobile should still fail correctly
+4. Login for the edited user should still work with the updated credentials according to current auth rules
+
+Deliverables:
+1) exact files changed
+2) root cause found
+3) what fields were inconsistent
+4) how the edit flow was corrected
+5) how the registration duplicate check was aligned
+6) test results for the above cases
+7) build/typecheck result
+
+Important:
+This is an isolated bug fix for user email/mobile uniqueness consistency after admin edits. Nothing else.

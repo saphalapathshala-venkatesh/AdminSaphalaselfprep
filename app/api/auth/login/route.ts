@@ -37,9 +37,13 @@ export async function POST(req: NextRequest) {
 
     const { identifier, password } = parsed.data;
 
+    // Normalize: email is stored lowercase; mobile is stored trimmed.
+    // Lowercasing a numeric mobile string is a safe no-op.
+    const normalizedIdentifier = identifier.trim().toLowerCase();
+
     const user = await prisma.user.findFirst({
       where: {
-        OR: [{ email: identifier }, { mobile: identifier }],
+        OR: [{ email: normalizedIdentifier }, { mobile: normalizedIdentifier }],
       },
     });
 
