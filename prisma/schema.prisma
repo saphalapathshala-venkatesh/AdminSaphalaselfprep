@@ -188,6 +188,7 @@ model User {
   annotations        LearnerAnnotation[]
   infringementWarnings Int @default(0)
   infringementBlocked  Boolean @default(false)
+  mustChangePassword   Boolean @default(false)
   legalAcceptedAt      DateTime?
   legalVersion         String?
   refunds              Refund[] @relation("RefundUser")

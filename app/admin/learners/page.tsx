@@ -85,6 +85,11 @@ export default function LearnersPage() {
   const [grantCode, setGrantCode] = useState("");
   const [grantUntil, setGrantUntil] = useState("");
 
+  const [pwResetOpen, setPwResetOpen] = useState(false);
+  const [pwForm, setPwForm] = useState({ newPassword: "", confirmPassword: "", mustChangePassword: false });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState("");
+
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const showToast = (msg: string, type: "success" | "error") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
@@ -271,6 +276,9 @@ export default function LearnersPage() {
                   <button onClick={toggleStatus} style={{ ...btnSecondary, fontSize: "0.7rem" }}>
                     {profile.isActive ? "Deactivate" : "Activate"}
                   </button>
+                  <button onClick={() => { setPwForm({ newPassword: "", confirmPassword: "", mustChangePassword: false }); setPwError(""); setPwResetOpen(true); }} style={{ ...btnSecondary, fontSize: "0.7rem", borderColor: "#7c3aed", color: "#7c3aed" }}>
+                    Reset Password
+                  </button>
                 </div>
               </div>
 
@@ -386,6 +394,80 @@ export default function LearnersPage() {
           )}
         </div>
       )}
+    {/* ── Password Reset Modal ──────────────────────────────────────────────── */}
+    {pwResetOpen && selectedId && profile && (
+      <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+        <div style={{ background: "#fff", borderRadius: "12px", padding: "1.75rem", width: "100%", maxWidth: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.18)" }}>
+          <h2 style={{ margin: "0 0 0.25rem", fontSize: "1.0625rem", fontWeight: 700, color: "#0f172a" }}>Reset Password</h2>
+          <p style={{ margin: "0 0 1.25rem", color: "#64748b", fontSize: "0.8125rem" }}>
+            Set a new password for <strong>{profile.name || profile.email || "this learner"}</strong>.
+          </p>
+
+          {pwError && (
+            <div style={{ marginBottom: "0.875rem", padding: "0.5rem 0.75rem", background: "#fee2e2", borderRadius: "6px", color: "#dc2626", fontSize: "0.8125rem", fontWeight: 600 }}>{pwError}</div>
+          )}
+
+          <label style={{ display: "block", fontSize: "0.8125rem", fontWeight: 600, color: "#374151", marginBottom: "0.3rem" }}>New Password</label>
+          <input
+            type="password"
+            value={pwForm.newPassword}
+            onChange={e => setPwForm(f => ({ ...f, newPassword: e.target.value }))}
+            style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "0.875rem", boxSizing: "border-box", marginBottom: "0.75rem" }}
+            placeholder="Min 8 characters"
+            autoComplete="new-password"
+          />
+
+          <label style={{ display: "block", fontSize: "0.8125rem", fontWeight: 600, color: "#374151", marginBottom: "0.3rem" }}>Confirm New Password</label>
+          <input
+            type="password"
+            value={pwForm.confirmPassword}
+            onChange={e => setPwForm(f => ({ ...f, confirmPassword: e.target.value }))}
+            style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "0.875rem", boxSizing: "border-box", marginBottom: "0.75rem" }}
+            placeholder="Re-enter password"
+            autoComplete="new-password"
+          />
+
+          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.8125rem", color: "#374151", cursor: "pointer", marginBottom: "1.5rem" }}>
+            <input
+              type="checkbox"
+              checked={pwForm.mustChangePassword}
+              onChange={e => setPwForm(f => ({ ...f, mustChangePassword: e.target.checked }))}
+              style={{ width: 15, height: 15, accentColor: "#7c3aed" }}
+            />
+            Require password change on next login
+          </label>
+
+          <div style={{ display: "flex", gap: "0.75rem" }}>
+            <button
+              onClick={async () => {
+                setPwError("");
+                if (!pwForm.newPassword || !pwForm.confirmPassword) { setPwError("Both fields are required"); return; }
+                if (pwForm.newPassword !== pwForm.confirmPassword) { setPwError("Passwords do not match"); return; }
+                if (pwForm.newPassword.length < 8) { setPwError("Password must be at least 8 characters"); return; }
+                setPwSaving(true);
+                const res = await fetch(`/api/users/${selectedId}/password`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ newPassword: pwForm.newPassword, confirmPassword: pwForm.confirmPassword, mustChangePassword: pwForm.mustChangePassword }),
+                });
+                const json = await res.json();
+                setPwSaving(false);
+                if (!res.ok) { setPwError(json.error || "Failed to reset password"); return; }
+                setPwResetOpen(false);
+                showToast("Password reset successfully", "success");
+              }}
+              disabled={pwSaving}
+              style={{ padding: "0.5625rem 1.25rem", borderRadius: "7px", border: "none", background: "#7c3aed", color: "#fff", fontWeight: 700, cursor: pwSaving ? "not-allowed" : "pointer", fontSize: "0.9rem", opacity: pwSaving ? 0.7 : 1 }}
+            >
+              {pwSaving ? "Saving…" : "Reset Password"}
+            </button>
+            <button onClick={() => setPwResetOpen(false)} style={{ padding: "0.5625rem 1.25rem", borderRadius: "7px", border: "1px solid #e2e8f0", background: "#fff", color: "#374151", fontWeight: 600, cursor: "pointer", fontSize: "0.9rem" }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </div>
   );
 }

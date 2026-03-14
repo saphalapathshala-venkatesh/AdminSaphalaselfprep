@@ -141,6 +141,7 @@ export async function POST(req: NextRequest) {
     const response = NextResponse.json({
       ok: true,
       user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      mustChangePassword: user.mustChangePassword ?? false,
     });
 
     response.cookies.set("session", token, {

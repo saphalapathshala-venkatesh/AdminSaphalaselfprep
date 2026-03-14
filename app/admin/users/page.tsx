@@ -75,6 +75,11 @@ export default function UsersPage() {
   const [globalResetOpen, setGlobalResetOpen] = useState(false);
   const [globalResetSaving, setGlobalResetSaving] = useState(false);
 
+  const [pwResetUser, setPwResetUser] = useState<UserRow | null>(null);
+  const [pwForm, setPwForm] = useState({ newPassword: "", confirmPassword: "", mustChangePassword: false });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState("");
+
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const showToast = (msg: string, ok = true) => { setToast({ msg, ok }); setTimeout(() => setToast(null), 3200); };
 
@@ -267,6 +272,7 @@ export default function UsersPage() {
                   <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
                     <button onClick={() => openEdit(u)} style={btnStyle(PURPLE)}>Edit</button>
                     <button onClick={() => openBlock(u)} style={btnStyle(u.isBlocked ? "#15803d" : "#dc2626")}>{u.isBlocked ? "Unblock" : "Block"}</button>
+                    <button onClick={() => { setPwResetUser(u); setPwForm({ newPassword: "", confirmPassword: "", mustChangePassword: false }); setPwError(""); }} style={btnStyle("#7c3aed")}>Reset Password</button>
                     <button onClick={() => setResetUser(u)} style={btnStyle("#b45309")}>Reset Devices</button>
                     <Link href={`/admin/users/${u.id}/devices`} style={{ ...btnStyle("#0369a1"), textDecoration: "none" }}>Devices</Link>
                     <Link href={`/admin/users/${u.id}/activity`} style={{ ...btnStyle("#475569"), textDecoration: "none" }}>Activity</Link>
@@ -371,6 +377,77 @@ export default function UsersPage() {
             <div style={{ display: "flex", gap: "0.75rem" }}>
               <button onClick={confirmDelete} disabled={deleteSaving} style={{ ...primaryBtn, background: "#dc2626" }}>{deleteSaving ? "Archiving…" : "Archive User"}</button>
               <button onClick={() => setDeleteUser(null)} style={cancelBtn}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Password Reset Modal ──────────────────────────────────────────────── */}
+      {pwResetUser && (
+        <div style={overlay}>
+          <div style={{ ...modal, maxWidth: 420 }}>
+            <h2 style={{ margin: "0 0 0.25rem", fontSize: "1.0625rem", fontWeight: 700, color: "#0f172a" }}>Reset Password</h2>
+            <p style={{ margin: "0 0 1.25rem", color: "#64748b", fontSize: "0.8125rem" }}>
+              Set a new password for <strong>{pwResetUser.name || pwResetUser.email || "this user"}</strong>. The current password will be immediately replaced.
+            </p>
+
+            {pwError && <div style={{ marginBottom: "0.875rem", padding: "0.5rem 0.75rem", background: "#fee2e2", borderRadius: "6px", color: "#dc2626", fontSize: "0.8125rem", fontWeight: 600 }}>{pwError}</div>}
+
+            <label style={label}>New Password</label>
+            <input
+              type="password"
+              value={pwForm.newPassword}
+              onChange={e => setPwForm(f => ({ ...f, newPassword: e.target.value }))}
+              style={input}
+              placeholder="Min 8 characters"
+              autoComplete="new-password"
+            />
+
+            <label style={label}>Confirm New Password</label>
+            <input
+              type="password"
+              value={pwForm.confirmPassword}
+              onChange={e => setPwForm(f => ({ ...f, confirmPassword: e.target.value }))}
+              style={input}
+              placeholder="Re-enter password"
+              autoComplete="new-password"
+            />
+
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "1rem", cursor: "pointer", fontSize: "0.8125rem", color: "#374151" }}>
+              <input
+                type="checkbox"
+                checked={pwForm.mustChangePassword}
+                onChange={e => setPwForm(f => ({ ...f, mustChangePassword: e.target.checked }))}
+                style={{ width: 15, height: 15, accentColor: PURPLE }}
+              />
+              Require password change on next login
+            </label>
+
+            <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
+              <button
+                onClick={async () => {
+                  setPwError("");
+                  if (!pwForm.newPassword || !pwForm.confirmPassword) { setPwError("Both fields are required"); return; }
+                  if (pwForm.newPassword !== pwForm.confirmPassword) { setPwError("Passwords do not match"); return; }
+                  if (pwForm.newPassword.length < 8) { setPwError("Password must be at least 8 characters"); return; }
+                  setPwSaving(true);
+                  const res = await fetch(`/api/users/${pwResetUser!.id}/password`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ newPassword: pwForm.newPassword, confirmPassword: pwForm.confirmPassword, mustChangePassword: pwForm.mustChangePassword }),
+                  });
+                  const json = await res.json();
+                  setPwSaving(false);
+                  if (!res.ok) { setPwError(json.error || "Failed to reset password"); return; }
+                  setPwResetUser(null);
+                  showToast("Password reset successfully");
+                }}
+                disabled={pwSaving}
+                style={{ ...primaryBtn, background: PURPLE, opacity: pwSaving ? 0.7 : 1 }}
+              >
+                {pwSaving ? "Saving…" : "Reset Password"}
+              </button>
+              <button onClick={() => setPwResetUser(null)} style={cancelBtn}>Cancel</button>
             </div>
           </div>
         </div>

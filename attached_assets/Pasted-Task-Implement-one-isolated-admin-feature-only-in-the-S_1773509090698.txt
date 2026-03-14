@@ -1,0 +1,81 @@
+Task: Implement one isolated admin feature only in the Saphala Admin App — allow admin to reset a learner/user password safely.
+
+Read the current auth/user architecture first before making changes. Keep scope strictly limited.
+
+Context:
+- We have a Saphala Admin App and a separate Saphala Self Prep student frontend app.
+- They are separate apps but share the same database.
+- Admin should be able to reset a learner/user password from the Admin App.
+- This feature is only for safe password reset.
+- Do NOT implement any "show current password" feature.
+- Do NOT store or expose plain-text passwords.
+- Do NOT redesign the auth system broadly unless absolutely necessary.
+
+Strict scope:
+- Only implement admin-side password reset for users/learners
+- Do not change unrelated modules
+- Do not redesign login flow unless required for compatibility
+- Do not add email-reset flow in this task unless already trivially supported
+- Do not expose password hashes in UI or APIs
+
+Required behavior:
+1. In the Learners / Users admin area, add a "Reset Password" action for a user.
+2. Clicking it should open a small modal/dialog.
+3. Admin can:
+   - enter a new password manually, or
+   - optionally use an auto-generate temporary password button if easy/safe
+4. Include:
+   - New Password
+   - Confirm Password
+   - optional checkbox: "Require password change on next login" if the current auth architecture can support this safely with minimal changes
+5. On submit:
+   - validate password rules
+   - hash the password securely
+   - save only the hash
+   - never store or return plain-text password beyond the immediate admin action
+6. Show clear success/error feedback in admin UI.
+
+Security requirements:
+- Use the same password hashing approach already used by the current system
+- Never reveal existing password
+- Never return password hash to frontend
+- Ensure only authorized admin roles can perform reset
+- Add audit logging if an audit log mechanism already exists or can be integrated safely with minimal change
+
+Implementation guidance:
+1. Inspect first:
+   - current User schema/model
+   - auth/password hashing implementation
+   - admin users/learners table/actions
+   - any existing audit log structure
+2. Add the minimal safe API route/action for admin password reset
+3. Wire the admin UI button/modal to that API
+4. Keep the implementation backward compatible
+
+Validation:
+- password and confirm password must match
+- minimum password strength/length should follow existing system rules
+- if no existing rule exists, add a minimal sensible rule only (example: min 8 chars)
+
+Optional enhancement (only if truly minimal and safe):
+- support "Require password change on next login"
+But do not expand scope significantly for this.
+
+Do NOT:
+- show current password
+- add plain-text password storage
+- expose password hash anywhere
+- refactor the whole auth system
+- touch unrelated admin features
+
+Deliverables after implementation:
+1) exact files changed
+2) what UI action/modal was added
+3) what API route/action was added
+4) confirmation that password is hashed using existing system method
+5) whether "require change on next login" was implemented
+6) whether audit logging was added
+7) build/typecheck result
+
+Important:
+This task is only for safe admin-triggered password reset for learners/users. Nothing else.
