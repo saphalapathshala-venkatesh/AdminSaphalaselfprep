@@ -1,0 +1,66 @@
+Task: Implement one isolated admin feature only in the Saphala Admin App — add Delete User action safely.
+
+Read the existing user/auth architecture first before making changes. Keep scope strictly limited.
+
+Context:
+- We need an admin-side Delete User option in the Admin App.
+- This must be implemented safely.
+- Do not redesign unrelated modules.
+- Do not broaden scope into other user-management features beyond what is required.
+
+Strict scope:
+- Add Delete User action in the admin Users/Learners area
+- Prefer safe soft delete by default
+- Do not implement risky hard delete unless dependency checks prove it is safe
+- Do not disturb unrelated modules
+
+Required behavior:
+1. In the Users / Learners admin list, add a "Delete User" action.
+2. Clicking it should open a confirmation modal.
+3. Deletion must be admin-only and properly authorized.
+4. Safest default implementation:
+   - soft delete user OR mark inactive/deleted
+   - revoke active sessions
+   - prevent future login
+   - hide from normal active users list
+5. Preserve related records safely:
+   - purchases
+   - test attempts
+   - progress
+   - entitlements
+   - audit/history
+   - analytics references
+
+Implementation guidance:
+1. Inspect first:
+   - current User schema/model
+   - auth/session model
+   - learner/users admin page
+   - related foreign-key/dependency structure
+2. Choose the safest minimal implementation:
+   - prefer soft delete / deleted flag / inactive status
+3. Ensure deleted users cannot log in
+4. Ensure existing related data is not broken
+5. Add clear success/error feedback
+
+If a hard delete path is already safely possible:
+- only allow it when user has no dependent records
+- otherwise fall back to soft delete
+But do not overbuild this if it adds complexity.
+
+Do NOT:
+- cascade-delete purchases/tests/progress blindly
+- break analytics or reporting
+- expose this action to non-admin roles
+- refactor the full auth system
+
+Deliverables after implementation:
+1) exact files changed
+2) what delete behavior was implemented
+3) whether it is soft delete or conditional hard delete
+4) how sessions/login are handled after delete
+5) how related data safety is preserved
+6) build/typecheck result
+
+Important:
+This task is only for safe Delete User support in admin. Nothing else.

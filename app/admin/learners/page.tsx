@@ -90,6 +90,9 @@ export default function LearnersPage() {
   const [pwSaving, setPwSaving] = useState(false);
   const [pwError, setPwError] = useState("");
 
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveSaving, setArchiveSaving] = useState(false);
+
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const showToast = (msg: string, type: "success" | "error") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
@@ -169,6 +172,22 @@ export default function LearnersPage() {
       fetchProfile(selectedId);
       fetchLearners();
     } catch { showToast("Failed to update status", "error"); }
+  };
+
+  const archiveUser = async () => {
+    if (!selectedId || !profile) return;
+    setArchiveSaving(true);
+    try {
+      const res = await fetch(`/api/users/${selectedId}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) { showToast(json.error || "Failed to archive user", "error"); setArchiveSaving(false); return; }
+      setArchiveOpen(false);
+      setSelectedId(null);
+      setProfile(null);
+      showToast("Learner archived. Their data is preserved and all sessions have been revoked.", "success");
+      fetchLearners();
+    } catch { showToast("Failed to archive user", "error"); }
+    setArchiveSaving(false);
   };
 
   const inputStyle: React.CSSProperties = { width: "100%", padding: "0.5rem", border: "1px solid #d1d5db", borderRadius: "0.375rem", fontSize: "0.875rem" };
@@ -278,6 +297,9 @@ export default function LearnersPage() {
                   </button>
                   <button onClick={() => { setPwForm({ newPassword: "", confirmPassword: "", mustChangePassword: false }); setPwError(""); setPwResetOpen(true); }} style={{ ...btnSecondary, fontSize: "0.7rem", borderColor: "#7c3aed", color: "#7c3aed" }}>
                     Reset Password
+                  </button>
+                  <button onClick={() => setArchiveOpen(true)} style={{ ...btnSecondary, fontSize: "0.7rem", borderColor: "#dc2626", color: "#dc2626" }}>
+                    Archive
                   </button>
                 </div>
               </div>
@@ -394,6 +416,36 @@ export default function LearnersPage() {
           )}
         </div>
       )}
+    {/* ── Archive Confirmation Modal ────────────────────────────────────────── */}
+    {archiveOpen && profile && (
+      <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+        <div style={{ background: "#fff", borderRadius: "12px", padding: "1.75rem", width: "100%", maxWidth: 420, boxShadow: "0 20px 60px rgba(0,0,0,0.18)" }}>
+          <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.0625rem", fontWeight: 700, color: "#dc2626" }}>Archive Learner</h2>
+          <p style={{ margin: "0 0 0.75rem", color: "#475569", fontSize: "0.875rem", lineHeight: 1.5 }}>
+            <strong>{profile.name || profile.email || "This learner"}</strong> will be soft-deleted:
+          </p>
+          <ul style={{ margin: "0 0 1.25rem", paddingLeft: "1.25rem", color: "#475569", fontSize: "0.8125rem", lineHeight: 1.8 }}>
+            <li>Their account will be flagged as archived and hidden from active lists</li>
+            <li>All active sessions will be immediately revoked — they cannot log in</li>
+            <li>All related data (purchases, test attempts, progress, entitlements, XP) is preserved</li>
+            <li>This action can be reversed by a SUPER_ADMIN via the Users page</li>
+          </ul>
+          <div style={{ display: "flex", gap: "0.75rem" }}>
+            <button
+              onClick={archiveUser}
+              disabled={archiveSaving}
+              style={{ padding: "0.5625rem 1.25rem", borderRadius: "7px", border: "none", background: "#dc2626", color: "#fff", fontWeight: 700, cursor: archiveSaving ? "not-allowed" : "pointer", fontSize: "0.9rem", opacity: archiveSaving ? 0.7 : 1 }}
+            >
+              {archiveSaving ? "Archiving…" : "Archive Learner"}
+            </button>
+            <button onClick={() => setArchiveOpen(false)} style={{ padding: "0.5625rem 1.25rem", borderRadius: "7px", border: "1px solid #e2e8f0", background: "#fff", color: "#374151", fontWeight: 600, cursor: "pointer", fontSize: "0.9rem" }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     {/* ── Password Reset Modal ──────────────────────────────────────────────── */}
     {pwResetOpen && selectedId && profile && (
       <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
