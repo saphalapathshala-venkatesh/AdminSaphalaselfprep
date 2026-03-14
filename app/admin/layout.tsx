@@ -37,6 +37,7 @@ const navSections = [
     items: [
       { label: "Products", href: "/admin/products" },
       { label: "Coupons", href: "/admin/coupons" },
+      { label: "Refunds", href: "/admin/refunds" },
     ],
   },
   {

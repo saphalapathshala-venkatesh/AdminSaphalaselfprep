@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
+import { CURRENT_LEGAL_VERSION } from "@/lib/legalVersion";
 
 const STREAM_PRIORITY: string[] = ["TESTHUB", "SELFPREP_HTML", "FLASHCARDS", "PDF_ACCESS", "SMART_PRACTICE", "AI_ADDON"];
 
@@ -13,10 +14,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   try {
     const body = await req.json();
-    const { userId, couponCode } = body;
+    const { userId, couponCode, legalAccepted } = body;
 
     if (!userId || !userId.trim()) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });
+    }
+    if (!legalAccepted) {
+      return NextResponse.json(
+        { error: "You must accept the Terms & Conditions and Refund Policy before completing this purchase." },
+        { status: 400 }
+      );
     }
 
     const targetUser = await prisma.user.findUnique({ where: { id: userId.trim() } });
@@ -81,6 +88,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         grossPaise: finalGross,
         feePaise,
         netPaise,
+        legalAcceptedAt: new Date(),
+        legalVersion: CURRENT_LEGAL_VERSION,
       },
     });
 

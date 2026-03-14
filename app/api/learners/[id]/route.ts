@@ -19,6 +19,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         role: true,
         isActive: true,
         createdAt: true,
+        legalAcceptedAt: true,
+        legalVersion: true,
       },
     });
     if (!learner) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -45,7 +47,11 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         where: { userId: params.id },
         orderBy: { createdAt: "desc" },
         take: 10,
-        include: { package: { select: { code: true, name: true } }, coupon: { select: { code: true } } },
+        include: {
+          package: { select: { code: true, name: true } },
+          coupon: { select: { code: true } },
+          refund: { select: { id: true, status: true, approvedPaise: true, requestedAt: true } },
+        },
       }),
       prisma.xpLedgerEntry.aggregate({ where: { userId: params.id }, _sum: { delta: true } }),
     ]);

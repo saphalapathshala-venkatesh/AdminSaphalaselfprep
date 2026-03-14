@@ -30,8 +30,10 @@ export async function GET(req: NextRequest) {
     const paidInFilter = await prisma.user.count({ where: { role: "STUDENT", ...userFilter, entitlements: { some: { status: "ACTIVE" } } } });
     const freeInFilter = totalStudents - paidInFilter;
 
-    const [revAgg, attemptsByDay, activeUsersByDay, xpByDay, revenueByDay, topXpEarners, mostAttemptedTests, recentPages, recentPdfs] = await Promise.all([
+    const [revAgg, refundAgg, pendingRefunds, attemptsByDay, activeUsersByDay, xpByDay, revenueByDay, topXpEarners, mostAttemptedTests, recentPages, recentPdfs] = await Promise.all([
       prisma.purchase.aggregate({ where: { createdAt: { gte: start, lte: end }, ...streamFilter }, _sum: { grossPaise: true, netPaise: true } }),
+      prisma.refund.aggregate({ where: { status: { in: ["APPROVED", "PARTIALLY_APPROVED", "REFUNDED"] }, purchase: { createdAt: { gte: start, lte: end } } }, _sum: { approvedPaise: true }, _count: { id: true } }),
+      prisma.refund.count({ where: { status: "PENDING" } }),
 
       prisma.$queryRaw<{ date: string; count: bigint }[]>(
         Prisma.sql`SELECT DATE("startedAt") as date, COUNT(*)::bigint as count FROM "Attempt" WHERE "startedAt" >= ${start} AND "startedAt" <= ${end} GROUP BY DATE("startedAt") ORDER BY date`
@@ -92,6 +94,10 @@ export async function GET(req: NextRequest) {
           totalUsers: totalStudents,
           grossRevenuePaise: Number(revAgg._sum.grossPaise || 0),
           netRevenuePaise: Number(revAgg._sum.netPaise || 0),
+          refundedPaise: Number(refundAgg._sum.approvedPaise || 0),
+          refundCount: Number(refundAgg._count.id || 0),
+          pendingRefunds: Number(pendingRefunds || 0),
+          adjustedNetRevenuePaise: Number(revAgg._sum.netPaise || 0) - Number(refundAgg._sum.approvedPaise || 0),
           paidUsers: paidInFilter,
           freeUsers: freeInFilter,
         },

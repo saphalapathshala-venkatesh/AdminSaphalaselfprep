@@ -1,0 +1,171 @@
+You are working on the Saphala Self Prep ADMIN APP and related backend/admin-safe APIs.
+
+Critical context:
+- Student frontend app and admin app are separate applications sharing one database.
+- Legal acceptance must be enforced in backend, not only in frontend UI.
+- Refund administration must be properly trackable and reflected in admin-side revenue reporting.
+- Keep the implementation minimal, clean, future-safe, and production-oriented.
+- Do not disturb unrelated modules.
+
+Task batch:
+Wire legal acceptance support for signup + checkout, and ensure refund-policy/admin reporting architecture is properly supported.
+
+==================================================
+1. LEGAL ACCEPTANCE ARCHITECTURE
+==================================================
+
+We need two separate acceptance points:
+
+A) Signup-level acceptance
+B) Checkout / purchase-level acceptance
+
+These should not be treated as the same event.
+
+--------------------------------------------------
+A. SIGNUP-LEVEL ACCEPTANCE
+--------------------------------------------------
+
+Student signup must require a mandatory checkbox:
+"I agree to the Terms & Conditions and Refund Policy"
+
+Requirements:
+- checkbox unchecked by default
+- signup must fail if not accepted
+- backend must validate this, not only frontend
+- store acceptance metadata in a minimal clean way
+
+Preferred lean implementation:
+- add user-level legal acceptance fields such as:
+  - legalAcceptedAt
+  - legalVersion
+
+If current architecture strongly benefits from separate fields, that is acceptable, but do not overcomplicate.
+
+--------------------------------------------------
+B. CHECKOUT / PURCHASE-LEVEL ACCEPTANCE
+--------------------------------------------------
+
+Before payment, checkout must require a mandatory checkbox:
+"I have read and agree to the Terms & Conditions and Refund Policy applicable to this purchase"
+
+Requirements:
+- payment/order creation must fail if not accepted
+- backend must validate this, not only frontend
+- store purchase-level legal acceptance metadata
+
+Preferred lean implementation:
+- add order/purchase/payment-level fields such as:
+  - legalAcceptedAtCheckout
+  - legalVersionAtCheckout
+
+This is important for future refund/audit disputes.
+
+==================================================
+2. POLICY VERSIONING
+==================================================
+
+Implement a clean, simple policy versioning approach.
+
+Recommended:
+- one legal version string, e.g. "v1.0" or "2026-03"
+- store accepted version at signup
+- store accepted version again at checkout
+
+Goal:
+- know what version the user accepted
+- support future re-acceptance flows only if policy changes materially
+
+Do not overbuild policy CMS unless already justified by architecture.
+
+==================================================
+3. BACKEND ENFORCEMENT POINTS
+==================================================
+
+Audit and wire the correct backend enforcement points:
+
+- signup API / auth registration flow
+- checkout / payment initiation / order creation flow
+
+Ensure:
+- frontend checkbox alone is not trusted
+- backend rejects requests without acceptance
+- validation messages are clear and safe
+
+==================================================
+4. REFUND POLICY + ADMIN REFUND SUPPORT
+==================================================
+
+Refund policy basis:
+- refund requests may be considered only within 3 days of purchase
+- learner must not have consumed more than 10% of purchased content
+- learner must provide a valid institution-acceptable reason
+- refund is not automatic
+- final decision and refund percentage remain at the sole discretion of the institution
+
+Audit current purchase/payment schema and admin capabilities.
+
+Implement or prepare clean support for refund administration, including where appropriate:
+- purchaseId
+- userId
+- amount paid
+- refund request date
+- reason
+- content consumption percentage at request time
+- admin remarks
+- approved refund amount
+- refund percentage
+- status (Pending / Approved / Partially Approved / Rejected / Refunded)
+- processedBy
+- processedAt
+
+Do not create fake UI-only refund handling.
+
+==================================================
+5. REVENUE / ANALYTICS IMPACT
+==================================================
+
+Refunds must reflect in admin-side revenue.
+
+Required reporting direction:
+- gross revenue visible
+- refunds visible separately
+- net revenue reflects approved/refunded amounts
+
+Audit where this should flow safely:
+- dashboard KPIs
+- purchases list
+- learner purchase history
+- revenue summaries
+
+Implement the safest clean version possible without disturbing unrelated analytics.
+
+==================================================
+6. POLICY PAGE / ROUTING SUPPORT
+==================================================
+
+Ensure the system can cleanly support linkable legal pages for:
+- /terms-and-conditions
+- /refund-policy
+
+If current architecture already has static/public page support, use that.
+Do not overbuild admin-managed legal CMS unless it is clearly needed now.
+
+==================================================
+7. OUTPUT REQUIRED
+==================================================
+
+Please do this in order:
+1. audit current auth, signup, checkout/payment, purchase, and analytics architecture
+2. identify minimal schema/backend changes required
+3. implement legal acceptance enforcement for signup and checkout
+4. implement or prepare clean refund admin support
+5. wire refund visibility into revenue reporting where appropriate
+6. run build/type checks
+7. summarize:
+   - what schema changes were made
+   - where legal acceptance is stored
+   - how signup enforcement works
+   - how checkout enforcement works
+   - how refund data is tracked
+   - how revenue reflects refunds
+   - any remaining student-frontend wiring still needed
