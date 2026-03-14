@@ -1,0 +1,110 @@
+Task: Implement safe admin user management improvements in the Saphala Admin App.
+
+Read the existing user/auth architecture first before making changes. Keep scope strictly limited.
+
+Context:
+We need admin-side user management improvements in the Admin App.
+This task should cover only the following user-management actions:
+
+1) Edit User
+2) Delete User
+
+Do not redesign unrelated modules.
+Do not broaden scope into full auth refactors.
+
+Strict scope:
+- In the admin Users / Learners area, add:
+  - Edit User action
+  - Delete User action
+- Edit User should allow admin to update:
+  - Name
+  - Email
+  - Mobile number
+- Delete User should be implemented safely
+- Prefer soft delete by default
+- Do not disturb unrelated modules
+
+--------------------------------------------------
+FEATURE 1 — Edit User
+Required behavior:
+1. In the Users / Learners admin list, add an "Edit User" action.
+2. Clicking it should open a small modal/dialog or edit form.
+3. Admin should be able to update only:
+   - Name
+   - Email
+   - Mobile number
+4. Validation rules:
+   - Name should be trimmed and validated reasonably
+   - Email should be trimmed, normalized (lowercase if current system does that), and validated
+   - Mobile should be trimmed/normalized based on the current system rules
+5. Uniqueness rules:
+   - Email must remain unique
+   - Mobile must remain unique
+   - If another user already has the same email/mobile, show a clean validation error
+6. Changes must save safely and reflect in the admin UI.
+7. Do not expose or edit password in this feature.
+
+Implementation guidance:
+- Inspect current User schema/model and existing admin user list/page first
+- Reuse existing validation patterns where possible
+- Keep API/update logic minimal and safe
+- Ensure auth/login compatibility is not broken by these edits
+
+--------------------------------------------------
+FEATURE 2 — Delete User
+Required behavior:
+1. In the Users / Learners admin list, add a "Delete User" action.
+2. Clicking it should open a confirmation modal.
+3. Deletion must be admin-only and properly authorized.
+4. Safest default implementation:
+   - soft delete user OR mark inactive/deleted
+   - revoke active sessions
+   - prevent future login
+   - hide from normal active users list
+5. Preserve related records safely:
+   - purchases
+   - test attempts
+   - progress
+   - entitlements
+   - audit/history
+   - analytics references
+
+Implementation guidance:
+1. Inspect first:
+   - current User schema/model
+   - auth/session model
+   - learner/users admin page
+   - related foreign-key/dependency structure
+2. Choose the safest minimal implementation:
+   - prefer soft delete / deleted flag / inactive status
+3. Ensure deleted users cannot log in
+4. Ensure existing related data is not broken
+5. Add clear success/error feedback
+
+If a hard delete path is already safely possible:
+- only allow it when user has no dependent records
+- otherwise fall back to soft delete
+But do not overbuild this if it adds complexity.
+
+--------------------------------------------------
+Safety rules
+- Do not cascade-delete purchases/tests/progress blindly
+- Do not break analytics or reporting
+- Do not expose these actions to non-admin roles
+- Do not refactor the full auth system
+- Do not redesign unrelated user management flows
+
+--------------------------------------------------
+Deliverables after implementation:
+1) exact files changed
+2) what Edit User UI/action was added
+3) what fields can now be edited
+4) how uniqueness validation for email/mobile is enforced
+5) what Delete User behavior was implemented
+6) whether delete is soft delete or conditional hard delete
+7) how sessions/login are handled after delete
+8) whether audit logging was added
+9) build/typecheck result
+
+Important:
+This task is only for safe Edit User + Delete User support in admin. Nothing else.

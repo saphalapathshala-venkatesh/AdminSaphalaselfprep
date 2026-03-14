@@ -24,6 +24,8 @@ interface UserRow {
 
 interface EditForm {
   name: string;
+  email: string;
+  mobile: string;
   role: string;
   maxWebDevices: number;
   isActive: boolean;
@@ -58,7 +60,7 @@ export default function UsersPage() {
 
   // Modals
   const [editUser, setEditUser] = useState<UserRow | null>(null);
-  const [editForm, setEditForm] = useState<EditForm>({ name: "", role: "STUDENT", maxWebDevices: 1, isActive: true });
+  const [editForm, setEditForm] = useState<EditForm>({ name: "", email: "", mobile: "", role: "STUDENT", maxWebDevices: 1, isActive: true });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
 
@@ -104,7 +106,7 @@ export default function UsersPage() {
   // ── Edit ──────────────────────────────────────────────────────────────────
   const openEdit = (u: UserRow) => {
     setEditUser(u);
-    setEditForm({ name: u.name || "", role: u.role, maxWebDevices: u.maxWebDevices, isActive: u.isActive });
+    setEditForm({ name: u.name || "", email: u.email || "", mobile: u.mobile || "", role: u.role, maxWebDevices: u.maxWebDevices, isActive: u.isActive });
     setEditError("");
   };
   const saveEdit = async () => {
@@ -301,7 +303,11 @@ export default function UsersPage() {
             <h2 style={{ margin: "0 0 1.25rem", fontSize: "1.125rem", fontWeight: 700 }}>Edit User</h2>
             {editError && <div style={{ background: "#fee2e2", color: "#dc2626", padding: "0.5rem 0.75rem", borderRadius: "6px", marginBottom: "0.75rem", fontSize: "0.875rem" }}>{editError}</div>}
             <label style={label}>Name</label>
-            <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} style={input} />
+            <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} style={input} placeholder="Full name" />
+            <label style={label}>Email</label>
+            <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} style={input} placeholder="user@example.com" autoComplete="off" />
+            <label style={label}>Mobile</label>
+            <input type="tel" value={editForm.mobile} onChange={e => setEditForm(f => ({ ...f, mobile: e.target.value }))} style={input} placeholder="+91XXXXXXXXXX" autoComplete="off" />
             <label style={label}>Role</label>
             <select value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))} style={input}>
               {ROLE_OPTS.map(r => <option key={r} value={r}>{r.replace("_", " ")}</option>)}

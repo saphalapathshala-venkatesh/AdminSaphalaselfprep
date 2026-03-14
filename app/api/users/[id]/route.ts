@@ -33,7 +33,35 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     if (!existing || existing.deletedAt) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const data: any = {};
-    if (body.name         !== undefined) data.name         = body.name?.trim() || existing.name;
+    if (body.name !== undefined) data.name = body.name?.trim() || existing.name;
+
+    if (body.email !== undefined) {
+      const trimEmail = (body.email || "").trim().toLowerCase() || null;
+      if (trimEmail) {
+        const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRe.test(trimEmail))
+          return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
+        const conflict = await prisma.user.findFirst({
+          where: { email: trimEmail, NOT: { id: params.id } },
+          select: { id: true },
+        });
+        if (conflict) return NextResponse.json({ error: "Email is already in use by another account" }, { status: 409 });
+      }
+      data.email = trimEmail;
+    }
+
+    if (body.mobile !== undefined) {
+      const trimMobile = (body.mobile || "").trim() || null;
+      if (trimMobile) {
+        const conflict = await prisma.user.findFirst({
+          where: { mobile: trimMobile, NOT: { id: params.id } },
+          select: { id: true },
+        });
+        if (conflict) return NextResponse.json({ error: "Mobile number is already in use by another account" }, { status: 409 });
+      }
+      data.mobile = trimMobile;
+    }
+
     if (body.maxWebDevices !== undefined) {
       const n = parseInt(body.maxWebDevices);
       if (isNaN(n) || n < 1 || n > 5) return NextResponse.json({ error: "maxWebDevices must be between 1 and 5" }, { status: 400 });

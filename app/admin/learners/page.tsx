@@ -93,6 +93,11 @@ export default function LearnersPage() {
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiveSaving, setArchiveSaving] = useState(false);
 
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ name: "", email: "", mobile: "" });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const showToast = (msg: string, type: "success" | "error") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
@@ -172,6 +177,30 @@ export default function LearnersPage() {
       fetchProfile(selectedId);
       fetchLearners();
     } catch { showToast("Failed to update status", "error"); }
+  };
+
+  const openEdit = () => {
+    if (!profile) return;
+    setEditForm({ name: profile.name || "", email: profile.email || "", mobile: profile.mobile || "" });
+    setEditError("");
+    setEditOpen(true);
+  };
+
+  const saveEdit = async () => {
+    if (!selectedId || !profile) return;
+    setEditSaving(true); setEditError("");
+    const res = await fetch(`/api/users/${selectedId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: editForm.name, email: editForm.email, mobile: editForm.mobile }),
+    });
+    const json = await res.json();
+    setEditSaving(false);
+    if (!res.ok) { setEditError(json.error || "Failed to save"); return; }
+    setEditOpen(false);
+    showToast("Learner updated successfully", "success");
+    fetchProfile(selectedId);
+    fetchLearners();
   };
 
   const archiveUser = async () => {
@@ -292,6 +321,9 @@ export default function LearnersPage() {
                   <span style={{ padding: "0.125rem 0.5rem", borderRadius: "9999px", fontSize: "0.7rem", fontWeight: 500, background: profile.isActive ? "#dcfce7" : "#fee2e2", color: profile.isActive ? "#166534" : "#991b1b" }}>
                     {profile.isActive ? "Active" : "Inactive"}
                   </span>
+                  <button onClick={openEdit} style={{ ...btnSecondary, fontSize: "0.7rem", borderColor: "#2563eb", color: "#2563eb" }}>
+                    Edit
+                  </button>
                   <button onClick={toggleStatus} style={{ ...btnSecondary, fontSize: "0.7rem" }}>
                     {profile.isActive ? "Deactivate" : "Activate"}
                   </button>
@@ -416,6 +448,60 @@ export default function LearnersPage() {
           )}
         </div>
       )}
+    {/* ── Edit Learner Modal ────────────────────────────────────────────────── */}
+    {editOpen && profile && (
+      <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+        <div style={{ background: "#fff", borderRadius: "12px", padding: "1.75rem", width: "100%", maxWidth: 420, boxShadow: "0 20px 60px rgba(0,0,0,0.18)" }}>
+          <h2 style={{ margin: "0 0 1.25rem", fontSize: "1.0625rem", fontWeight: 700, color: "#0f172a" }}>Edit Learner</h2>
+
+          {editError && (
+            <div style={{ marginBottom: "0.875rem", padding: "0.5rem 0.75rem", background: "#fee2e2", borderRadius: "6px", color: "#dc2626", fontSize: "0.8125rem", fontWeight: 600 }}>{editError}</div>
+          )}
+
+          <label style={{ display: "block", fontSize: "0.8125rem", fontWeight: 600, color: "#374151", marginBottom: "0.3rem", marginTop: "0.75rem" }}>Name</label>
+          <input
+            value={editForm.name}
+            onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+            style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "0.875rem", boxSizing: "border-box" }}
+            placeholder="Full name"
+          />
+
+          <label style={{ display: "block", fontSize: "0.8125rem", fontWeight: 600, color: "#374151", marginBottom: "0.3rem", marginTop: "0.75rem" }}>Email</label>
+          <input
+            type="email"
+            value={editForm.email}
+            onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+            style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "0.875rem", boxSizing: "border-box" }}
+            placeholder="user@example.com"
+            autoComplete="off"
+          />
+
+          <label style={{ display: "block", fontSize: "0.8125rem", fontWeight: 600, color: "#374151", marginBottom: "0.3rem", marginTop: "0.75rem" }}>Mobile</label>
+          <input
+            type="tel"
+            value={editForm.mobile}
+            onChange={e => setEditForm(f => ({ ...f, mobile: e.target.value }))}
+            style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "0.875rem", boxSizing: "border-box" }}
+            placeholder="+91XXXXXXXXXX"
+            autoComplete="off"
+          />
+
+          <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
+            <button
+              onClick={saveEdit}
+              disabled={editSaving}
+              style={{ padding: "0.5625rem 1.25rem", borderRadius: "7px", border: "none", background: "#2563eb", color: "#fff", fontWeight: 700, cursor: editSaving ? "not-allowed" : "pointer", fontSize: "0.9rem", opacity: editSaving ? 0.7 : 1 }}
+            >
+              {editSaving ? "Saving…" : "Save Changes"}
+            </button>
+            <button onClick={() => setEditOpen(false)} style={{ padding: "0.5625rem 1.25rem", borderRadius: "7px", border: "1px solid #e2e8f0", background: "#fff", color: "#374151", fontWeight: 600, cursor: "pointer", fontSize: "0.9rem" }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     {/* ── Archive Confirmation Modal ────────────────────────────────────────── */}
     {archiveOpen && profile && (
       <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
