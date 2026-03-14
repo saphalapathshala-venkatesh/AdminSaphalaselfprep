@@ -258,7 +258,7 @@ function AddQuestionsModal({ testId, sectionId, sectionTitle, targetCount, curre
 
   // Load taxonomy once
   useEffect(() => {
-    fetch("/api/taxonomy?limit=200").then(r => r.json()).then(d => {
+    fetch("/api/taxonomy?tree=true").then(r => r.json()).then(d => {
       const cats: TaxoNode[] = [], subs: TaxoNode[] = [], tops: TaxoNode[] = [], subtops: TaxoNode[] = [];
       for (const cat of (d.data || [])) {
         cats.push({ id: cat.id, name: cat.name });
@@ -974,7 +974,7 @@ export default function TestsPage() {
     fetch("/api/test-series?limit=100").then(r => r.json()).then(d => {
       setSeriesList((d.data || []).map((s: any) => ({ id: s.id, title: s.title, categoryId: s.categoryId || null })));
     }).catch(() => {});
-    fetch("/api/taxonomy?limit=200").then(r => r.json()).then(d => {
+    fetch("/api/taxonomy?tree=true").then(r => r.json()).then(d => {
       setCategories((d.data || []).map((c: any) => ({ id: c.id, name: c.name })));
     }).catch(() => {});
   }, []);

@@ -1,0 +1,73 @@
+Task: Fix taxonomy category wiring across the Saphala Admin App so that categories created in the canonical Taxonomy system automatically reflect everywhere category selection is used.
+
+Read the current architecture first before making changes. Keep scope focused on category-source consistency only.
+
+Problem summary:
+A category created in Taxonomy is not appearing in some admin forms such as:
+- Test Series creation
+- Test creation
+
+Expected rule:
+Once a category is created in the canonical Taxonomy system, it should automatically appear across all admin modules wherever category selection is used.
+
+This should apply to all relevant modules, including wherever category dropdowns/selectors exist, such as:
+- Courses
+- Tests
+- Test Series
+- E-Books
+- Flashcards
+- Videos
+- Live Classes
+- Products
+- other relevant admin content/product forms
+
+Strict scope:
+- Fix category-source consistency only
+- Do not redesign unrelated modules
+- Do not change pricing/product logic
+- Do not refactor the full taxonomy architecture unless necessary
+- Do not broaden into subject/topic/subtopic unless needed for category wiring compatibility
+
+What to inspect first:
+1. Canonical Taxonomy Category model/table/API
+2. All admin forms/pages that use Category dropdowns
+3. Whether any of them are using:
+   - hardcoded/static category options
+   - legacy enum/category lists
+   - different APIs
+   - stale cached loaders
+   - incorrect filters
+   - wrong mapping between category id and name
+
+Required rule to enforce:
+There must be one source of truth for category options:
+- the canonical Taxonomy Category source
+
+Required fix:
+1. Identify every admin module that uses category selection.
+2. Align all those category dropdowns/selectors to the same canonical taxonomy source.
+3. Remove/replace hardcoded or legacy category sources where safe.
+4. Ensure newly created taxonomy categories appear correctly across all relevant forms.
+5. Preserve backward compatibility for existing saved records.
+6. Ensure selected category values still load correctly in edit forms.
+7. Keep the fix minimal and production-safe.
+
+Please test at least these cases:
+1. Create a new category in Taxonomy
+2. Open Test creation form → new category should appear
+3. Open Test Series creation form → new category should appear
+4. Open Course creation/edit form → category should appear if that form uses category
+5. Edit existing records and confirm current category still loads correctly
+6. Save with newly created category successfully
+7. Build/typecheck should pass cleanly
+
+Deliverables:
+1) exact files changed
+2) root cause(s) found
+3) which modules were using inconsistent category sources
+4) what canonical source is now used everywhere
+5) confirmation that new taxonomy categories now auto-reflect across relevant admin modules
+6) build/typecheck result
+
+Important:
+This task is about category-source consistency across admin modules only. Do not redesign unrelated features.
