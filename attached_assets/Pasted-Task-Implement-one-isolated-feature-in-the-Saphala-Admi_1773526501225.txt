@@ -1,0 +1,136 @@
+Task: Implement one isolated feature in the Saphala Admin App test builder — inside Test creation/edit, add a new option to create a single question directly within the system editor and attach it to the current test.
+
+Read the current architecture first before making changes. Keep scope strictly limited.
+
+Context:
+Inside Test creation/edit, when admin clicks "Add Questions", there are already existing sources/flows for adding questions.
+We want to add one more option:
+
+"Create Single Question"
+
+This should allow admin to create one question directly inside the system without leaving the test flow.
+
+Important:
+- Keep all existing question-source flows intact
+- Do not redesign the full Question Bank module
+- Do not redesign Imports
+- Do not redesign unrelated test-builder features
+- Keep this feature isolated to adding one manual question from inside the test builder
+
+Feature goal:
+Inside Test → Add Questions, add a new option:
+- Create Single Question
+
+When chosen, admin should be able to:
+1. create one question using an in-system question editor
+2. apply all required tags/taxonomy
+3. save it safely
+4. attach it directly to the current test
+
+Important architecture rule:
+This must not create a separate question system.
+The created question should be saved as a normal Question Bank question record and then linked into the current test.
+
+--------------------------------------------------
+REQUIRED BEHAVIOR
+
+1. Add new source option in Test → Add Questions
+Add one more option alongside the current question sources:
+- Create Single Question
+
+2. Open question creation UI
+On clicking it, open a modal / drawer / inline panel (choose the cleanest existing UI pattern) with a single-question creation form.
+
+3. Question fields
+Support the core fields already used by the system where applicable, such as:
+- Question type
+- Question text
+- Options / answer inputs
+- Correct answer
+- Explanation
+- Difficulty
+- Marks
+- Negative marks if supported by current test/question system
+- Language/status/source only if already part of current question architecture
+
+4. Taxonomy / tags
+The question creation flow must support full tagging using the existing taxonomy system:
+- Category
+- Subject
+- Topic
+- Subtopic
+
+Important:
+When subtopicId is selected, the system must automatically derive and set:
+- topicId
+- subjectId
+- categoryId
+
+This must follow the existing locked taxonomy consistency rule already used in the platform.
+
+5. Save behavior
+On save:
+- create a normal Question Bank question record
+- then attach/link that newly created question to the currently open test
+- refresh the test question list so the admin can immediately see it inside the test
+
+6. Keep scope minimal
+- This is for single-question manual creation only
+- Do not add bulk creation here
+- Do not redesign imports
+- Do not redesign the main Question Bank editor unless absolutely necessary
+- Reuse existing validation and data structures where possible
+
+7. Compatibility
+- Existing Add Questions flows must continue to work unchanged
+- Existing tests/questions must remain unaffected
+- Edit mode for the test should still work normally
+
+--------------------------------------------------
+WHAT TO INSPECT FIRST
+
+Please inspect:
+1. current Test builder Add Questions flow
+2. current Question Bank schema/model
+3. existing question create/edit APIs if any
+4. taxonomy/tagging flow and current auto-derivation logic
+5. how test-question linking currently works
+
+--------------------------------------------------
+IMPLEMENTATION EXPECTATIONS
+
+- Reuse current Question Bank structures wherever possible
+- Reuse current taxonomy dropdown logic
+- Keep validation minimal and aligned with current architecture
+- Avoid duplicate logic if question create APIs already exist
+- If no reusable single-question create endpoint exists, add the minimal safe endpoint/action needed
+
+--------------------------------------------------
+TEST CASES TO VERIFY
+
+1. Open an existing or new test
+2. Click Add Questions
+3. Choose Create Single Question
+4. Create one question with full taxonomy tags
+5. Save it
+6. Confirm:
+   - the question is stored in Question Bank
+   - the question is attached to the current test
+   - the question appears immediately in the test question list
+7. Confirm taxonomy auto-derivation works when subtopic is selected
+8. Confirm build/typecheck passes
+
+--------------------------------------------------
+DELIVERABLES
+
+After implementation, provide:
+1) exact files changed
+2) what new UI/action was added in Add Questions
+3) whether the question is saved into Question Bank before linking
+4) how taxonomy tagging works
+5) confirmation that subtopic-based auto-derivation is applied
+6) how the new question is attached to the current test
+7) build/typecheck result
+
+Important:
+This task is only for adding "Create Single Question" inside Test → Add Questions. Nothing else.

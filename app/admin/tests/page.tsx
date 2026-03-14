@@ -218,7 +218,7 @@ type AddQuestionsModalProps = {
 };
 
 function AddQuestionsModal({ testId, sectionId, sectionTitle, targetCount, currentCount, onClose, onCommitted }: AddQuestionsModalProps) {
-  type Stage = "source" | "upload" | "qbank" | "existingtest" | "review" | "committing" | "done";
+  type Stage = "source" | "upload" | "qbank" | "existingtest" | "create" | "review" | "committing" | "done";
   const [stage, setStage] = useState<Stage>("source");
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
@@ -249,6 +249,22 @@ function AddQuestionsModal({ testId, sectionId, sectionTitle, targetCount, curre
 
   // Commit state
   const [commitResult, setCommitResult] = useState<{ committed: number; skipped: number; errors: string[] } | null>(null);
+
+  // Create-single-question state
+  const [cqForm, setCqForm] = useState({
+    type: "MCQ_SINGLE", stem: "", explanation: "", difficulty: "MODERATE",
+    marks: "1", negativeMarks: "0",
+    categoryId: "", subjectId: "", topicId: "", subtopicId: "",
+  });
+  const [cqOptions, setCqOptions] = useState<{ text: string; isCorrect: boolean }[]>([
+    { text: "", isCorrect: false }, { text: "", isCorrect: false },
+    { text: "", isCorrect: false }, { text: "", isCorrect: false },
+  ]);
+  const [cqSubjects, setCqSubjects] = useState<TaxoNode[]>([]);
+  const [cqTopics, setCqTopics] = useState<TaxoNode[]>([]);
+  const [cqSubtopics, setCqSubtopics] = useState<TaxoNode[]>([]);
+  const [cqSaving, setCqSaving] = useState(false);
+  const [cqError, setCqError] = useState("");
 
   // Taxonomy for review editing
   const [taxoCategories, setTaxoCategories] = useState<TaxoNode[]>([]);
@@ -298,6 +314,84 @@ function AddQuestionsModal({ testId, sectionId, sectionTitle, targetCount, curre
       setStage("review");
     };
     reader.readAsText(file, "utf-8");
+  }
+
+  function openCreate() {
+    setCqForm({ type: "MCQ_SINGLE", stem: "", explanation: "", difficulty: "MODERATE", marks: "1", negativeMarks: "0", categoryId: "", subjectId: "", topicId: "", subtopicId: "" });
+    setCqOptions([{ text: "", isCorrect: false }, { text: "", isCorrect: false }, { text: "", isCorrect: false }, { text: "", isCorrect: false }]);
+    setCqSubjects([]); setCqTopics([]); setCqSubtopics([]);
+    setCqError("");
+    setStage("create");
+  }
+
+  async function cqLoadSubjects(categoryId: string) {
+    if (!categoryId) { setCqSubjects([]); setCqTopics([]); setCqSubtopics([]); return; }
+    const d = await fetch(`/api/taxonomy?level=subject&parentId=${categoryId}`).then(r => r.json());
+    setCqSubjects((d.data || []).map((s: any) => ({ id: s.id, name: s.name })));
+    setCqTopics([]); setCqSubtopics([]);
+  }
+
+  async function cqLoadTopics(subjectId: string) {
+    if (!subjectId) { setCqTopics([]); setCqSubtopics([]); return; }
+    const d = await fetch(`/api/taxonomy?level=topic&parentId=${subjectId}`).then(r => r.json());
+    setCqTopics((d.data || []).map((t: any) => ({ id: t.id, name: t.name })));
+    setCqSubtopics([]);
+  }
+
+  async function cqLoadSubtopics(topicId: string) {
+    if (!topicId) { setCqSubtopics([]); return; }
+    const d = await fetch(`/api/taxonomy?level=subtopic&parentId=${topicId}`).then(r => r.json());
+    setCqSubtopics((d.data || []).map((s: any) => ({ id: s.id, name: s.name })));
+  }
+
+  async function handleCqSave() {
+    setCqError("");
+    const isMCQ = ["MCQ_SINGLE", "MCQ_MULTIPLE"].includes(cqForm.type);
+    if (!cqForm.stem.trim()) { setCqError("Question stem is required."); return; }
+    if (isMCQ) {
+      const filled = cqOptions.filter(o => o.text.trim());
+      if (filled.length < 2) { setCqError("MCQ requires at least 2 options with text."); return; }
+      const correctCount = cqOptions.filter(o => o.isCorrect).length;
+      if (cqForm.type === "MCQ_SINGLE" && correctCount !== 1) { setCqError("MCQ_SINGLE must have exactly 1 correct option."); return; }
+      if (cqForm.type === "MCQ_MULTIPLE" && correctCount < 1) { setCqError("MCQ_MULTIPLE must have at least 1 correct option."); return; }
+    }
+    setCqSaving(true);
+    try {
+      const payload: any = {
+        type: cqForm.type,
+        difficulty: cqForm.difficulty,
+        stem: cqForm.stem,
+        explanation: cqForm.explanation || null,
+        status: "APPROVED",
+        confirmNearDuplicate: true,
+        categoryId: cqForm.categoryId || null,
+        subjectId: cqForm.subjectId || null,
+        topicId: cqForm.topicId || null,
+        subtopicId: cqForm.subtopicId || null,
+      };
+      if (isMCQ) {
+        payload.options = cqOptions.filter(o => o.text.trim()).map(o => ({ text: o.text.trim(), isCorrect: o.isCorrect }));
+      }
+      const res = await fetch("/api/questions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const d = await res.json();
+      if (!res.ok) { setCqError(d.error || "Failed to create question."); return; }
+      const q = d.data;
+      const reviewItem: ReviewItem = {
+        key: `cq_${q.id}_${Date.now()}`,
+        existingQuestionId: q.id,
+        isEdited: false,
+        stem: q.stem, type: q.type, difficulty: q.difficulty,
+        explanation: q.explanation || "",
+        categoryId: q.categoryId || "", subjectId: q.subjectId || "",
+        topicId: q.topicId || "", subtopicId: q.subtopicId || "",
+        sourceTag: "", marks: parseFloat(cqForm.marks) || 1, negativeMarks: parseFloat(cqForm.negativeMarks) || 0,
+        options: (q.options || []).map((o: any) => ({ text: o.text, isCorrect: o.isCorrect })),
+        status: "clean", errors: [], warnings: [], selected: false,
+      };
+      setReviewItems(prev => [...prev, reviewItem]);
+      setStage("review");
+    } catch { setCqError("Network error. Please try again."); }
+    finally { setCqSaving(false); }
   }
 
   async function loadQBResults(pg = 1) {
@@ -451,13 +545,14 @@ function AddQuestionsModal({ testId, sectionId, sectionTitle, targetCount, curre
         {stage === "source" && (
           <div style={{ padding: "2rem 1.5rem" }}>
             <p style={{ fontSize: "0.875rem", color: "#374151", marginBottom: "1.5rem", fontWeight: 600 }}>Choose a source to add questions from:</p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem", marginBottom: "2rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "2rem" }}>
               {[
                 { key: "upload", icon: "📂", title: "Upload CSV / DOCX", desc: "Parse a file, validate & review before committing" },
                 { key: "qbank", icon: "🗃️", title: "From Question Bank", desc: "Search, filter and pick from existing questions" },
                 { key: "existingtest", icon: "📋", title: "From Existing Test", desc: "Reuse questions from another test (edits create new records)" },
+                { key: "create", icon: "✏️", title: "Create Single Question", desc: "Author one question directly and attach it to this test" },
               ].map(src => (
-                <button key={src.key} onClick={() => { setStage(src.key as Stage); if (src.key === "qbank") loadQBResults(1); }}
+                <button key={src.key} onClick={() => { if (src.key === "create") { openCreate(); } else { setStage(src.key as Stage); if (src.key === "qbank") loadQBResults(1); } }}
                   style={{ border: "2px solid #e2e8f0", borderRadius: "10px", padding: "1.25rem 1rem", background: "#fff", cursor: "pointer", textAlign: "left", transition: "border-color 0.15s" }}
                   onMouseEnter={e => (e.currentTarget.style.borderColor = BRAND.purple)}
                   onMouseLeave={e => (e.currentTarget.style.borderColor = "#e2e8f0")}>
@@ -738,6 +833,144 @@ function AddQuestionsModal({ testId, sectionId, sectionTitle, targetCount, curre
                 </tbody>
               </table>
               {reviewItems.length === 0 && <div style={{ textAlign: "center", padding: "2rem", color: "#888", fontSize: "0.875rem" }}>No questions yet. Go back to add from a source.</div>}
+            </div>
+          </div>
+        )}
+
+        {/* STAGE: CREATE SINGLE QUESTION */}
+        {stage === "create" && (
+          <div style={{ padding: "1.5rem", overflowY: "auto" }}>
+            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.25rem", alignItems: "center" }}>
+              <button onClick={() => setStage("source")} style={btn("#6b7280")}>← Back</button>
+              <span style={{ fontWeight: 700, fontSize: "0.95rem", color: "#111" }}>Create Single Question</span>
+            </div>
+
+            {cqError && (
+              <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "0.625rem 0.875rem", marginBottom: "1rem", color: "#dc2626", fontSize: "0.8125rem" }}>
+                {cqError}
+              </div>
+            )}
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+              <div>
+                <label style={lbl}>Question Type *</label>
+                <select value={cqForm.type} onChange={e => setCqForm(f => ({ ...f, type: e.target.value, }))} style={inp}>
+                  <option value="MCQ_SINGLE">MCQ — Single Answer</option>
+                  <option value="MCQ_MULTIPLE">MCQ — Multiple Answers</option>
+                  <option value="TRUE_FALSE">True / False</option>
+                </select>
+              </div>
+              <div>
+                <label style={lbl}>Difficulty *</label>
+                <select value={cqForm.difficulty} onChange={e => setCqForm(f => ({ ...f, difficulty: e.target.value }))} style={inp}>
+                  <option value="FOUNDATIONAL">Foundational</option>
+                  <option value="MODERATE">Moderate</option>
+                  <option value="ADVANCED">Advanced</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: "1rem" }}>
+              <label style={lbl}>Question Stem *</label>
+              <textarea value={cqForm.stem} onChange={e => setCqForm(f => ({ ...f, stem: e.target.value }))}
+                rows={4} placeholder="Enter question text…" style={{ ...inp, resize: "vertical" }} />
+            </div>
+
+            {["MCQ_SINGLE", "MCQ_MULTIPLE"].includes(cqForm.type) && (
+              <div style={{ marginBottom: "1rem" }}>
+                <label style={lbl}>Options * {cqForm.type === "MCQ_SINGLE" ? "(mark exactly 1 correct)" : "(mark at least 1 correct)"}</label>
+                {cqOptions.map((opt, i) => (
+                  <div key={i} style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.375rem" }}>
+                    <input type={cqForm.type === "MCQ_SINGLE" ? "radio" : "checkbox"}
+                      name="cqCorrect"
+                      checked={opt.isCorrect}
+                      onChange={e => {
+                        if (cqForm.type === "MCQ_SINGLE") {
+                          setCqOptions(prev => prev.map((o, j) => ({ ...o, isCorrect: j === i })));
+                        } else {
+                          setCqOptions(prev => prev.map((o, j) => j === i ? { ...o, isCorrect: e.target.checked } : o));
+                        }
+                      }} />
+                    <input value={opt.text} onChange={e => setCqOptions(prev => prev.map((o, j) => j === i ? { ...o, text: e.target.value } : o))}
+                      placeholder={`Option ${String.fromCharCode(65 + i)}`} style={{ ...inp, flex: 1 }} />
+                    <span style={{ fontSize: "0.7rem", color: opt.isCorrect ? "#059669" : "#94a3b8", fontWeight: 700, minWidth: "40px" }}>
+                      {opt.isCorrect ? "✓ Correct" : ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {cqForm.type === "TRUE_FALSE" && (
+              <div style={{ marginBottom: "1rem", padding: "0.625rem 0.875rem", background: "#f0fdf4", border: "1px solid #a7f3d0", borderRadius: "6px", fontSize: "0.8125rem", color: "#065f46" }}>
+                True / False — answer stored in explanation field below. No options needed.
+              </div>
+            )}
+
+            <div style={{ marginBottom: "1rem" }}>
+              <label style={lbl}>Explanation / Answer</label>
+              <textarea value={cqForm.explanation} onChange={e => setCqForm(f => ({ ...f, explanation: e.target.value }))}
+                rows={2} placeholder="Explanation or correct answer…" style={{ ...inp, resize: "vertical" }} />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+              <div>
+                <label style={lbl}>Marks</label>
+                <input type="number" min="0" step="0.5" value={cqForm.marks} onChange={e => setCqForm(f => ({ ...f, marks: e.target.value }))} style={inp} />
+              </div>
+              <div>
+                <label style={lbl}>Negative Marks</label>
+                <input type="number" min="0" step="0.25" value={cqForm.negativeMarks} onChange={e => setCqForm(f => ({ ...f, negativeMarks: e.target.value }))} style={inp} />
+              </div>
+            </div>
+
+            <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", padding: "0.875rem", marginBottom: "1.25rem" }}>
+              <div style={{ fontWeight: 700, fontSize: "0.8rem", color: "#374151", marginBottom: "0.75rem" }}>Taxonomy (optional but recommended)</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                <div>
+                  <label style={lbl}>Category</label>
+                  <select value={cqForm.categoryId}
+                    onChange={e => { const v = e.target.value; setCqForm(f => ({ ...f, categoryId: v, subjectId: "", topicId: "", subtopicId: "" })); cqLoadSubjects(v); }}
+                    style={inp}>
+                    <option value="">— None —</option>
+                    {taxoCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={lbl}>Subject</label>
+                  <select value={cqForm.subjectId}
+                    onChange={e => { const v = e.target.value; setCqForm(f => ({ ...f, subjectId: v, topicId: "", subtopicId: "" })); cqLoadTopics(v); }}
+                    style={inp} disabled={!cqForm.categoryId || cqSubjects.length === 0}>
+                    <option value="">— None —</option>
+                    {cqSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={lbl}>Topic</label>
+                  <select value={cqForm.topicId}
+                    onChange={e => { const v = e.target.value; setCqForm(f => ({ ...f, topicId: v, subtopicId: "" })); cqLoadSubtopics(v); }}
+                    style={inp} disabled={!cqForm.subjectId || cqTopics.length === 0}>
+                    <option value="">— None —</option>
+                    {cqTopics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={lbl}>Subtopic</label>
+                  <select value={cqForm.subtopicId}
+                    onChange={e => setCqForm(f => ({ ...f, subtopicId: e.target.value }))}
+                    style={inp} disabled={!cqForm.topicId || cqSubtopics.length === 0}>
+                    <option value="">— None —</option>
+                    {cqSubtopics.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+              <button onClick={() => setStage("source")} style={btn("#6b7280")} disabled={cqSaving}>Cancel</button>
+              <button onClick={handleCqSave} style={btn(BRAND.purple)} disabled={cqSaving}>
+                {cqSaving ? "Saving…" : "Save & Add to Review →"}
+              </button>
             </div>
           </div>
         )}
