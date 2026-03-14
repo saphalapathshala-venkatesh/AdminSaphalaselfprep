@@ -1,0 +1,55 @@
+Task: Fix one isolated bug in the Saphala Admin App — newly created Taxonomy Categories are not appearing in the Test Series category dropdown.
+
+Read the current architecture first before making changes. Keep scope strictly limited.
+
+Bug summary:
+A category was created in the Admin Taxonomy system.
+When opening Test Series creation, that newly created category does not appear in the Category dropdown.
+
+Expected behavior:
+The Test Series category dropdown should show the live categories created in the canonical Taxonomy system, so newly created categories are selectable immediately (or after a normal refresh if required).
+
+Strict scope:
+- Fix only the category source/wiring for Test Series create/edit
+- Do not redesign unrelated modules
+- Do not broaden into other taxonomy refactors unless absolutely necessary
+- Do not change pricing, products, tests, courses, or unrelated admin features
+
+What to inspect first:
+1. The canonical Taxonomy Category model/table/source
+2. The Test Series create/edit form
+3. The API/data loader used for the Test Series category dropdown
+4. Whether the dropdown is using:
+   - hardcoded/static categories
+   - old enum values
+   - wrong API
+   - stale cached data
+   - incorrect filters
+5. Whether category IDs/names are being mapped correctly
+
+Required fix:
+1. Ensure the Test Series category dropdown reads from the same canonical taxonomy category source used by the admin taxonomy system.
+2. Newly created categories must appear in the dropdown.
+3. Keep create/edit behavior backward compatible.
+4. Preserve current selected category behavior for existing test series.
+5. If the issue is caused by stale client state, add the minimal safe refresh/update behavior needed.
+6. Avoid broad taxonomy redesign unless absolutely necessary.
+
+Please test these cases after fixing:
+1. Create a new category in Taxonomy
+2. Open Test Series create form
+3. Confirm the new category appears in the dropdown
+4. Select it and save successfully
+5. Edit an existing Test Series and confirm category still loads correctly
+6. Build/typecheck should pass cleanly
+
+Deliverables:
+1) exact files changed
+2) root cause found
+3) what source the Test Series dropdown was using before
+4) what source it now uses
+5) confirmation that new taxonomy categories now appear
+6) build/typecheck result
+
+Important:
+This is an isolated bug fix for Test Series category dropdown wiring only. Nothing else.

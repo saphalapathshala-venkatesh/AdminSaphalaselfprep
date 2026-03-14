@@ -73,7 +73,7 @@ export default function TestSeriesPage() {
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
   useEffect(() => {
-    fetch("/api/taxonomy").then((r) => r.json()).then((d) => {
+    fetch("/api/taxonomy?tree=true").then((r) => r.json()).then((d) => {
       const cats: Category[] = [];
       const subs: Subject[] = [];
       if (d.data) {
