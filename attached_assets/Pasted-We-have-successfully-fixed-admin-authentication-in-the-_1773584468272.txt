@@ -1,0 +1,74 @@
+We have successfully fixed admin authentication in the Admin Saphala Self Prep app and can now log in to the deployed admin dashboard.
+
+New issue:
+The dashboard page loads, but specific backend dashboard endpoints are returning 500 in production.
+
+Confirmed failing requests from deployed admin app:
+1. /api/analytics/dashboard?start=2026-02-14&end=2026-03-15&learner=all&stream=all
+2. /api/admin/infringement/stats
+
+Important context:
+- Admin login/session/middleware are working
+- Vercel ↔ Neon DB connection is working
+- Many other admin resource fetches return 304 successfully
+- This is NOT a full auth or DB connectivity issue anymore
+- This is a route-level backend robustness issue
+- No schema changes unless absolutely necessary
+
+Your task:
+Audit and fix both failing endpoints so they NEVER 500 just because data is empty, partial, or some optional tables/features are not yet populated.
+
+Required work:
+1. Inspect the exact implementation of:
+   - /api/analytics/dashboard
+   - /api/admin/infringement/stats
+
+2. Find the real cause of the 500s:
+   - unsafe Prisma aggregate/groupBy calls
+   - querying tables/models/features not present in current live DB
+   - null/undefined assumptions
+   - invalid date parsing
+   - enum mismatch
+   - relation includes on optional/missing data
+   - unsupported filters for “all” learner/stream values
+
+3. Make both routes production-safe:
+   - return 200 with safe default payloads when DB is empty
+   - never throw because there are no attempts, purchases, XP events, users, or infringement rows
+   - if a feature is not implemented yet, return a graceful stub response instead of 500
+
+4. Dashboard analytics route requirements:
+   - validate and normalize start/end query params
+   - tolerate learner=all and stream=all safely
+   - if no data exists, return zeroed KPI cards and empty arrays for charts/tables
+   - wrap route in defensive try/catch with detailed server logging
+   - do not change frontend contract unless absolutely necessary
+
+5. Infringement stats route requirements:
+   - if infringement system/table is not yet implemented or has no rows, return:
+     - ok: true
+     - zero counts
+     - empty arrays where needed
+   - do NOT let this endpoint break the dashboard
+
+6. Add server-side logging:
+   - log the exact caught error and route name
+   - log enough to debug in Vercel logs
+   - do not leak internals to client
+
+7. Keep fixes minimal and production-safe:
+   - no unnecessary refactor
+   - no schema churn
+   - no frontend redesign
+   - just make the current deployed dashboard stable
+
+Deliverables:
+A. Exact root cause for each failing endpoint
+B. Exact files changed
+C. Exact safe fallback response shape returned by each route
+D. Confirmation that empty DB state is now handled
+E. Confirmation whether admin app only needs redeploy
+F. Final statement: “Dashboard routes are now safe in production even with sparse or empty data.”
+
+Important:
+Treat the current stage as admin stabilization before product population. The dashboard must work even when the database has very little content.
