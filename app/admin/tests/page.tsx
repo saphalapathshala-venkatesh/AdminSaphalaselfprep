@@ -1825,18 +1825,40 @@ export default function TestsPage() {
                         <td style={td}><span style={{ fontSize: "0.7rem", padding: "1px 5px", borderRadius: "4px", background: tq.question.status === "APPROVED" ? "#d1fae5" : "#fee2e2", color: tq.question.status === "APPROVED" ? "#065f46" : "#991b1b" }}>{tq.question.status}</span></td>
                         <td style={{ ...td, color: "#059669", fontWeight: 700 }}>+{tq.marks}</td>
                         <td style={{ ...td, color: tq.negativeMarks > 0 ? "#dc2626" : "#94a3b8" }}>−{tq.negativeMarks}</td>
-                        {hasSections && (
-                          <td style={td}>
-                            <select value={tq.sectionIndex !== null ? String(tq.sectionIndex) : ""} onChange={e => { const arr = [...testQuestions]; arr[i].sectionIndex = e.target.value !== "" ? parseInt(e.target.value) : null; setTestQuestions(arr); }} style={{ ...inp, width: "120px", padding: "0.125rem 0.25rem", fontSize: "0.75rem" }}>
-                              <option value="">— None —</option>
-                              {sections.map((s, si) => (
-                                <option key={si} value={String(si)}>
-                                  {s.parentIndex !== null ? "  └─ " : ""}{s.title}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                        )}
+                        {hasSections && (() => {
+                          const assignedSec = tq.sectionIndex !== null ? sections[tq.sectionIndex] : null;
+                          return (
+                            <td style={{ ...td, minWidth: "160px" }}>
+                              {assignedSec && (
+                                <div style={{
+                                  display: "inline-flex", alignItems: "center", gap: "0.25rem",
+                                  background: assignedSec.parentIndex !== null ? "#ede9fe" : "#ddd6fe",
+                                  color: "#5b21b6", borderRadius: "4px",
+                                  padding: "0.125rem 0.4rem", fontSize: "0.7rem", fontWeight: 700,
+                                  marginBottom: "0.25rem", maxWidth: "100%",
+                                }}>
+                                  {assignedSec.parentIndex !== null ? "└─ " : "§"}{assignedSec.title}
+                                </div>
+                              )}
+                              <select
+                                value={tq.sectionIndex !== null ? String(tq.sectionIndex) : ""}
+                                onChange={e => {
+                                  const arr = [...testQuestions];
+                                  arr[i].sectionIndex = e.target.value !== "" ? parseInt(e.target.value) : null;
+                                  setTestQuestions(arr);
+                                }}
+                                style={{ ...inp, width: "100%", padding: "0.125rem 0.25rem", fontSize: "0.7rem", display: "block" }}
+                              >
+                                <option value="">— None —</option>
+                                {sections.map((s, si) => (
+                                  <option key={si} value={String(si)}>
+                                    {s.parentIndex !== null ? "  └─ " : "§"}{s.title}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                          );
+                        })()}
                         <td style={td}>
                           <div style={{ display: "flex", gap: "0.2rem" }}>
                             <button onClick={() => moveQuestion(i, -1)} disabled={i === 0} style={btn(i === 0 ? "#e2e8f0" : "#6b7280", i === 0 ? "#94a3b8" : "#fff")}>↑</button>
