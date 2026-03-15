@@ -12,6 +12,8 @@ const sectionTitle: React.CSSProperties = { fontSize: "0.9375rem", fontWeight: 7
 const rowStyle: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" };
 
 type SelectOption = { id: string; name: string; title?: string };
+type TaxOption = { id: string; name: string };
+type ExamOption = { id: string; name: string; categoryId: string };
 
 export default function NewLiveClassPage() {
   const router = useRouter();
@@ -19,9 +21,12 @@ export default function NewLiveClassPage() {
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [faculties, setFaculties] = useState<SelectOption[]>([]);
   const [courses, setCourses] = useState<SelectOption[]>([]);
+  const [categories, setCategories] = useState<TaxOption[]>([]);
+  const [exams, setExams] = useState<ExamOption[]>([]);
 
   const [form, setForm] = useState({
     title: "", description: "", facultyId: "", courseId: "",
+    categoryId: "", examId: "",
     sessionDate: "", startTime: "", endTime: "",
     accessType: "FREE", status: "DRAFT",
     platform: "ZOOM", joinUrl: "", sessionCode: "",
@@ -34,6 +39,8 @@ export default function NewLiveClassPage() {
   useEffect(() => {
     fetch("/api/faculty?all=true").then(r => r.json()).then(j => setFaculties(j.data || []));
     fetch("/api/courses?all=true").then(r => r.json()).then(j => setCourses(j.data || []));
+    fetch("/api/taxonomy?level=category").then(r => r.json()).then(j => setCategories(j.data || []));
+    fetch("/api/exams").then(r => r.json()).then(j => setExams(j.exams || []));
   }, []);
 
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
@@ -47,6 +54,8 @@ export default function NewLiveClassPage() {
       ...form,
       facultyId: form.facultyId || null,
       courseId: form.courseId || null,
+      categoryId: form.categoryId || null,
+      examId: form.examId || null,
     };
 
     const res = await fetch("/api/live-classes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -95,6 +104,22 @@ export default function NewLiveClassPage() {
               <select value={form.courseId} onChange={e => set("courseId", e.target.value)} style={inputStyle}>
                 <option value="">— Select Course —</option>
                 {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={rowStyle}>
+            <div>
+              <label style={labelStyle}>Category</label>
+              <select value={form.categoryId} onChange={e => setForm(f => ({ ...f, categoryId: e.target.value, examId: "" }))} style={inputStyle}>
+                <option value="">— No Category —</option>
+                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Exam <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: "0.75rem" }}>(filtered by category)</span></label>
+              <select value={form.examId} onChange={e => set("examId", e.target.value)} style={inputStyle}>
+                <option value="">— No Exam —</option>
+                {exams.filter(ex => !form.categoryId || ex.categoryId === form.categoryId).map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
               </select>
             </div>
           </div>

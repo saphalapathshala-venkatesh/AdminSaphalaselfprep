@@ -12,6 +12,8 @@ const sectionTitle: React.CSSProperties = { fontSize: "0.9375rem", fontWeight: 7
 const rowStyle: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" };
 
 type SelectOption = { id: string; name: string };
+type TaxOption = { id: string; name: string };
+type ExamOption = { id: string; name: string; categoryId: string };
 
 export default function EditVideoPage() {
   const router = useRouter();
@@ -25,9 +27,12 @@ export default function EditVideoPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [faculties, setFaculties] = useState<SelectOption[]>([]);
   const [courses, setCourses] = useState<SelectOption[]>([]);
+  const [categories, setCategories] = useState<TaxOption[]>([]);
+  const [exams, setExams] = useState<ExamOption[]>([]);
 
   const [form, setForm] = useState({
     title: "", description: "", facultyId: "", courseId: "",
+    categoryId: "", examId: "",
     accessType: "FREE", status: "DRAFT", provider: "MANUAL",
     providerVideoId: "", hlsUrl: "", playbackUrl: "", thumbnailUrl: "",
     durationSeconds: "", lessonOrder: "0", allowPreview: false,
@@ -44,12 +49,15 @@ export default function EditVideoPage() {
       fetch(`/api/videos/${id}`).then(r => r.json()),
       fetch("/api/faculty?all=true").then(r => r.json()),
       fetch("/api/courses?all=true").then(r => r.json()),
-    ]).then(([vj, fj, cj]) => {
+      fetch("/api/taxonomy?level=category").then(r => r.json()),
+      fetch("/api/exams").then(r => r.json()),
+    ]).then(([vj, fj, cj, taxj, examj]) => {
       const v = vj.data;
       if (v) {
         setForm({
           title: v.title || "", description: v.description || "",
           facultyId: v.facultyId || "", courseId: v.courseId || "",
+          categoryId: v.categoryId || "", examId: v.examId || "",
           accessType: v.accessType || "FREE", status: v.status || "DRAFT",
           provider: v.provider || "MANUAL",
           providerVideoId: v.providerVideoId || "", hlsUrl: v.hlsUrl || "",
@@ -62,6 +70,8 @@ export default function EditVideoPage() {
       }
       setFaculties(fj.data || []);
       setCourses(cj.data || []);
+      setCategories(taxj.data || []);
+      setExams(examj.exams || []);
       setLoading(false);
     });
   }, [id]);
@@ -80,6 +90,8 @@ export default function EditVideoPage() {
       lessonOrder: parseInt(form.lessonOrder) || 0,
       facultyId: form.facultyId || null,
       courseId: form.courseId || null,
+      categoryId: form.categoryId || null,
+      examId: form.examId || null,
     };
 
     const res = await fetch(`/api/videos/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -157,6 +169,22 @@ export default function EditVideoPage() {
               <select value={form.courseId} onChange={e => set("courseId", e.target.value)} style={inputStyle}>
                 <option value="">— Select Course —</option>
                 {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={rowStyle}>
+            <div>
+              <label style={labelStyle}>Category</label>
+              <select value={form.categoryId} onChange={e => setForm(f => ({ ...f, categoryId: e.target.value, examId: "" }))} style={inputStyle}>
+                <option value="">— No Category —</option>
+                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Exam <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: "0.75rem" }}>(filtered by category)</span></label>
+              <select value={form.examId} onChange={e => set("examId", e.target.value)} style={inputStyle}>
+                <option value="">— No Exam —</option>
+                {exams.filter(ex => !form.categoryId || ex.categoryId === form.categoryId).map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
               </select>
             </div>
           </div>

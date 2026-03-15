@@ -1,0 +1,122 @@
+We need to add a new “Exam” layer to Admin Saphala Self Prep, but WITHOUT disturbing the existing academic taxonomy.
+
+Goal:
+Introduce an Exam master under Category for product/content targeting and filtering, while preserving the current taxonomy exactly as it is.
+
+Critical rule:
+DO NOT change the existing academic taxonomy structure or its current meaning.
+
+Existing taxonomy that must remain unchanged:
+Category → Subject → Topic → Subtopic
+
+This taxonomy continues to be used for academic classification, question tagging, and content organization.
+
+What we need now:
+A separate Exam layer under Category, used only for learner discovery, admin targeting, and filtering at product/content/test level.
+
+Examples:
+Category: APPSC
+Exams under APPSC:
+- Group 1
+- Group 2
+- Group 3
+- Group 4
+- General Studies
+
+Category: Banking
+Exams under Banking:
+- IBPS PO
+- IBPS Clerk
+- SBI PO
+- SBI Clerk
+- RRB PO
+- RRB Clerk
+
+Important constraints:
+1. Do NOT add Exam to Question Bank
+2. Do NOT disturb existing taxonomy relationships
+3. Do NOT break current category/subject/topic/subtopic flows
+4. Exam should be optional initially
+5. Exam must be filtered by selected Category in admin forms
+6. Frontend should later be able to filter products within a category by exam
+
+Required implementation:
+PART A — Data model
+1. Add a new Exam master entity linked to Category
+2. One Category can have many Exams
+3. Each relevant product/content entity can optionally store examId
+4. Keep existing categoryId fields intact
+5. No destructive schema changes
+
+PART B — Admin wiring
+Add Exam dropdown to these modules/forms:
+- Courses
+- Test Series
+- Tests
+- E-books / HTML content
+- PDFs / Content Library assets
+- Flashcards
+- Videos
+- Live Classes
+
+Behavior:
+- Admin first selects Category
+- Then Exam dropdown loads only Exams belonging to that Category
+- Exam is optional
+- If Category changes, incompatible selected Exam should reset
+
+PART C — Explicitly NOT required
+Do NOT add Exam to:
+- Question Bank
+- Question import
+- Subject / Topic / Subtopic creation
+- Academic taxonomy filters at question level
+
+PART D — Frontend-readiness
+Prepare the backend/data model so the frontend can later support:
+- Category page filter by Exam
+- Example: learner clicks APPSC, then filters by Group 2
+No frontend redesign needed now unless current code already depends on it
+
+PART E — Admin management
+Create proper admin CRUD/manage flow for Exam master:
+- list exams
+- create exam
+- edit exam
+- delete exam (with safe validation if in use)
+- exam belongs to category
+- slug/code if needed should be category-safe and stable
+
+PART F — Robustness
+- Keep all changes production-safe
+- Do not break existing admin data
+- Preserve existing category-based behavior
+- No unnecessary refactors
+- No hardcoding exam names in forms
+
+Most important deliverable:
+After implementation, provide a clear taxonomy explanation showing the final structure and exact purpose of each layer.
+
+I want Replit to explicitly explain the final taxonomy after modification in this format:
+
+1. Category — exact purpose
+2. Exam — exact purpose
+3. Subject — exact purpose
+4. Topic — exact purpose
+5. Subtopic — exact purpose
+
+And also explain:
+- where Exam is used
+- where Exam is NOT used
+- why Question Bank should not use Exam
+- one concrete APPSC example
+- one concrete Banking example
+
+Deliverables required from Replit:
+A. Exact schema/model changes
+B. Exact admin modules updated
+C. Exact places where Exam was intentionally NOT added
+D. Final taxonomy structure after modification
+E. Exact purpose of each layer
+F. Example admin flow for APPSC Group 2
+G. Any migration/backfill notes needed for existing records

@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
     const title = formData.get("title") as string;
     const file = formData.get("file") as File | null;
     const categoryId = (formData.get("categoryId") as string) || null;
+    const examId = (formData.get("examId") as string) || null;
     const subjectId = (formData.get("subjectId") as string) || null;
     const topicId = (formData.get("topicId") as string) || null;
     const subtopicId = (formData.get("subtopicId") as string) || null;
@@ -91,6 +92,7 @@ export async function POST(req: NextRequest) {
         fileSize: file.size,
         mimeType: file.type,
         categoryId,
+        examId,
         subjectId,
         topicId,
         subtopicId,

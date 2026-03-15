@@ -80,6 +80,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         name:           body.name?.trim()  || existing.name,
         description:    body.description   !== undefined ? (body.description?.trim() || null) : existing.description,
         categoryId:     body.categoryId    !== undefined ? (body.categoryId  || null) : existing.categoryId,
+        examId:         body.examId        !== undefined ? (body.examId       || null) : existing.examId,
         courseType,
         productCategory: productCategory as any,
         isActive:       body.isActive      !== undefined ? Boolean(body.isActive)     : existing.isActive,

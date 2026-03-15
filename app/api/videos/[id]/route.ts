@@ -31,7 +31,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const {
-      title, description, facultyId, courseId, categoryId, subjectId, topicId, subtopicId,
+      title, description, facultyId, courseId, categoryId, examId, subjectId, topicId, subtopicId,
       accessType, status, lessonOrder, durationSeconds, thumbnailUrl,
       provider, providerVideoId, hlsUrl, playbackUrl,
       processingStatus, processingError, allowPreview, tags, publishedAt,
@@ -47,6 +47,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         facultyId: facultyId !== undefined ? (facultyId || null) : existing.facultyId,
         courseId: courseId !== undefined ? (courseId || null) : existing.courseId,
         categoryId: categoryId !== undefined ? (categoryId || null) : existing.categoryId,
+        examId: examId !== undefined ? (examId || null) : existing.examId,
         subjectId: subjectId !== undefined ? (subjectId || null) : existing.subjectId,
         topicId: topicId !== undefined ? (topicId || null) : existing.topicId,
         subtopicId: subtopicId !== undefined ? (subtopicId || null) : existing.subtopicId,

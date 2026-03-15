@@ -66,15 +66,19 @@ const emptyCardForm = (): CardTypeForm => ({
 type DeckForm = {
   title: string; subtitle: string; description: string;
   categoryId: string; subjectId: string; topicId: string;
+  examId: string;
   titleTemplate: string; titleImageUrl: string; subjectColor: string;
   xpEnabled: boolean; xpValue: string;
 };
 const emptyDeckForm = (): DeckForm => ({
   title: "", subtitle: "", description: "",
   categoryId: "", subjectId: "", topicId: "",
+  examId: "",
   titleTemplate: "minimal_academic", titleImageUrl: "", subjectColor: "",
   xpEnabled: false, xpValue: "",
 });
+
+type ExamItem = { id: string; name: string; categoryId: string };
 
 export default function FlashcardsPage() {
   const [decks, setDecks] = useState<FlashcardDeck[]>([]);
@@ -119,6 +123,7 @@ export default function FlashcardsPage() {
   const [fillBlanks, setFillBlanks] = useState<{ id: string; accepted: string }[]>([{ id: "b1", accepted: "" }]);
 
   const [categories, setCategories] = useState<TaxItem[]>([]);
+  const [exams, setExams] = useState<ExamItem[]>([]);
   const [cardSubjects, setCardSubjects] = useState<TaxItem[]>([]);
   const [cardTopics, setCardTopics] = useState<TaxItem[]>([]);
   const [cardSubtopics, setCardSubtopics] = useState<TaxItem[]>([]);
@@ -141,7 +146,10 @@ export default function FlashcardsPage() {
     return json.data || [];
   };
 
-  useEffect(() => { loadTax("category").then(setCategories); }, []);
+  useEffect(() => {
+    loadTax("category").then(setCategories);
+    fetch("/api/exams").then(r => r.json()).then(j => setExams(j.exams || [])).catch(() => {});
+  }, []);
 
   const loadDecks = useCallback(async () => {
     setLoadingDecks(true);
@@ -175,9 +183,10 @@ export default function FlashcardsPage() {
 
   useEffect(() => { if (selectedDeck) loadCards(selectedDeck.id); }, [selectedDeck, loadCards]);
 
-  const deckToForm = (d: FlashcardDeck): DeckForm => ({
+  const deckToForm = (d: FlashcardDeck & { examId?: string | null }): DeckForm => ({
     title: d.title, subtitle: d.subtitle || "", description: d.description || "",
     categoryId: d.categoryId || "", subjectId: d.subjectId || "", topicId: d.topicId || "",
+    examId: d.examId || "",
     titleTemplate: d.titleTemplate || "minimal_academic",
     titleImageUrl: d.titleImageUrl || "", subjectColor: d.subjectColor || "",
     xpEnabled: d.xpEnabled || false, xpValue: d.xpValue != null ? String(d.xpValue) : "",
@@ -203,6 +212,7 @@ export default function FlashcardsPage() {
           description: newDeckForm.description || null,
           categoryId: newDeckForm.categoryId || null, subjectId: newDeckForm.subjectId || null,
           topicId: newDeckForm.topicId || null,
+          examId: newDeckForm.examId || null,
           titleTemplate: newDeckForm.titleTemplate || "minimal_academic",
           titleImageUrl: newDeckForm.titleImageUrl || null,
           subjectColor: newDeckForm.subjectColor || null,
@@ -231,6 +241,7 @@ export default function FlashcardsPage() {
           description: deckForm.description || null,
           categoryId: deckForm.categoryId || null, subjectId: deckForm.subjectId || null,
           topicId: deckForm.topicId || null,
+          examId: deckForm.examId || null,
           titleTemplate: deckForm.titleTemplate || "minimal_academic",
           titleImageUrl: deckForm.titleImageUrl || null,
           subjectColor: deckForm.subjectColor || null,
@@ -533,7 +544,7 @@ export default function FlashcardsPage() {
 
   const handleNewDeckTaxChange = async (level: string, value: string) => {
     if (level === "category") {
-      setNewDeckForm((f) => ({ ...f, categoryId: value, subjectId: "", topicId: "" }));
+      setNewDeckForm((f) => ({ ...f, categoryId: value, examId: "", subjectId: "", topicId: "" }));
       setNewDeckSubjects(value ? await loadTax("subject", value) : []); setNewDeckTopics([]);
     } else if (level === "subject") {
       setNewDeckForm((f) => ({ ...f, subjectId: value, topicId: "" }));
@@ -545,7 +556,7 @@ export default function FlashcardsPage() {
 
   const handleDeckTaxChange = async (level: string, value: string) => {
     if (level === "category") {
-      setDeckForm((f) => ({ ...f, categoryId: value, subjectId: "", topicId: "" }));
+      setDeckForm((f) => ({ ...f, categoryId: value, examId: "", subjectId: "", topicId: "" }));
       setDeckSubjects(value ? await loadTax("subject", value) : []); setDeckTopics([]);
     } else if (level === "subject") {
       setDeckForm((f) => ({ ...f, subjectId: value, topicId: "" }));
@@ -594,11 +605,12 @@ export default function FlashcardsPage() {
     return { display: "inline-block", padding: "1px 7px", borderRadius: "9999px", fontSize: "0.68rem", fontWeight: 600, background: bg, color };
   };
 
-  const DeckFormFields = ({ form, setForm, subjects, topics, onTaxChange, showTemplate }: {
+  const DeckFormFields = ({ form, setForm, subjects, topics, onTaxChange, showTemplate, examList }: {
     form: DeckForm; setForm: (f: DeckForm) => void;
     subjects: TaxItem[]; topics: TaxItem[];
     onTaxChange: (level: string, value: string) => void;
     showTemplate?: boolean;
+    examList?: ExamItem[];
   }) => (
     <div>
       <div style={{ marginBottom: "10px" }}>
@@ -636,6 +648,15 @@ export default function FlashcardsPage() {
           </select>
         </div>
       </div>
+      {examList && examList.length > 0 && (
+        <div style={{ marginBottom: "10px" }}>
+          <label style={labelStyle}>Exam <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: "0.72rem" }}>(filtered by category)</span></label>
+          <select style={inputStyle} value={form.examId} onChange={(e) => setForm({ ...form, examId: e.target.value })}>
+            <option value="">— No Exam —</option>
+            {examList.filter(ex => !form.categoryId || ex.categoryId === form.categoryId).map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
+          </select>
+        </div>
+      )}
       {showTemplate && (
         <>
           <div style={{ marginBottom: "10px" }}>
@@ -997,7 +1018,7 @@ export default function FlashcardsPage() {
               )}
               {editingDeck ? (
                 <div>
-                  <DeckFormFields form={deckForm} setForm={setDeckForm} subjects={deckSubjects} topics={deckTopics} onTaxChange={handleDeckTaxChange} showTemplate />
+                  <DeckFormFields form={deckForm} setForm={setDeckForm} subjects={deckSubjects} topics={deckTopics} onTaxChange={handleDeckTaxChange} showTemplate examList={exams} />
                   <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
                     <button style={btnPrimary} onClick={handleUpdateDeck} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
                     <button style={btnSecondary} onClick={() => setEditingDeck(false)}>Cancel</button>
@@ -1101,7 +1122,7 @@ export default function FlashcardsPage() {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
           <div style={{ background: "#fff", borderRadius: "12px", padding: "24px", width: "520px", maxHeight: "90vh", overflowY: "auto" }}>
             <h3 style={{ fontSize: "1.1rem", fontWeight: 600, margin: "0 0 16px" }}>New Deck</h3>
-            <DeckFormFields form={newDeckForm} setForm={setNewDeckForm} subjects={newDeckSubjects} topics={newDeckTopics} onTaxChange={handleNewDeckTaxChange} showTemplate />
+            <DeckFormFields form={newDeckForm} setForm={setNewDeckForm} subjects={newDeckSubjects} topics={newDeckTopics} onTaxChange={handleNewDeckTaxChange} showTemplate examList={exams} />
             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", marginTop: "16px" }}>
               <button style={btnSecondary} onClick={() => setShowNewDeck(false)}>Cancel</button>
               <button style={btnPrimary} onClick={handleCreateDeck} disabled={saving}>{saving ? "Creating…" : "Create Deck"}</button>

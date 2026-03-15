@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, description, categoryId, isActive } = body;
+    const { name, description, categoryId, examId, isActive } = body;
 
     if (!name?.trim()) return NextResponse.json({ error: "name is required" }, { status: 400 });
 
@@ -102,6 +102,7 @@ export async function POST(req: NextRequest) {
         name:         name.trim(),
         description:  description?.trim() || null,
         categoryId:   categoryId || null,
+        examId:       examId || null,
         courseType,
         productCategory: productCategory as any,
         isActive:     isActive !== undefined ? Boolean(isActive) : true,

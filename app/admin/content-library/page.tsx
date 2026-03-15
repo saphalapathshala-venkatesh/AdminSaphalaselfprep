@@ -80,7 +80,7 @@ export default function ContentLibraryPage() {
   const [editingPage, setEditingPage] = useState<ContentPage | null>(null);
   const [pageForm, setPageForm] = useState({
     title: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "",
-    isPublished: false, xpEnabled: false, xpValue: "0",
+    examId: "", isPublished: false, xpEnabled: false, xpValue: "0",
   });
   // Multi-page state
   const [editorPages, setEditorPages] = useState<EditorPage[]>([makeEmptyPage(0)]);
@@ -88,13 +88,14 @@ export default function ContentLibraryPage() {
 
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [editingPdf, setEditingPdf] = useState<PdfAsset | null>(null);
-  const [pdfForm, setPdfForm] = useState({ title: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "", isPublished: false });
+  const [pdfForm, setPdfForm] = useState({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "", isPublished: false });
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [showUploadForm, setShowUploadForm] = useState(false);
-  const [uploadForm, setUploadForm] = useState({ title: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "" });
+  const [uploadForm, setUploadForm] = useState({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "" });
   const [uploadFile, setUploadFile] = useState<File | null>(null);
 
   const [categories, setCategories] = useState<TaxItem[]>([]);
+  const [exams, setExams] = useState<{ id: string; name: string; categoryId: string }[]>([]);
   const [subjects, setSubjects] = useState<TaxItem[]>([]);
   const [topics, setTopics] = useState<TaxItem[]>([]);
   const [subtopics, setSubtopics] = useState<TaxItem[]>([]);
@@ -119,7 +120,10 @@ export default function ContentLibraryPage() {
     return json.data || [];
   };
 
-  useEffect(() => { loadTax("category").then(setCategories); }, []);
+  useEffect(() => {
+    loadTax("category").then(setCategories);
+    fetch("/api/exams").then(r => r.json()).then(j => setExams(j.exams || [])).catch(() => {});
+  }, []);
 
   const loadPageList = useCallback(async () => {
     setLoadingPages(true);
@@ -161,7 +165,7 @@ export default function ContentLibraryPage() {
     const setSubt = target === "upload" ? setUpSubtopics : setSubtopics;
 
     if (level === "category") {
-      setForm({ categoryId: value, subjectId: "", topicId: "", subtopicId: "" });
+      setForm({ categoryId: value, examId: "", subjectId: "", topicId: "", subtopicId: "" });
       setSub(value ? await loadTax("subject", value) : []);
       setTop([]); setSubt([]);
     } else if (level === "subject") {
@@ -195,6 +199,7 @@ export default function ContentLibraryPage() {
         title: fullRecord.title,
         categoryId: catId, subjectId: subId, topicId: topId,
         subtopicId: fullRecord.subtopicId || "",
+        examId: (fullRecord as any).examId || "",
         isPublished: fullRecord.isPublished,
         xpEnabled: !!(fullRecord as any).xpEnabled,
         xpValue: (fullRecord as any).xpValue != null ? String((fullRecord as any).xpValue) : "0",
@@ -217,7 +222,7 @@ export default function ContentLibraryPage() {
       }
     } else {
       setEditingPage(null);
-      setPageForm({ title: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "", isPublished: false, xpEnabled: false, xpValue: "0" });
+      setPageForm({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "", isPublished: false, xpEnabled: false, xpValue: "0" });
       setEditorPages([makeEmptyPage(0)]);
     }
     setCurrentPageIdx(0);
@@ -273,6 +278,8 @@ export default function ContentLibraryPage() {
       const payload: any = {
         title: pageForm.title,
         subtopicId: pageForm.subtopicId || null,
+        categoryId: pageForm.categoryId || null,
+        examId: pageForm.examId || null,
         isPublished: pageForm.isPublished,
         xpEnabled: pageForm.xpEnabled,
         xpValue: parseInt(pageForm.xpValue) || 0,
@@ -325,6 +332,7 @@ export default function ContentLibraryPage() {
       fd.append("title", uploadForm.title);
       fd.append("file", uploadFile);
       if (uploadForm.categoryId) fd.append("categoryId", uploadForm.categoryId);
+      if (uploadForm.examId) fd.append("examId", uploadForm.examId);
       if (uploadForm.subjectId) fd.append("subjectId", uploadForm.subjectId);
       if (uploadForm.topicId) fd.append("topicId", uploadForm.topicId);
       if (uploadForm.subtopicId) fd.append("subtopicId", uploadForm.subtopicId);
@@ -334,18 +342,19 @@ export default function ContentLibraryPage() {
       if (!res.ok) { showToast(json.error || "Upload failed", "error"); return; }
       showToast("PDF uploaded", "success");
       setShowUploadForm(false);
-      setUploadForm({ title: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "" });
+      setUploadForm({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "" });
       setUploadFile(null);
       loadPdfs();
     } catch { showToast("Failed to upload", "error"); }
     finally { setSaving(false); }
   };
 
-  const openPdfEditor = async (pdf: PdfAsset) => {
+  const openPdfEditor = async (pdf: PdfAsset & { examId?: string | null }) => {
     setEditingPdf(pdf);
     setPdfForm({
       title: pdf.title,
       categoryId: pdf.categoryId || "",
+      examId: pdf.examId || "",
       subjectId: pdf.subjectId || "",
       topicId: pdf.topicId || "",
       subtopicId: pdf.subtopicId || "",
@@ -366,6 +375,7 @@ export default function ContentLibraryPage() {
         body: JSON.stringify({
           title: pdfForm.title,
           categoryId: pdfForm.categoryId || null,
+          examId: pdfForm.examId || null,
           subjectId: pdfForm.subjectId || null,
           topicId: pdfForm.topicId || null,
           subtopicId: pdfForm.subtopicId || null,
@@ -421,6 +431,12 @@ export default function ContentLibraryPage() {
     background: "transparent", color: active ? "#2563eb" : "#6b7280",
   });
 
+  const setExamId = (target: "page" | "upload" | "pdfEdit", value: string) => {
+    if (target === "page") setPageForm((f: any) => ({ ...f, examId: value }));
+    else if (target === "upload") setUploadForm((f: any) => ({ ...f, examId: value }));
+    else setPdfForm((f: any) => ({ ...f, examId: value }));
+  };
+
   const renderTaxDropdowns = (form: any, target: "page" | "upload" | "pdfEdit", subs: TaxItem[], tops: TaxItem[], subts: TaxItem[]) => (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "12px" }}>
       <div>
@@ -428,6 +444,13 @@ export default function ContentLibraryPage() {
         <select style={inputStyle} value={form.categoryId} onChange={(e) => handleTaxChange("category", e.target.value, target)}>
           <option value="">None</option>
           {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </div>
+      <div>
+        <label style={{ fontSize: "0.7rem", color: "#6b7280" }}>Exam <span style={{ fontWeight: 400, color: "#9ca3af" }}>(by category)</span></label>
+        <select style={inputStyle} value={form.examId || ""} onChange={(e) => setExamId(target, e.target.value)}>
+          <option value="">None</option>
+          {exams.filter(ex => !form.categoryId || ex.categoryId === form.categoryId).map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
         </select>
       </div>
       <div>
@@ -554,7 +577,7 @@ export default function ContentLibraryPage() {
             <div style={{ flex: 1 }} />
             <button style={btnPrimary} onClick={() => {
               setShowUploadForm(true);
-              setUploadForm({ title: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "" });
+              setUploadForm({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "" });
               setUploadFile(null); setUpSubjects([]); setUpTopics([]); setUpSubtopics([]);
             }}>+ Upload PDF</button>
           </div>

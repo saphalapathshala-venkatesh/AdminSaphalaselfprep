@@ -1223,10 +1223,11 @@ export default function TestsPage() {
   const [testId, setTestId] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(false);
   const [createStep, setCreateStep] = useState<1 | 2>(1);
-  const [form, setForm] = useState({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", totalQuestions: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", xpEnabled: false, xpValue: "0", testStartTime: "" });
+  const [form, setForm] = useState({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", totalQuestions: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", examId: "", xpEnabled: false, xpValue: "0", testStartTime: "" });
   const [hasSectionsManual, setHasSectionsManual] = useState(false);
   const [sectionPresetOpen, setSectionPresetOpen] = useState<number | null>(null);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [exams, setExams] = useState<{ id: string; name: string; categoryId: string }[]>([]);
   const [sections, setSections] = useState<SectionState[]>([]);
   const [testQuestions, setTestQuestions] = useState<TestQuestionState[]>([]);
   const [saving, setSaving] = useState(false);
@@ -1262,11 +1263,12 @@ export default function TestsPage() {
     fetch("/api/taxonomy?tree=true").then(r => r.json()).then(d => {
       setCategories((d.data || []).map((c: any) => ({ id: c.id, name: c.name })));
     }).catch(() => {});
+    fetch("/api/exams").then(r => r.json()).then(j => setExams(j.exams || [])).catch(() => {});
   }, []);
 
   function openCreate() {
     setTestId(null); setIsPublished(false); setCreateStep(1);
-    setForm({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", totalQuestions: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", xpEnabled: false, xpValue: "0", testStartTime: "" });
+    setForm({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", totalQuestions: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", examId: "", xpEnabled: false, xpValue: "0", testStartTime: "" });
     setHasSectionsManual(true);
     setSections([]); setTestQuestions([]); setValidation(null);
     setView("builder");
@@ -1279,7 +1281,7 @@ export default function TestsPage() {
       if (!res.ok) { showToast(d.error || "Failed", "error"); return; }
       const t: TestDetail = d.data;
       setTestId(t.id); setIsPublished(t.isPublished);
-      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(Math.round(t.durationSec / 60)) : "", totalQuestions: t.questions ? String(t.questions.length) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, shuffleQuestions: t.shuffleQuestions, shuffleOptions: t.shuffleOptions, shuffleGroups: t.shuffleGroups, shuffleGroupChildren: t.shuffleGroupChildren, seriesId: t.seriesId || "", categoryId: (t as any).categoryId || "", xpEnabled: !!(t as any).xpEnabled, xpValue: (t as any).xpValue != null ? String((t as any).xpValue) : "0", testStartTime: t.testStartTime ? t.testStartTime.slice(0, 16) : "" });
+      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(Math.round(t.durationSec / 60)) : "", totalQuestions: t.questions ? String(t.questions.length) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, shuffleQuestions: t.shuffleQuestions, shuffleOptions: t.shuffleOptions, shuffleGroups: t.shuffleGroups, shuffleGroupChildren: t.shuffleGroupChildren, seriesId: t.seriesId || "", categoryId: (t as any).categoryId || "", examId: (t as any).examId || "", xpEnabled: !!(t as any).xpEnabled, xpValue: (t as any).xpValue != null ? String((t as any).xpValue) : "0", testStartTime: t.testStartTime ? t.testStartTime.slice(0, 16) : "" });
       setHasSectionsManual(t.sections.length > 0 || ["SECTIONAL", "MULTI_SECTION"].includes(t.mode));
       const flatSecs: SectionState[] = t.sections.map((s, i) => {
         const parentIndex = s.parentSectionId ? t.sections.findIndex(p => p.id === s.parentSectionId) : null;
@@ -1307,7 +1309,7 @@ export default function TestsPage() {
         allowPause: form.allowPause, strictSectionMode: form.strictSectionMode,
         shuffleQuestions: form.shuffleQuestions, shuffleOptions: form.shuffleOptions,
         shuffleGroups: form.shuffleGroups, shuffleGroupChildren: form.shuffleGroupChildren,
-        seriesId: form.seriesId || null, categoryId: form.categoryId || null,
+        seriesId: form.seriesId || null, categoryId: form.categoryId || null, examId: form.examId || null,
         xpEnabled: form.xpEnabled, xpValue: parseInt(form.xpValue) || 0,
         testStartTime: form.testStartTime || null,
         sections: sections.map(s => ({ title: s.title, durationSec: s.durationSec ? String(parseInt(s.durationSec) * 60) : null, targetCount: s.targetCount || null, parentIndex: s.parentIndex })),
@@ -1558,12 +1560,19 @@ export default function TestsPage() {
                         if (selectedSeries?.categoryId && newCatId && newCatId !== selectedSeries.categoryId) {
                           showToast("Warning: this category does not match the selected series' category. The save will be blocked.", "error");
                         }
-                        setForm({ ...form, categoryId: newCatId });
+                        setForm({ ...form, categoryId: newCatId, examId: "" });
                       }}
                       style={inp}
                     >
                       <option value="">— Select Category —</option>
                       {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={lbl}>Exam <span style={{ fontWeight: 400, color: "#9ca3af" }}>(by category)</span></label>
+                    <select value={form.examId} onChange={e => setForm({ ...form, examId: e.target.value })} style={inp}>
+                      <option value="">— None —</option>
+                      {exams.filter(ex => !form.categoryId || ex.categoryId === form.categoryId).map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
                     </select>
                   </div>
                   <div>

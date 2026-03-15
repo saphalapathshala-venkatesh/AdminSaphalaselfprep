@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     const { title, instructions, mode, isTimed, durationSec, allowPause, strictSectionMode,
             shuffleQuestions, shuffleOptions, shuffleGroups, shuffleGroupChildren, seriesId,
             xpEnabled, xpValue, testStartTime } = body;
-    let { categoryId } = body;
+    let { categoryId, examId } = body;
 
     if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
     if (!mode || !["TIMED", "SECTIONAL", "MULTI_SECTION"].includes(mode)) {
@@ -92,6 +92,7 @@ export async function POST(req: NextRequest) {
         shuffleGroupChildren: shuffleGroupChildren || false,
         seriesId: seriesId || null,
         categoryId: categoryId || null,
+        examId: examId || null,
         xpEnabled: xpEnabled === true,
         xpValue: xpValue !== undefined ? Math.max(0, parseInt(xpValue) || 0) : 0,
         testStartTime: testStartTime ? new Date(testStartTime) : null,
@@ -127,7 +128,7 @@ export async function PUT(req: NextRequest) {
     const { id, title, instructions, mode, isTimed, durationSec, allowPause, strictSectionMode,
             shuffleQuestions, shuffleOptions, shuffleGroups, shuffleGroupChildren,
             seriesId, sections, questions, xpEnabled, xpValue, testStartTime } = body;
-    let { categoryId } = body;
+    let { categoryId, examId } = body;
 
     if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
 
@@ -168,6 +169,7 @@ export async function PUT(req: NextRequest) {
           shuffleGroupChildren: shuffleGroupChildren !== undefined ? shuffleGroupChildren : existing.shuffleGroupChildren,
           seriesId: resolvedSeriesId,
           categoryId: categoryId !== undefined ? (categoryId || null) : existing.categoryId,
+          examId: examId !== undefined ? (examId || null) : existing.examId,
           xpEnabled: xpEnabled !== undefined ? xpEnabled === true : existing.xpEnabled,
           xpValue: xpValue !== undefined ? Math.max(0, parseInt(xpValue) || 0) : existing.xpValue,
           testStartTime: testStartTime !== undefined ? (testStartTime ? new Date(testStartTime) : null) : existing.testStartTime,

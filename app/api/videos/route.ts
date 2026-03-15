@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      title, description, facultyId, courseId, categoryId, subjectId, topicId, subtopicId,
+      title, description, facultyId, courseId, categoryId, examId, subjectId, topicId, subtopicId,
       accessType, status, lessonOrder, durationSeconds, thumbnailUrl,
       provider, providerVideoId, hlsUrl, playbackUrl,
       allowPreview, tags,
@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
         facultyId: facultyId || null,
         courseId: courseId || null,
         categoryId: categoryId || null,
+        examId: examId || null,
         subjectId: subjectId || null,
         topicId: topicId || null,
         subtopicId: subtopicId || null,

@@ -29,6 +29,12 @@ interface Subject {
   categoryId: string;
 }
 
+interface Exam {
+  id: string;
+  name: string;
+  categoryId: string;
+}
+
 export default function TestSeriesPage() {
   const [items, setItems] = useState<TestSeries[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,13 +48,14 @@ export default function TestSeriesPage() {
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
-    title: "", description: "", categoryId: "", subjectIds: [] as string[],
+    title: "", description: "", categoryId: "", examId: "", subjectIds: [] as string[],
     priceRupees: "0", discountRupees: "0", currency: "INR",
     thumbnailUrl: "", scheduleJson: "", isPublished: false,
   });
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [exams, setExams] = useState<Exam[]>([]);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   function showToast(msg: string, type: "success" | "error") {
@@ -89,20 +96,22 @@ export default function TestSeriesPage() {
       setCategories(cats);
       setSubjects(subs);
     }).catch(() => {});
+    fetch("/api/exams").then(r => r.json()).then(d => setExams(d.exams || [])).catch(() => {});
   }, []);
 
   function openCreate() {
     setEditing(null);
-    setForm({ title: "", description: "", categoryId: "", subjectIds: [], priceRupees: "0", discountRupees: "0", currency: "INR", thumbnailUrl: "", scheduleJson: "", isPublished: false });
+    setForm({ title: "", description: "", categoryId: "", examId: "", subjectIds: [], priceRupees: "0", discountRupees: "0", currency: "INR", thumbnailUrl: "", scheduleJson: "", isPublished: false });
     setShowForm(true);
   }
 
-  function openEdit(item: TestSeries) {
+  function openEdit(item: TestSeries & { examId?: string | null }) {
     setEditing(item);
     setForm({
       title: item.title,
       description: item.description || "",
       categoryId: item.categoryId || "",
+      examId: item.examId || "",
       subjectIds: item.subjectIds || [],
       priceRupees:    String(item.pricePaise    / 100),
       discountRupees: String(item.discountPaise / 100),
@@ -126,6 +135,7 @@ export default function TestSeriesPage() {
 
       const payload: any = {
         title: form.title, description: form.description, categoryId: form.categoryId || null,
+        examId: form.examId || null,
         subjectIds: form.subjectIds,
         pricePaise:    Math.round(parseFloat(form.priceRupees    || "0") * 100),
         discountPaise: Math.round(parseFloat(form.discountRupees || "0") * 100),
@@ -283,9 +293,16 @@ export default function TestSeriesPage() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                 <div>
                   <label style={labelStyle}>Category</label>
-                  <select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value, subjectIds: [] })} style={inputStyle}>
+                  <select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value, examId: "", subjectIds: [] })} style={inputStyle}>
                     <option value="">-- Select Category (optional) --</option>
                     {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Exam <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: "0.75rem" }}>(filtered by category)</span></label>
+                  <select value={form.examId} onChange={(e) => setForm({ ...form, examId: e.target.value })} style={inputStyle}>
+                    <option value="">-- No exam (optional) --</option>
+                    {exams.filter(e => !form.categoryId || e.categoryId === form.categoryId).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                   </select>
                 </div>
                 <div>

@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title, subtitle, description, categoryId, subjectId, topicId, subtopicId,
+    const { title, subtitle, description, categoryId, examId, subjectId, topicId, subtopicId,
             titleTemplate, titleImageUrl, subjectColor, xpEnabled, xpValue } = body;
 
     if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
         subtitle: subtitle?.trim() || null,
         description: description?.trim() || null,
         categoryId: categoryId || null,
+        examId: examId || null,
         subjectId: subjectId || null,
         topicId: topicId || null,
         subtopicId: subtopicId || null,

@@ -235,6 +235,32 @@ model Category {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   subjects  Subject[]
+  exams     Exam[]
+}
+
+// EXAM MASTER
+// A product-level targeting layer under Category.
+// Used for learner discovery, admin filtering, and product/content targeting.
+// NOT part of the academic taxonomy (Category → Subject → Topic → Subtopic).
+// NOT used in Question Bank or question tagging.
+model Exam {
+  id         String   @id @default(cuid())
+  name       String
+  slug       String
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  courses        Course[]
+  testSeries     TestSeries[]
+  tests          Test[]
+  contentPages   ContentPage[]
+  pdfAssets      PdfAsset[]
+  flashcardDecks FlashcardDeck[]
+  videos         Video[]
+  liveClasses    LiveClass[]
+  @@unique([categoryId, slug])
+  @@index([categoryId])
 }
 model Subject {
   id         String   @id @default(cuid())
@@ -345,6 +371,8 @@ model TestSeries {
   title        String
   description  String?
   categoryId   String?
+  examId       String?
+  exam         Exam?    @relation(fields: [examId], references: [id], onDelete: SetNull)
   subjectIds   String[] @default([])
   pricePaise    Int      @default(0)
   discountPaise Int      @default(0)
@@ -357,6 +385,7 @@ model TestSeries {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   tests        Test[]
+  @@index([examId])
   @@index([isPublished])
 }
 model Test {
@@ -364,6 +393,8 @@ model Test {
   seriesId        String?
   series          TestSeries? @relation(fields: [seriesId], references: [id], onDelete: SetNull)
   categoryId     String?
+  examId         String?
+  exam           Exam?       @relation(fields: [examId], references: [id], onDelete: SetNull)
   title          String
   instructions   String?
   mode           TestMode
@@ -390,6 +421,7 @@ model Test {
   attempts       Attempt[]
   @@index([isPublished])
   @@index([seriesId])
+  @@index([examId])
 }
 model TestSection {
   id              String        @id @default(cuid())
@@ -459,6 +491,8 @@ model FlashcardDeck {
   subtitle       String?
   description    String?
   categoryId     String?
+  examId         String?
+  exam           Exam?   @relation(fields: [examId], references: [id], onDelete: SetNull)
   subjectId      String?
   topicId        String?
   subtopicId     String?
@@ -473,6 +507,8 @@ model FlashcardDeck {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   cards          FlashcardCard[]
+  @@index([examId])
+  @@index([categoryId])
 }
 model FlashcardCard {
   id          String            @id @default(cuid())
@@ -511,6 +547,8 @@ model ContentPage {
   id          String @id @default(cuid())
   title       String
   categoryId  String?
+  examId      String?
+  exam        Exam?   @relation(fields: [examId], references: [id], onDelete: SetNull)
   subjectId   String?
   topicId     String?
   subtopicId  String?
@@ -528,6 +566,7 @@ model ContentPage {
   @@index([isPublished])
   @@index([subtopicId])
   @@index([categoryId])
+  @@index([examId])
 }
 
 model EBookPage {
@@ -548,6 +587,8 @@ model PdfAsset {
   fileSize       Int?
   mimeType       String? @default("application/pdf")
   categoryId     String?
+  examId         String?
+  exam           Exam?   @relation(fields: [examId], references: [id], onDelete: SetNull)
   subjectId      String?
   topicId        String?
   subtopicId     String?
@@ -560,6 +601,7 @@ model PdfAsset {
   updatedAt      DateTime @updatedAt
   @@index([isPublished])
   @@index([categoryId])
+  @@index([examId])
 }
 // PRODUCT BUILDER (packages → entitlements)
 model ProductPackage {
@@ -767,6 +809,8 @@ model Course {
   name           String
   description    String?
   categoryId     String?
+  examId         String?
+  exam           Exam?      @relation(fields: [examId], references: [id], onDelete: SetNull)
   courseType     CourseType @default(STANDARD)
   productCategory ProductCategory?
   isActive       Boolean    @default(true)
@@ -788,6 +832,7 @@ model Course {
   videos         Video[]
   liveClasses    LiveClass[]
   @@index([categoryId])
+  @@index([examId])
   @@index([tenantId])
   @@index([courseType])
   @@index([productCategory])
@@ -819,6 +864,8 @@ model Video {
   courseId         String?
   course           Course?         @relation(fields: [courseId], references: [id], onDelete: SetNull)
   categoryId       String?
+  examId           String?
+  exam             Exam?           @relation(fields: [examId], references: [id], onDelete: SetNull)
   subjectId        String?
   topicId          String?
   subtopicId       String?
@@ -843,6 +890,7 @@ model Video {
   @@index([status])
   @@index([courseId])
   @@index([categoryId])
+  @@index([examId])
   @@index([tenantId])
 }
 
@@ -857,6 +905,8 @@ model LiveClass {
   courseId        String?
   course          Course?         @relation(fields: [courseId], references: [id], onDelete: SetNull)
   categoryId      String?
+  examId          String?
+  exam            Exam?           @relation(fields: [examId], references: [id], onDelete: SetNull)
   subjectId       String?
   topicId         String?
   subtopicId      String?
@@ -880,6 +930,7 @@ model LiveClass {
   @@index([status])
   @@index([sessionDate])
   @@index([courseId])
+  @@index([examId])
   @@index([tenantId])
 }
 

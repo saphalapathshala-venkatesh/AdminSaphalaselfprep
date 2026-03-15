@@ -15,6 +15,7 @@ const navSections = [
     heading: "CONTENT",
     items: [
       { label: "Taxonomy", href: "/admin/taxonomy" },
+      { label: "Exams", href: "/admin/exams" },
       { label: "Question Bank", href: "/admin/question-bank" },
       { label: "Imports", href: "/admin/imports" },
       { label: "Test Series", href: "/admin/test-series" },

@@ -46,9 +46,13 @@ type Course = ProductTypes & {
   _count?: { videos: number; liveClasses: number };
 };
 
+type TaxOption = { id: string; name: string };
+type ExamOption = { id: string; name: string; categoryId: string };
+
 type FormData = {
   name: string; description: string; courseType: CourseType;
   productCategory: string;
+  categoryId: string; examId: string;
   isActive: boolean; featured: boolean; thumbnailUrl: string;
   xpRedemptionEnabled: boolean;
   xpRedemptionMaxPercent: number;
@@ -69,16 +73,20 @@ const TYPE_CONFIG = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const defaultForm = (): FormData => ({
-  name: "", description: "", courseType: "STANDARD", productCategory: "", isActive: true, featured: false, thumbnailUrl: "",
+  name: "", description: "", courseType: "STANDARD", productCategory: "",
+  categoryId: "", examId: "",
+  isActive: true, featured: false, thumbnailUrl: "",
   hasHtmlCourse: false, hasVideoCourse: false, hasPdfCourse: false, hasTestSeries: false, hasFlashcardDecks: false,
   xpRedemptionEnabled: false, xpRedemptionMaxPercent: 1,
   validityType: "", validityDays: "", validityMonths: "", validUntil: "",
 });
 
-function courseToForm(c: Course): FormData {
+function courseToForm(c: Course & { categoryId?: string | null; examId?: string | null }): FormData {
   return {
     name: c.name, description: c.description || "", courseType: c.courseType || "STANDARD",
     productCategory: c.productCategory || "",
+    categoryId: c.categoryId || "",
+    examId: c.examId || "",
     isActive: c.isActive,
     featured: c.featured ?? false,
     thumbnailUrl: c.thumbnailUrl || "",
@@ -117,11 +125,13 @@ const inputSt: React.CSSProperties = { width: "100%", padding: "0.4375rem 0.75re
 const labelSt: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "0.25rem" };
 
 // ─── Course form (shared for create + edit) ───────────────────────────────────
-function CourseForm({ form, onChange, error, isEdit }: {
+function CourseForm({ form, onChange, error, isEdit, categories, exams }: {
   form: FormData;
   onChange: (f: FormData) => void;
   error: string | null;
   isEdit?: boolean;
+  categories: TaxOption[];
+  exams: ExamOption[];
 }) {
   const set = (patch: Partial<FormData>) => onChange({ ...form, ...patch });
   return (
@@ -169,6 +179,24 @@ function CourseForm({ form, onChange, error, isEdit }: {
         <textarea value={form.description} onChange={e => set({ description: e.target.value })} rows={3}
           placeholder="Optional short description…"
           style={{ ...inputSt, resize: "vertical", lineHeight: 1.5 }} />
+      </div>
+
+      {/* Category + Exam */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+        <div>
+          <label style={labelSt}>Category</label>
+          <select value={form.categoryId} onChange={e => set({ categoryId: e.target.value, examId: "" })} style={inputSt}>
+            <option value="">— No Category —</option>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={labelSt}>Exam <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: "0.75rem" }}>(filtered by category)</span></label>
+          <select value={form.examId} onChange={e => set({ examId: e.target.value })} style={inputSt}>
+            <option value="">— No Exam —</option>
+            {exams.filter(ex => !form.categoryId || ex.categoryId === form.categoryId).map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* Product Category */}
@@ -338,9 +366,17 @@ export default function CoursesPage() {
   // Active filter
   const [activeFilter, setActiveFilter] = useState<"" | "true" | "false">("");
 
+  const [categories, setCategories] = useState<TaxOption[]>([]);
+  const [exams, setExams] = useState<ExamOption[]>([]);
+
   const pageSize = 20;
 
   const showToast = (msg: string, ok = true) => { setToast({ msg, ok }); setTimeout(() => setToast(null), 3200); };
+
+  useEffect(() => {
+    fetch("/api/taxonomy?level=category").then(r => r.json()).then(j => setCategories(j.data || [])).catch(() => {});
+    fetch("/api/exams").then(r => r.json()).then(j => setExams(j.exams || [])).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -434,7 +470,7 @@ export default function CoursesPage() {
               <button onClick={() => setModalMode(null)} style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", fontSize: "1.125rem", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>×</button>
             </div>
             <div style={{ padding: "1.5rem" }}>
-              <CourseForm form={form} onChange={setForm} error={formError} isEdit={modalMode === "edit"} />
+              <CourseForm form={form} onChange={setForm} error={formError} isEdit={modalMode === "edit"} categories={categories} exams={exams} />
             </div>
             <div style={{ padding: "1rem 1.5rem", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "flex-end", gap: "0.625rem" }}>
               <button onClick={() => setModalMode(null)} style={{ padding: "0.5rem 1.25rem", borderRadius: "7px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: "0.875rem", color: "#374151", fontWeight: 600 }}>Cancel</button>

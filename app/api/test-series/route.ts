@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title, description, categoryId, subjectIds, pricePaise, discountPaise, currency, thumbnailUrl, scheduleJson, isPublished } = body;
+    const { title, description, categoryId, examId, subjectIds, pricePaise, discountPaise, currency, thumbnailUrl, scheduleJson, isPublished } = body;
 
     if (!title || !title.trim()) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
         title: title.trim(),
         description: description?.trim() || null,
         categoryId: categoryId || null,
+        examId: examId || null,
         subjectIds: subjectIds || [],
         pricePaise: parseInt(pricePaise) || 0,
         discountPaise: parseInt(discountPaise) || 0,
@@ -92,7 +93,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { id, title, description, categoryId, subjectIds, pricePaise, discountPaise, currency, thumbnailUrl, scheduleJson, isPublished } = body;
+    const { id, title, description, categoryId, examId, subjectIds, pricePaise, discountPaise, currency, thumbnailUrl, scheduleJson, isPublished } = body;
 
     if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
 
@@ -105,6 +106,7 @@ export async function PUT(req: NextRequest) {
         title: title?.trim() || existing.title,
         description: description !== undefined ? (description?.trim() || null) : existing.description,
         categoryId: categoryId !== undefined ? (categoryId || null) : existing.categoryId,
+        examId: examId !== undefined ? (examId || null) : existing.examId,
         subjectIds: subjectIds !== undefined ? subjectIds : existing.subjectIds,
         pricePaise: pricePaise !== undefined ? parseInt(pricePaise) || 0 : existing.pricePaise,
         discountPaise: discountPaise !== undefined ? parseInt(discountPaise) || 0 : existing.discountPaise,
