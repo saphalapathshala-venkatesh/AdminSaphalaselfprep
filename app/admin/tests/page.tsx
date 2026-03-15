@@ -1378,13 +1378,17 @@ export default function TestsPage() {
   }
 
   function addTopLevelSection() {
-    setSections(prev => [...prev, { title: `Section ${prev.filter(s => s.parentIndex === null).length + 1}`, durationSec: "", targetCount: "", parentIndex: null }]);
+    setSections(prev => {
+      const topCount = prev.filter(s => s.parentIndex === null).length;
+      return [...prev, { title: `Section ${topCount + 1}`, durationSec: "", targetCount: "", parentIndex: null }];
+    });
   }
 
   function addSubsection(parentIdx: number) {
-    const parentTitle = sections[parentIdx]?.title || `Section ${parentIdx + 1}`;
-    const siblingCount = sections.filter(s => s.parentIndex === parentIdx).length;
-    setSections(prev => [...prev, { title: `${parentTitle} — Sub ${siblingCount + 1}`, durationSec: "", targetCount: "", parentIndex: parentIdx }]);
+    setSections(prev => {
+      const siblingCount = prev.filter(s => s.parentIndex === parentIdx).length;
+      return [...prev, { title: `Subsection ${siblingCount + 1}`, durationSec: "", targetCount: "", parentIndex: parentIdx }];
+    });
   }
 
   function updateSection(idx: number, patch: Partial<SectionState>) {
