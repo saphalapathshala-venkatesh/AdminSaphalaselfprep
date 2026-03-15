@@ -1,0 +1,106 @@
+We are now in Admin Saphala Self Prep stabilization/testing.
+
+Two critical admin issues must be fixed before further content population:
+
+ISSUE 1 — Question Bank edit screen is not showing existing content
+Problem:
+When opening an existing question for editing, the already-saved question text, options, and explanation are not visible in the edit form/editor. This makes editing unusable.
+
+Expected behavior:
+When I click Edit on a question, the full saved data must load correctly into the edit form, including:
+- question stem/text
+- all options
+- correct answer
+- explanation
+- bilingual text if supported
+- taxonomy selections
+- status, type, difficulty, source tags, etc.
+
+ISSUE 2 — Test Series creation is failing
+Problem:
+Creating a test series is failing in the admin app.
+
+Your task:
+Audit both flows fully and fix them end-to-end. Do not guess. Read the relevant files first.
+
+REQUIRED WORK
+
+PART A — Fix Question Bank edit hydration
+1. Inspect:
+- Question Bank list page
+- Question edit page / form page
+- question create/edit form component
+- any rich text editor component used for stem/options/explanation
+- question fetch API used by edit page
+- update API route
+- Prisma Question model and related models
+
+2. Find exact root cause(s), such as:
+- fetched question data not passed into form defaults
+- form reset/hydration missing after async fetch
+- editor state not initialized from saved DB value
+- mismatch between stored JSON/string/html format and editor expected format
+- options array not mapped correctly
+- explanation field not wired
+- Telugu/English dual fields not wired consistently
+- taxonomy IDs not being set back into dropdowns
+
+3. Fix so that edit mode fully preloads and visibly displays:
+- question text
+- options
+- explanation
+- correct answer
+- all metadata/taxonomy fields
+
+4. Ensure save-after-edit still works and does not wipe existing fields.
+
+PART B — Fix Test Series creation failure
+1. Inspect:
+- test series list page
+- create test series form page/component
+- create API route
+- Prisma TestSeries model and related schema
+- category/taxonomy linkage used in test series creation
+
+2. Find exact root cause(s), such as:
+- frontend payload mismatch with API expectation
+- missing required fields
+- invalid categoryId / null category handling
+- slug/code uniqueness bug
+- enum mismatch
+- bad default values
+- schema field names not matching current code
+- create route throwing on optional arrays/JSON fields
+
+3. Fix the create flow so that:
+- test series can be created successfully from admin UI
+- required validation is clear
+- category linkage works correctly
+- safe defaults exist for optional fields
+- server returns meaningful errors in logs
+- client shows a proper user-facing error if something still fails
+
+PART C — Logging and robustness
+1. Add safe server-side logs for both flows:
+- question edit fetch/hydration failures
+- question update failures
+- test series create payload/API failures
+
+2. Do not leak internal stack traces to the client.
+3. Keep frontend contracts stable.
+4. No schema changes unless absolutely necessary.
+5. No broad refactor — fix the actual broken wiring.
+
+DELIVERABLES
+A. Exact root cause for Question Bank edit blank fields
+B. Exact root cause for Test Series creation failure
+C. Exact files changed
+D. Confirmation that question edit now displays saved text/options/explanation
+E. Confirmation that test series creation now succeeds
+F. Note any remaining limitations if something depends on later test-builder work
+
+Important context:
+- Admin login/dashboard stabilization is already done
+- We are now in admin usability stabilization
+- Fixes must be production-safe and minimal
+- This admin app is the source of truth for frontend reflection

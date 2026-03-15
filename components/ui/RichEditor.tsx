@@ -58,7 +58,18 @@ export default function RichEditor({
   const [eqInput, setEqInput] = useState("");
   const savedRange = useRef<Range | null>(null);
 
-  // Initialise / sync content from parent only when value changes externally
+  // Mount-only: set initial innerHTML from prop (lastValue.current === value on
+  // first render so the sync effect below would skip it — this ensures edit mode
+  // always pre-fills with the saved content).
+  useEffect(() => {
+    if (editorRef.current) {
+      editorRef.current.innerHTML = value;
+      lastValue.current = value;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sync from parent when value changes externally (e.g. form reset)
   useEffect(() => {
     const el = editorRef.current;
     if (!el) return;

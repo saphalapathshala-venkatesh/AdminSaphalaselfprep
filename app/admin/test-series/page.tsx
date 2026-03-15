@@ -116,7 +116,6 @@ export default function TestSeriesPage() {
 
   async function handleSave() {
     if (!form.title.trim()) { showToast("Title is required", "error"); return; }
-    if (!form.categoryId) { showToast("Category is required for a test series", "error"); return; }
     setSaving(true);
     try {
       let scheduleJson = null;
@@ -283,9 +282,9 @@ export default function TestSeriesPage() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                 <div>
-                  <label style={labelStyle}>Category *</label>
-                  <select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value, subjectIds: [] })} style={{ ...inputStyle, borderColor: !form.categoryId ? "#fca5a5" : "#d1d5db" }}>
-                    <option value="">-- Select Category (required) --</option>
+                  <label style={labelStyle}>Category</label>
+                  <select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value, subjectIds: [] })} style={inputStyle}>
+                    <option value="">-- Select Category (optional) --</option>
                     {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
