@@ -1,0 +1,81 @@
+We have an urgent admin login stabilization issue in the Admin Saphala Self Prep app.
+
+Goal:
+Create or repair ONE guaranteed-working SUPER_ADMIN account that allows immediate login in both local and deployed Admin Saphala Self Prep environments, without any further manual DB patching confusion.
+
+Context:
+- App name: Admin Saphala Self Prep
+- Admin app and student frontend are separate apps sharing one DB
+- Current login failures were caused by:
+  1) bootstrap route not updating existing users
+  2) confusion around admin email identity
+- We want one clean, reliable admin recovery path
+- No schema changes unless absolutely necessary
+
+Required implementation:
+1. Make the admin seed fully deterministic:
+   - Use ADMIN_SEED_EMAIL and ADMIN_SEED_PASSWORD from env
+   - If user exists, UPDATE it
+   - If user does not exist, CREATE it
+   - Always set:
+     - role = SUPER_ADMIN
+     - isActive = true
+     - isBlocked = false
+     - blockedReason = null
+     - deletedAt = null
+     - mustChangePassword = false (if field exists)
+   - Always re-hash password using bcryptjs
+   - Normalize email before save (trim + lowercase)
+
+2. Create a single guaranteed admin identity for immediate use:
+   - ADMIN_SEED_EMAIL = admin@saphalaselfprep.in
+   - Make login accept this exact email after seed/bootstrap runs
+   - Do not depend on any old admin@saphala.com assumptions
+
+3. Harden login route:
+   - Only allow users with:
+     - deletedAt = null
+     - isActive = true
+     - isBlocked = false
+   - Add safe server-side logs for failure reason:
+     - user not found
+     - password mismatch
+     - blocked
+     - inactive
+     - soft deleted
+   - Do not leak these detailed reasons to client; client can still see “Invalid credentials”
+
+4. Fix bootstrap/admin recovery route:
+   - Do NOT early return when user already exists
+   - Make it behave like upsert/reset for the admin identity
+   - If BOOTSTRAP_KEY is configured, route should securely reset the admin account using ADMIN_SEED_EMAIL + ADMIN_SEED_PASSWORD
+
+5. Add one explicit verification script/command:
+   - Example: npm run seed:admin or tsx prisma/seed.ts
+   - Output must clearly print:
+     - admin email used
+     - whether created or updated
+     - whether password was reset
+   - Do NOT print the raw password in logs
+
+6. Verify end to end:
+   - Confirm which env vars must exist in Vercel
+   - Confirm exactly which app needs redeploy
+   - Confirm final login email
+   - Confirm there is no dependency on manual DB editing
+
+Important constraints:
+- No unnecessary schema migrations
+- No breaking changes to existing auth/session system
+- Keep this minimal and production-safe
+- Prefer data repair + route hardening over refactors
+
+Deliverables:
+A. Exact code changes made
+B. Exact env vars required
+C. Exact command to run locally/Replit shell
+D. Exact final admin login email
+E. Short deployment checklist for Vercel
+F. A final statement: “You can now log in with the seeded admin after redeploy”
+
+Also, if the current deployed environment is still failing because the deployed env password does not match the DB seed, identify that explicitly and fix the seed/bootstrap flow so future resets are one-step and reliable.
