@@ -1233,6 +1233,7 @@ export default function TestsPage() {
   const [saving, setSaving] = useState(false);
   const [validation, setValidation] = useState<{ valid: boolean; errors: string[]; warnings: string[] } | null>(null);
   const [validating, setValidating] = useState(false);
+  const [sectionTemplates, setSectionTemplates] = useState<{ sections: string[]; subsections: Record<string, string[]> }>({ sections: [], subsections: {} });
 
   // Add Questions modal state
   const [addQModal, setAddQModal] = useState<{ sectionId: string | null; sectionIndex: number | null; sectionTitle: string; targetCount: number; currentCount: number } | null>(null);
@@ -1265,6 +1266,17 @@ export default function TestsPage() {
     }).catch(() => {});
     fetch("/api/exams").then(r => r.json()).then(j => setExams(j.exams || [])).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!form.categoryId) {
+      setSectionTemplates({ sections: [], subsections: {} });
+      return;
+    }
+    fetch(`/api/tests/section-templates?categoryId=${form.categoryId}`)
+      .then(r => r.json())
+      .then(d => setSectionTemplates({ sections: d.sections || [], subsections: d.subsections || {} }))
+      .catch(() => {});
+  }, [form.categoryId]);
 
   function openCreate() {
     setTestId(null); setIsPublished(false); setCreateStep(1);
@@ -1791,7 +1803,18 @@ export default function TestsPage() {
                       {/* Section header row */}
                       <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", padding: "0.5rem 0.75rem", background: "#f8fafc" }}>
                         <span style={{ fontSize: "0.75rem", color: "#6b7280", minWidth: "1.25rem" }}>§{topLevelSections.indexOf(sec) + 1}</span>
-                        <input value={sec.title} onChange={e => updateSection(idx, { title: e.target.value })} style={{ ...inp, flex: 1 }} placeholder="Section title" />
+                        <input
+                          list={`sec-tmpl-${idx}`}
+                          value={sec.title}
+                          onChange={e => updateSection(idx, { title: e.target.value })}
+                          style={{ ...inp, flex: 1 }}
+                          placeholder={sectionTemplates.sections.length ? "Pick saved or type new…" : "Section title"}
+                        />
+                        {sectionTemplates.sections.length > 0 && (
+                          <datalist id={`sec-tmpl-${idx}`}>
+                            {sectionTemplates.sections.map(name => <option key={name} value={name} />)}
+                          </datalist>
+                        )}
                         <div>
                           <input type="number" value={sec.durationSec} onChange={e => updateSection(idx, { durationSec: e.target.value })} style={{ ...inp, width: "80px" }} placeholder="min" title="Section total time (minutes)" />
                         </div>
@@ -1819,7 +1842,18 @@ export default function TestsPage() {
                       {children.map(({ s: sub, i: subIdx }) => (
                         <div key={subIdx} style={{ display: "flex", gap: "0.5rem", alignItems: "center", padding: "0.375rem 0.75rem 0.375rem 2.5rem", borderTop: "1px solid #f1f5f9", background: "#fafbff" }}>
                           <span style={{ fontSize: "0.7rem", color: "#a78bfa" }}>└─</span>
-                          <input value={sub.title} onChange={e => updateSection(subIdx, { title: e.target.value })} style={{ ...inp, flex: 1 }} placeholder="Subsection title" />
+                          <input
+                            list={`sub-tmpl-${subIdx}`}
+                            value={sub.title}
+                            onChange={e => updateSection(subIdx, { title: e.target.value })}
+                            style={{ ...inp, flex: 1 }}
+                            placeholder={(sectionTemplates.subsections[sec.title] || []).length ? "Pick saved or type new…" : "Subsection title"}
+                          />
+                          {(sectionTemplates.subsections[sec.title] || []).length > 0 && (
+                            <datalist id={`sub-tmpl-${subIdx}`}>
+                              {(sectionTemplates.subsections[sec.title] || []).map(name => <option key={name} value={name} />)}
+                            </datalist>
+                          )}
                           <input type="number" value={sub.durationSec} onChange={e => updateSection(subIdx, { durationSec: e.target.value })} style={{ ...inp, width: "70px" }} placeholder="min" title="Subsection time in minutes (optional)" />
                           <input type="number" value={sub.targetCount} onChange={e => updateSection(subIdx, { targetCount: e.target.value })} style={{ ...inp, width: "55px" }} placeholder="# Q" title="Target question count" />
                           {countBadge(subIdx)}
