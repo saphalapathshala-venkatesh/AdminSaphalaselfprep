@@ -1281,7 +1281,7 @@ export default function TestsPage() {
       if (!res.ok) { showToast(d.error || "Failed", "error"); return; }
       const t: TestDetail = d.data;
       setTestId(t.id); setIsPublished(t.isPublished);
-      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(Math.round(t.durationSec / 60)) : "", totalQuestions: t.questions ? String(t.questions.length) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, shuffleQuestions: t.shuffleQuestions, shuffleOptions: t.shuffleOptions, shuffleGroups: t.shuffleGroups, shuffleGroupChildren: t.shuffleGroupChildren, seriesId: t.seriesId || "", categoryId: (t as any).categoryId || "", examId: (t as any).examId || "", xpEnabled: !!(t as any).xpEnabled, xpValue: (t as any).xpValue != null ? String((t as any).xpValue) : "0", testStartTime: t.testStartTime ? t.testStartTime.slice(0, 16) : "" });
+      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(Math.round(t.durationSec / 60)) : "", totalQuestions: (t as any).totalQuestions ? String((t as any).totalQuestions) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, shuffleQuestions: t.shuffleQuestions, shuffleOptions: t.shuffleOptions, shuffleGroups: t.shuffleGroups, shuffleGroupChildren: t.shuffleGroupChildren, seriesId: t.seriesId || "", categoryId: (t as any).categoryId || "", examId: (t as any).examId || "", xpEnabled: !!(t as any).xpEnabled, xpValue: (t as any).xpValue != null ? String((t as any).xpValue) : "0", testStartTime: t.testStartTime ? t.testStartTime.slice(0, 16) : "" });
       setHasSectionsManual(t.sections.length > 0 || ["SECTIONAL", "MULTI_SECTION"].includes(t.mode));
       const flatSecs: SectionState[] = t.sections.map((s, i) => {
         const parentIndex = s.parentSectionId ? t.sections.findIndex(p => p.id === s.parentSectionId) : null;
@@ -1306,6 +1306,7 @@ export default function TestsPage() {
       const payload: any = {
         title: form.title, instructions: form.instructions, mode: form.mode,
         isTimed: form.isTimed, durationSec: form.durationSec ? String(parseInt(form.durationSec) * 60) : null,
+        totalQuestions: form.totalQuestions ? parseInt(form.totalQuestions) : null,
         allowPause: form.allowPause, strictSectionMode: form.strictSectionMode,
         shuffleQuestions: form.shuffleQuestions, shuffleOptions: form.shuffleOptions,
         shuffleGroups: form.shuffleGroups, shuffleGroupChildren: form.shuffleGroupChildren,
