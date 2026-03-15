@@ -210,14 +210,15 @@ function parseCsvToReviewItems(text: string): { items: ReviewItem[]; parseErrors
 type AddQuestionsModalProps = {
   testId: string;
   sectionId: string | null;
+  sectionIndex: number | null;
   sectionTitle: string;
   targetCount: number;
   currentCount: number;
   onClose: () => void;
-  onCommitted: (sections: any[], questions: any[]) => void;
+  onCommitted: (sections: any[], questions: any[], committedSectionIndex: number | null) => void;
 };
 
-function AddQuestionsModal({ testId, sectionId, sectionTitle, targetCount, currentCount, onClose, onCommitted }: AddQuestionsModalProps) {
+function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targetCount, currentCount, onClose, onCommitted }: AddQuestionsModalProps) {
   type Stage = "source" | "upload" | "qbank" | "existingtest" | "create" | "review" | "committing" | "done";
   const [stage, setStage] = useState<Stage>("source");
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
@@ -538,7 +539,7 @@ function AddQuestionsModal({ testId, sectionId, sectionTitle, targetCount, curre
       const d = await res.json();
       if (!res.ok) { alert(d.error || "Commit failed"); setStage("review"); return; }
       setCommitResult({ committed: d.data.committed, skipped: d.data.skipped, errors: d.data.errors });
-      onCommitted(d.data.sections, d.data.questions);
+      onCommitted(d.data.sections, d.data.questions, sectionIndex);
       setStage("done");
     } catch { setStage("review"); alert("Network error"); }
   }
@@ -1436,18 +1437,28 @@ export default function TestsPage() {
     setAddQModal({ sectionId: secId, sectionIndex: sectionIdx, sectionTitle, targetCount, currentCount });
   }
 
-  function handleAddQCommitted(newSections: any[], newQuestions: any[]) {
+  function handleAddQCommitted(newSections: any[], newQuestions: any[], committedSectionIndex: number | null) {
     const flatSecs: SectionState[] = newSections.map(s => {
       const parentIndex = s.parentSectionId ? newSections.findIndex((p: any) => p.id === s.parentSectionId) : null;
       return { id: s.id, title: s.title, durationSec: s.durationSec ? String(Math.round(s.durationSec / 60)) : "", targetCount: s.targetCount ? String(s.targetCount) : "", parentIndex: parentIndex === -1 ? null : parentIndex };
     });
     setSections(flatSecs);
-    setTestQuestions(newQuestions.map((tq: any) => ({
-      questionId: tq.questionId,
-      sectionIndex: tq.sectionId ? newSections.findIndex((s: any) => s.id === tq.sectionId) : null,
-      question: tq.question,
-      marks: tq.marks ?? 1, negativeMarks: tq.negativeMarks ?? 0,
-    })));
+    setTestQuestions(newQuestions.map((tq: any) => {
+      let si: number | null = null;
+      if (tq.sectionId) {
+        const idx = newSections.findIndex((s: any) => s.id === tq.sectionId);
+        si = idx >= 0 ? idx : committedSectionIndex;
+      } else {
+        si = committedSectionIndex;
+      }
+      return {
+        questionId: tq.questionId,
+        sectionIndex: si,
+        question: tq.question,
+        marks: tq.marks ?? 1,
+        negativeMarks: tq.negativeMarks ?? 0,
+      };
+    }));
     showToast("Questions added!", "success");
   }
 
@@ -1914,6 +1925,7 @@ export default function TestsPage() {
           <AddQuestionsModal
             testId={testId}
             sectionId={addQModal.sectionId}
+            sectionIndex={addQModal.sectionIndex}
             sectionTitle={addQModal.sectionTitle}
             targetCount={addQModal.targetCount}
             currentCount={addQModal.currentCount}
