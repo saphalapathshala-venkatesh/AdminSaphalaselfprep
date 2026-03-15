@@ -229,6 +229,18 @@ function AddQuestionsModal({ testId, sectionId, sectionTitle, targetCount, curre
   const [qbSearch, setQbSearch] = useState("");
   const [qbDiff, setQbDiff] = useState("");
   const [qbType, setQbType] = useState("");
+  const [qbCategoryId, setQbCategoryId] = useState("");
+  const [qbSubjectId, setQbSubjectId] = useState("");
+  const [qbCategories, setQbCategories] = useState<{ id: string; name: string }[]>([]);
+  const [qbSubjects, setQbSubjects] = useState<{ id: string; name: string }[]>([]);
+  const [qbSubjectsLoading, setQbSubjectsLoading] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/taxonomy?level=category")
+      .then(r => r.json())
+      .then(d => setQbCategories((d.data || []).map((c: any) => ({ id: c.id, name: c.name }))))
+      .catch(() => {});
+  }, []);
   const [qbResults, setQbResults] = useState<QuestionItem[]>([]);
   const [qbLoading, setQbLoading] = useState(false);
   const [qbPage, setQbPage] = useState(1);
@@ -401,11 +413,23 @@ function AddQuestionsModal({ testId, sectionId, sectionTitle, targetCount, curre
       if (qbSearch) p.set("search", qbSearch);
       if (qbDiff) p.set("difficulty", qbDiff);
       if (qbType) p.set("type", qbType);
+      if (qbSubjectId) p.set("subjectId", qbSubjectId);
+      else if (qbCategoryId) p.set("categoryId", qbCategoryId);
       const d = await fetch(`/api/questions?${p}`).then(r => r.json());
       setQbResults(d.data || []);
       setQbTotalPages(d.pagination?.totalPages || 1);
       setQbPage(pg);
     } finally { setQbLoading(false); }
+  }
+
+  async function loadQbSubjects(categoryId: string) {
+    if (!categoryId) { setQbSubjects([]); return; }
+    setQbSubjectsLoading(true);
+    try {
+      const d = await fetch(`/api/taxonomy?level=subject&parentId=${categoryId}`).then(r => r.json());
+      setQbSubjects((d.data || []).map((s: any) => ({ id: s.id, name: s.name })));
+    } catch { setQbSubjects([]); }
+    finally { setQbSubjectsLoading(false); }
   }
 
   function importQBSelected() {
@@ -618,17 +642,43 @@ function AddQuestionsModal({ testId, sectionId, sectionTitle, targetCount, curre
               <button onClick={() => setStage("source")} style={btn("#6b7280")}>← Back</button>
               <span style={{ fontSize: "0.875rem", color: "#374151", fontWeight: 600 }}>From Question Bank</span>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: "0.5rem", marginBottom: "0.75rem" }}>
-              <input value={qbSearch} onChange={e => setQbSearch(e.target.value)} placeholder="Search stem..." style={inp} onKeyDown={e => e.key === "Enter" && loadQBResults(1)} />
-              <select value={qbType} onChange={e => setQbType(e.target.value)} style={inp}>
-                <option value="">All Types</option>
-                {Q_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <select value={qbDiff} onChange={e => setQbDiff(e.target.value)} style={inp}>
-                <option value="">All Difficulties</option>
-                {DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-              <button onClick={() => loadQBResults(1)} style={btn(BRAND.purple)}>Search</button>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "0.75rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                <select
+                  value={qbCategoryId}
+                  onChange={e => {
+                    const catId = e.target.value;
+                    setQbCategoryId(catId);
+                    setQbSubjectId("");
+                    loadQbSubjects(catId);
+                  }}
+                  style={inp}
+                >
+                  <option value="">All Categories</option>
+                  {qbCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <select
+                  value={qbSubjectId}
+                  onChange={e => setQbSubjectId(e.target.value)}
+                  style={inp}
+                  disabled={!qbCategoryId || qbSubjectsLoading}
+                >
+                  <option value="">{qbSubjectsLoading ? "Loading…" : qbCategoryId ? "All Subjects" : "— Select Category first —"}</option>
+                  {qbSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: "0.5rem" }}>
+                <input value={qbSearch} onChange={e => setQbSearch(e.target.value)} placeholder="Search stem..." style={inp} onKeyDown={e => e.key === "Enter" && loadQBResults(1)} />
+                <select value={qbType} onChange={e => setQbType(e.target.value)} style={inp}>
+                  <option value="">All Types</option>
+                  {Q_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <select value={qbDiff} onChange={e => setQbDiff(e.target.value)} style={inp}>
+                  <option value="">All Difficulties</option>
+                  {DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+                <button onClick={() => loadQBResults(1)} style={btn(BRAND.purple)}>Search</button>
+              </div>
             </div>
             {qbLoading ? <div style={{ textAlign: "center", padding: "2rem", color: "#888" }}>Loading...</div> : (
               <>
