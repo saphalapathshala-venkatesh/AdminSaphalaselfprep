@@ -41,8 +41,8 @@ export default function ExamsPage() {
         setExams(data);
       }
       if (cRes.ok) {
-        const { items } = await cRes.json();
-        setCategories(items || []);
+        const { data } = await cRes.json();
+        setCategories(data || []);
       }
     } finally {
       setLoading(false);
