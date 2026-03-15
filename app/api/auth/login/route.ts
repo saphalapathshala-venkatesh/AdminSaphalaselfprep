@@ -44,10 +44,12 @@ export async function POST(req: NextRequest) {
     const user = await prisma.user.findFirst({
       where: {
         OR: [{ email: normalizedIdentifier }, { mobile: normalizedIdentifier }],
+        deletedAt: null,
       },
     });
 
     if (!user || !user.passwordHash) {
+      console.warn(`[login] No user or missing passwordHash for identifier: ${normalizedIdentifier}`);
       return NextResponse.json(
         { error: "Invalid credentials" },
         { status: 401 }
@@ -55,6 +57,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!isAdminRole(user.role)) {
+      console.warn(`[login] Non-admin role "${user.role}" attempted admin login: ${user.email}`);
       return NextResponse.json(
         { error: "Access denied" },
         { status: 403 }
@@ -62,6 +65,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!user.isActive) {
+      console.warn(`[login] Inactive account attempted login: ${user.email}`);
       return NextResponse.json(
         { error: "Account is disabled" },
         { status: 403 }
@@ -69,6 +73,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (user.isBlocked) {
+      console.warn(`[login] Blocked account attempted login: ${user.email}`);
       return NextResponse.json(
         { error: user.blockedReason ? `Account blocked: ${user.blockedReason}` : "Account has been blocked. Contact support." },
         { status: 403 }
@@ -77,6 +82,7 @@ export async function POST(req: NextRequest) {
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
+      console.warn(`[login] Password mismatch for: ${user.email}`);
       return NextResponse.json(
         { error: "Invalid credentials" },
         { status: 401 }

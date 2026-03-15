@@ -12,20 +12,39 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const email = process.env.ADMIN_SEED_EMAIL?.trim();
+  const email = process.env.ADMIN_SEED_EMAIL?.trim().toLowerCase();
   const password = process.env.ADMIN_SEED_PASSWORD?.trim();
 
   if (!email || !password) {
-    return NextResponse.json({ error: "Missing ADMIN_SEED_EMAIL or ADMIN_SEED_PASSWORD" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Missing ADMIN_SEED_EMAIL or ADMIN_SEED_PASSWORD" },
+      { status: 500 }
+    );
   }
 
   try {
+    const passwordHash = await bcrypt.hash(password, 10);
+
     const existing = await prisma.user.findUnique({ where: { email } });
+
     if (existing) {
-      return NextResponse.json({ ok: true, email, created: false });
+      // Always update — this is the reset path for a broken/migrated passwordHash.
+      await prisma.user.update({
+        where: { email },
+        data: {
+          passwordHash,
+          role: "SUPER_ADMIN",
+          isActive: true,
+          isBlocked: false,
+          blockedReason: null,
+          deletedAt: null,
+          mustChangePassword: false,
+        },
+      });
+      console.log(`[bootstrap] Admin user reset: ${email}`);
+      return NextResponse.json({ ok: true, email, created: false, updated: true });
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
     await prisma.user.create({
       data: {
         email,
@@ -33,12 +52,14 @@ export async function POST(req: NextRequest) {
         passwordHash,
         role: "SUPER_ADMIN",
         isActive: true,
+        isBlocked: false,
       },
     });
 
-    return NextResponse.json({ ok: true, email, created: true }, { status: 201 });
+    console.log(`[bootstrap] Admin user created: ${email}`);
+    return NextResponse.json({ ok: true, email, created: true, updated: false }, { status: 201 });
   } catch (err) {
-    console.error("Bootstrap error:", err);
+    console.error("[bootstrap] Bootstrap error:", err);
     return NextResponse.json({ error: "Bootstrap failed" }, { status: 500 });
   }
 }

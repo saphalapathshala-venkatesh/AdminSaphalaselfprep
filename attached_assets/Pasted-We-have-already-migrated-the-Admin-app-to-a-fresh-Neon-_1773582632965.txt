@@ -1,0 +1,55 @@
+We have already migrated the Admin app to a fresh Neon database and the app now connects successfully.
+
+Current status:
+- Admin app and frontend app both point to the new Neon DB.
+- Prisma schema has already been pushed.
+- Missing User columns were manually added until login stopped throwing 500 and now returns only "Invalid credentials".
+- The admin user row exists in the DB with email admin@saphala.com.
+- The problem now is likely in admin seed/reset logic or password hash creation/verification.
+
+I want you to do this carefully and fix it in the codebase, not by random trial and error:
+
+1. Inspect the admin login route and identify exactly how credentials are checked:
+   - whether it uses bcrypt or bcryptjs
+   - whether it reads email/mobile
+   - whether it requires isActive, isBlocked, deletedAt, role, etc.
+
+2. Inspect the admin seed/bootstrap logic:
+   - search for ADMIN_SEED_EMAIL and ADMIN_SEED_PASSWORD
+   - check whether there is a bootstrap route, startup seed, or helper that creates/resets the default admin user
+   - verify whether the seed logic is actually updating the passwordHash correctly
+
+3. Compare the login logic and seed logic:
+   - make sure they use the same hash library and same validation rules
+   - fix any mismatch
+
+4. Implement a reliable admin bootstrap/reset path for the current DB:
+   - ensure the default admin user admin@saphala.com is created if missing
+   - if present, update its passwordHash correctly from ADMIN_SEED_PASSWORD
+   - ensure role is ADMIN
+   - ensure isActive = true
+   - ensure isBlocked = false
+   - ensure deletedAt = null
+   - do not duplicate users
+
+5. Make the login route robust:
+   - no 500 for bad credentials
+   - return clean invalid credentials message for mismatches
+   - only throw 500 for real server errors
+   - log the exact reason server-side
+
+6. Verify against the current Prisma schema and current User model in this admin codebase.
+   Do not remove shared fields from the DB and do not run destructive db push.
+
+7. After changes, tell me:
+   - exact files changed
+   - root cause found
+   - exact login credentials I should now use
+   - whether I need to redeploy only admin or both apps
+
+Important constraints:
+- Do not change the frontend app
+- Do not destructively alter the shared DB
+- Do not drop columns
+- Only fix admin auth/bootstrap/reset flow safely
+- Assume the fresh Neon DB is now the single source of truth
