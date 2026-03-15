@@ -13,6 +13,7 @@ interface TestSeries {
   currency: string;
   thumbnailUrl: string | null;
   scheduleJson: any;
+  isFree: boolean;
   isPublished: boolean;
   createdAt: string;
   _count?: { tests: number };
@@ -50,7 +51,7 @@ export default function TestSeriesPage() {
   const [form, setForm] = useState({
     title: "", description: "", categoryId: "", examId: "", subjectIds: [] as string[],
     priceRupees: "0", discountRupees: "0", currency: "INR",
-    thumbnailUrl: "", scheduleJson: "", isPublished: false,
+    thumbnailUrl: "", scheduleJson: "", isFree: false, isPublished: false,
   });
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -101,7 +102,7 @@ export default function TestSeriesPage() {
 
   function openCreate() {
     setEditing(null);
-    setForm({ title: "", description: "", categoryId: "", examId: "", subjectIds: [], priceRupees: "0", discountRupees: "0", currency: "INR", thumbnailUrl: "", scheduleJson: "", isPublished: false });
+    setForm({ title: "", description: "", categoryId: "", examId: "", subjectIds: [], priceRupees: "0", discountRupees: "0", currency: "INR", thumbnailUrl: "", scheduleJson: "", isFree: false, isPublished: false });
     setShowForm(true);
   }
 
@@ -118,6 +119,7 @@ export default function TestSeriesPage() {
       currency: item.currency,
       thumbnailUrl: item.thumbnailUrl || "",
       scheduleJson: item.scheduleJson ? JSON.stringify(item.scheduleJson) : "",
+      isFree: item.isFree,
       isPublished: item.isPublished,
     });
     setShowForm(true);
@@ -141,7 +143,7 @@ export default function TestSeriesPage() {
         discountPaise: Math.round(parseFloat(form.discountRupees || "0") * 100),
         currency: form.currency,
         thumbnailUrl: form.thumbnailUrl.trim() || null,
-        scheduleJson, isPublished: form.isPublished,
+        scheduleJson, isFree: form.isFree, isPublished: form.isPublished,
       };
 
       const method = editing ? "PUT" : "POST";
@@ -248,6 +250,9 @@ export default function TestSeriesPage() {
                 <td style={tdStyle}>{item._count?.tests ?? 0}</td>
                 <td style={tdStyle}>{item.pricePaise > 0 ? `₹${(item.pricePaise / 100).toFixed(2)}` : "Free"}</td>
                 <td style={tdStyle}>
+                  {item.isFree && (
+                    <span style={{ ...badge, backgroundColor: "#ede9fe", color: "#6d28d9", marginRight: "0.25rem" }}>FREE SERIES</span>
+                  )}
                   <span style={{ ...badge, backgroundColor: item.isPublished ? "#d1fae5" : "#fee2e2", color: item.isPublished ? "#065f46" : "#991b1b" }}>
                     {item.isPublished ? "Published" : "Draft"}
                   </span>
@@ -346,12 +351,21 @@ export default function TestSeriesPage() {
                 <label style={labelStyle}>Schedule (JSON)</label>
                 <textarea value={form.scheduleJson} onChange={(e) => setForm({ ...form, scheduleJson: e.target.value })} rows={2} style={{ ...inputStyle, resize: "vertical", fontFamily: "monospace", fontSize: "0.75rem" }} placeholder='[{"date": "2026-03-01", "testId": "..."}]' />
               </div>
-              <div>
-                <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: "0.375rem" }}>
+              <div style={{ display: "flex", gap: "1.5rem" }}>
+                <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: "0.375rem", cursor: "pointer" }}>
+                  <input type="checkbox" checked={form.isFree} onChange={(e) => setForm({ ...form, isFree: e.target.checked })} />
+                  <span>Is Free Series</span>
+                </label>
+                <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: "0.375rem", cursor: "pointer" }}>
                   <input type="checkbox" checked={form.isPublished} onChange={(e) => setForm({ ...form, isPublished: e.target.checked })} />
-                  Published
+                  <span>Published</span>
                 </label>
               </div>
+              {form.isFree && (
+                <div style={{ background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "6px", padding: "0.5rem 0.75rem", fontSize: "0.78rem", color: "#6d28d9" }}>
+                  ✓ If enabled, all tests in this series are accessible without purchase.
+                </div>
+              )}
             </div>
             <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end", marginTop: "1rem" }}>
               <button onClick={() => setShowForm(false)} style={{ ...btnPrimary, backgroundColor: "#6b7280" }}>Cancel</button>

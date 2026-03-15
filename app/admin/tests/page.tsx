@@ -1342,7 +1342,7 @@ export default function TestsPage() {
   const [testId, setTestId] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(false);
   const [createStep, setCreateStep] = useState<1 | 2>(1);
-  const [form, setForm] = useState({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", totalQuestions: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", examId: "", xpEnabled: false, xpValue: "0", testStartTime: "" });
+  const [form, setForm] = useState({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", totalQuestions: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", examId: "", xpEnabled: false, xpValue: "0", testStartTime: "", isFree: false });
   const [hasSectionsManual, setHasSectionsManual] = useState(false);
   const [sectionPresetOpen, setSectionPresetOpen] = useState<number | null>(null);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
@@ -1399,7 +1399,7 @@ export default function TestsPage() {
 
   function openCreate() {
     setTestId(null); setIsPublished(false); setCreateStep(1);
-    setForm({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", totalQuestions: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", examId: "", xpEnabled: false, xpValue: "0", testStartTime: "" });
+    setForm({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", totalQuestions: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", examId: "", xpEnabled: false, xpValue: "0", testStartTime: "", isFree: false });
     setHasSectionsManual(true);
     setSections([]); setTestQuestions([]); setValidation(null);
     setView("builder");
@@ -1412,7 +1412,7 @@ export default function TestsPage() {
       if (!res.ok) { showToast(d.error || "Failed", "error"); return; }
       const t: TestDetail = d.data;
       setTestId(t.id); setIsPublished(t.isPublished);
-      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(Math.round(t.durationSec / 60)) : "", totalQuestions: (t as any).totalQuestions ? String((t as any).totalQuestions) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, shuffleQuestions: t.shuffleQuestions, shuffleOptions: t.shuffleOptions, shuffleGroups: t.shuffleGroups, shuffleGroupChildren: t.shuffleGroupChildren, seriesId: t.seriesId || "", categoryId: (t as any).categoryId || "", examId: (t as any).examId || "", xpEnabled: !!(t as any).xpEnabled, xpValue: (t as any).xpValue != null ? String((t as any).xpValue) : "0", testStartTime: t.testStartTime ? t.testStartTime.slice(0, 16) : "" });
+      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(Math.round(t.durationSec / 60)) : "", totalQuestions: (t as any).totalQuestions ? String((t as any).totalQuestions) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, shuffleQuestions: t.shuffleQuestions, shuffleOptions: t.shuffleOptions, shuffleGroups: t.shuffleGroups, shuffleGroupChildren: t.shuffleGroupChildren, seriesId: t.seriesId || "", categoryId: (t as any).categoryId || "", examId: (t as any).examId || "", xpEnabled: !!(t as any).xpEnabled, xpValue: (t as any).xpValue != null ? String((t as any).xpValue) : "0", testStartTime: t.testStartTime ? t.testStartTime.slice(0, 16) : "", isFree: !!(t as any).isFree });
       setHasSectionsManual(t.sections.length > 0 || ["SECTIONAL", "MULTI_SECTION"].includes(t.mode));
       const flatSecs: SectionState[] = t.sections.map((s, i) => {
         const parentIndex = s.parentSectionId ? t.sections.findIndex(p => p.id === s.parentSectionId) : null;
@@ -1444,6 +1444,7 @@ export default function TestsPage() {
         seriesId: form.seriesId || null, categoryId: form.categoryId || null, examId: form.examId || null,
         xpEnabled: form.xpEnabled, xpValue: parseInt(form.xpValue) || 0,
         testStartTime: form.testStartTime || null,
+        isFree: form.isFree,
         sections: sections.map(s => ({ title: s.title, durationSec: s.durationSec ? String(parseInt(s.durationSec) * 60) : null, targetCount: s.targetCount || null, parentIndex: s.parentIndex })),
         questions: testQuestions.map(q => ({ questionId: q.questionId, sectionIndex: q.sectionIndex, marks: q.marks, negativeMarks: q.negativeMarks })),
       };
@@ -1735,6 +1736,15 @@ export default function TestsPage() {
                   }
                   return null;
                 })()}
+                <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "0.75rem", alignItems: "center", background: "#f5f3ff", borderRadius: "8px", padding: "0.75rem", border: "1px solid #ddd6fe" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.8125rem", fontWeight: 700, color: "#6d28d9", cursor: "pointer", whiteSpace: "nowrap" }}>
+                    <input type="checkbox" checked={form.isFree} onChange={e => setForm({ ...form, isFree: e.target.checked })} />
+                    Is Free Test
+                  </label>
+                  {form.isFree && (
+                    <span style={{ fontSize: "0.75rem", color: "#6d28d9" }}>This test is accessible without purchase, even if the parent series is paid.</span>
+                  )}
+                </div>
                 <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "0.75rem", alignItems: "center", background: "#f0f9ff", borderRadius: "8px", padding: "0.75rem", border: "1px solid #bae6fd" }}>
                   <label style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.8125rem", fontWeight: 700, color: "#0369a1", cursor: "pointer", whiteSpace: "nowrap" }}>
                     <input type="checkbox" checked={form.xpEnabled} onChange={e => setForm({ ...form, xpEnabled: e.target.checked })} />
@@ -2203,6 +2213,9 @@ export default function TestsPage() {
                   <td style={{ ...td, color: "#6b7280" }}>{item.series?.title || "—"}</td>
                   <td style={td}>{item._count?.questions ?? 0}</td>
                   <td style={td}>
+                    {(item as any).isFree && (
+                      <span style={{ fontSize: "0.68rem", padding: "1px 6px", borderRadius: "10px", background: "#ede9fe", color: "#6d28d9", fontWeight: 700, marginRight: "0.25rem" }}>FREE</span>
+                    )}
                     <span style={{ fontSize: "0.7rem", padding: "2px 7px", borderRadius: "10px", background: item.isPublished ? "#d1fae5" : "#f3f4f6", color: item.isPublished ? "#065f46" : "#6b7280", fontWeight: 700 }}>
                       {item.isPublished ? "Published" : "Draft"}
                     </span>

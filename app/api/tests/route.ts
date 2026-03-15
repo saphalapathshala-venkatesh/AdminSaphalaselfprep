@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { title, instructions, mode, isTimed, durationSec, totalQuestions, allowPause, strictSectionMode,
             shuffleQuestions, shuffleOptions, shuffleGroups, shuffleGroupChildren, seriesId,
-            sections, questions, xpEnabled, xpValue, testStartTime } = body;
+            sections, questions, xpEnabled, xpValue, testStartTime, isFree } = body;
     let { categoryId, examId } = body;
 
     if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -98,6 +98,7 @@ export async function POST(req: NextRequest) {
           xpEnabled: xpEnabled === true,
           xpValue: xpValue !== undefined ? Math.max(0, parseInt(xpValue) || 0) : 0,
           testStartTime: testStartTime ? new Date(testStartTime) : null,
+          isFree: isFree === true,
           createdById: user.id,
         },
       });
@@ -176,7 +177,7 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     const { id, title, instructions, mode, isTimed, durationSec, totalQuestions, allowPause, strictSectionMode,
             shuffleQuestions, shuffleOptions, shuffleGroups, shuffleGroupChildren,
-            seriesId, sections, questions, xpEnabled, xpValue, testStartTime } = body;
+            seriesId, sections, questions, xpEnabled, xpValue, testStartTime, isFree } = body;
     let { categoryId, examId } = body;
 
     if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
@@ -223,6 +224,7 @@ export async function PUT(req: NextRequest) {
           xpEnabled: xpEnabled !== undefined ? xpEnabled === true : existing.xpEnabled,
           xpValue: xpValue !== undefined ? Math.max(0, parseInt(xpValue) || 0) : existing.xpValue,
           testStartTime: testStartTime !== undefined ? (testStartTime ? new Date(testStartTime) : null) : existing.testStartTime,
+          isFree: isFree !== undefined ? isFree === true : existing.isFree,
         },
       });
 

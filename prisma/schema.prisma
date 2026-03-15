@@ -379,6 +379,7 @@ model TestSeries {
   currency      String   @default("INR")
   thumbnailUrl  String?
   scheduleJson Json?
+  isFree       Boolean  @default(false)
   isPublished  Boolean  @default(false)
   createdById  String
   createdBy    User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
@@ -410,6 +411,7 @@ model Test {
   xpValue              Int      @default(0)
   testStartTime        DateTime?
   totalQuestions       Int?
+  isFree               Boolean  @default(false)
   isPublished          Boolean  @default(false)
   publishedAt    DateTime?
   createdById    String

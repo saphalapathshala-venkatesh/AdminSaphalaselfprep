@@ -1,0 +1,61 @@
+We need to add clean free-access controls for Test Series and Tests in Admin Saphala Self Prep.
+
+Problem:
+Right now, setting Test Series price to zero is not enough. In the student frontend, tests can still appear locked because access is not being controlled explicitly. We need admin-controlled free-access flags.
+
+Goal:
+Allow:
+1. an entire Test Series to be marked free
+2. individual Tests inside a paid Test Series to be marked free as demo tests
+
+Important business rule:
+- If TestSeries.isFree = true, all tests inside that series are free
+- If TestSeries.isFree = false, specific tests can still be free if Test.isFree = true
+- Price should NOT be the source of truth for access
+- Explicit free flags should be the source of truth
+
+Required work:
+
+PART A — Schema
+1. Add to TestSeries:
+   - isFree Boolean @default(false)
+
+2. Add to Test:
+   - isFree Boolean @default(false)
+
+3. Apply safe schema sync for the shared DB
+4. Do not disturb existing publish logic or pricing fields
+
+PART B — Admin UI
+Add free-access checkbox controls in:
+1. Test Series create/edit form
+   - label: “Is Free Series”
+   - help text: “If enabled, all tests in this series are accessible without purchase.”
+
+2. Test create/edit form
+   - label: “Is Free Test”
+   - help text: “If enabled, this test is accessible without purchase even if the parent series is paid.”
+
+PART C — Admin behavior
+1. Test Series save/edit must persist isFree
+2. Test save/edit must persist isFree
+3. On list pages, show a small badge where helpful:
+   - FREE SERIES
+   - FREE TEST
+4. Keep these flags independent from price
+
+PART D — Publishing logic
+Do not change existing publish/unpublish structure except to ensure:
+- unpublished tests/series remain inaccessible even if free
+- free access applies only to published content
+
+PART E — Deliverables
+A. Exact schema changes
+B. Exact admin pages/forms updated
+C. Exact API routes updated
+D. Confirmation that free flags are now editable in admin
+E. Any DB migration/db push notes required
+
+Important:
+This prompt is for the Admin Saphala Self Prep app only.
+Do not implement frontend lock/unlock behavior here beyond ensuring data is stored correctly.

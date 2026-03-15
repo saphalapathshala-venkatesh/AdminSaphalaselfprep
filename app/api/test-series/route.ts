@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title, description, categoryId, examId, subjectIds, pricePaise, discountPaise, currency, thumbnailUrl, scheduleJson, isPublished } = body;
+    const { title, description, categoryId, examId, subjectIds, pricePaise, discountPaise, currency, thumbnailUrl, scheduleJson, isFree, isPublished } = body;
 
     if (!title || !title.trim()) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
         currency: currency || "INR",
         thumbnailUrl: thumbnailUrl?.trim() || null,
         scheduleJson: scheduleJson || null,
+        isFree: isFree === true,
         isPublished: isPublished || false,
         createdById: user.id,
       },
@@ -93,7 +94,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { id, title, description, categoryId, examId, subjectIds, pricePaise, discountPaise, currency, thumbnailUrl, scheduleJson, isPublished } = body;
+    const { id, title, description, categoryId, examId, subjectIds, pricePaise, discountPaise, currency, thumbnailUrl, scheduleJson, isFree, isPublished } = body;
 
     if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
 
@@ -113,6 +114,7 @@ export async function PUT(req: NextRequest) {
         currency: currency || existing.currency,
         thumbnailUrl: thumbnailUrl !== undefined ? (thumbnailUrl?.trim() || null) : existing.thumbnailUrl,
         scheduleJson: scheduleJson !== undefined ? scheduleJson : existing.scheduleJson,
+        isFree: isFree !== undefined ? isFree === true : existing.isFree,
         isPublished: isPublished !== undefined ? isPublished : existing.isPublished,
       },
     });
