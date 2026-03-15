@@ -156,8 +156,10 @@ model User {
   isActive       Boolean   @default(true)
   isBlocked      Boolean   @default(false)
   blockedReason  String?
-  maxWebDevices  Int       @default(1)
-  deletedAt      DateTime?
+  maxWebDevices    Int       @default(1)
+  allowMultiDevice Boolean   @default(false)
+  fullName         String?
+  deletedAt        DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   sessions       Session[]
@@ -376,6 +378,7 @@ model Test {
   xpEnabled            Boolean  @default(false)
   xpValue              Int      @default(0)
   testStartTime        DateTime?
+  totalQuestions       Int?
   isPublished          Boolean  @default(false)
   publishedAt    DateTime?
   createdById    String
