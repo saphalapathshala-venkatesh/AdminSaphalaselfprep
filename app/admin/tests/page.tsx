@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { BRAND, adminBtn } from "@/lib/adminStyles";
 
 // ─────────────────────────────────────────────
@@ -235,6 +235,13 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
   const [qbCategories, setQbCategories] = useState<{ id: string; name: string }[]>([]);
   const [qbSubjects, setQbSubjects] = useState<{ id: string; name: string }[]>([]);
   const [qbSubjectsLoading, setQbSubjectsLoading] = useState(false);
+  const [qbTopicId, setQbTopicId] = useState("");
+  const [qbSubtopicId, setQbSubtopicId] = useState("");
+  const [qbTopics, setQbTopics] = useState<{ id: string; name: string }[]>([]);
+  const [qbSubtopics, setQbSubtopics] = useState<{ id: string; name: string }[]>([]);
+  const [qbTopicsLoading, setQbTopicsLoading] = useState(false);
+  const [qbSubtopicsLoading, setQbSubtopicsLoading] = useState(false);
+  const [qbExpandedRow, setQbExpandedRow] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/taxonomy?level=category")
@@ -414,7 +421,9 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
       if (qbSearch) p.set("search", qbSearch);
       if (qbDiff) p.set("difficulty", qbDiff);
       if (qbType) p.set("type", qbType);
-      if (qbSubjectId) p.set("subjectId", qbSubjectId);
+      if (qbSubtopicId) p.set("subtopicId", qbSubtopicId);
+      else if (qbTopicId) p.set("topicId", qbTopicId);
+      else if (qbSubjectId) p.set("subjectId", qbSubjectId);
       else if (qbCategoryId) p.set("categoryId", qbCategoryId);
       const d = await fetch(`/api/questions?${p}`).then(r => r.json());
       setQbResults(d.data || []);
@@ -424,13 +433,61 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
   }
 
   async function loadQbSubjects(categoryId: string) {
-    if (!categoryId) { setQbSubjects([]); return; }
+    if (!categoryId) { setQbSubjects([]); setQbTopics([]); setQbSubtopics([]); setQbTopicId(""); setQbSubtopicId(""); return; }
     setQbSubjectsLoading(true);
+    setQbTopics([]); setQbSubtopics([]); setQbTopicId(""); setQbSubtopicId("");
     try {
       const d = await fetch(`/api/taxonomy?level=subject&parentId=${categoryId}`).then(r => r.json());
       setQbSubjects((d.data || []).map((s: any) => ({ id: s.id, name: s.name })));
     } catch { setQbSubjects([]); }
     finally { setQbSubjectsLoading(false); }
+  }
+
+  async function loadQbTopics(subjectId: string) {
+    if (!subjectId) { setQbTopics([]); setQbSubtopics([]); setQbTopicId(""); setQbSubtopicId(""); return; }
+    setQbTopicsLoading(true);
+    setQbSubtopics([]); setQbTopicId(""); setQbSubtopicId("");
+    try {
+      const d = await fetch(`/api/taxonomy?level=topic&parentId=${subjectId}`).then(r => r.json());
+      setQbTopics((d.data || []).map((t: any) => ({ id: t.id, name: t.name })));
+    } catch { setQbTopics([]); }
+    finally { setQbTopicsLoading(false); }
+  }
+
+  async function loadQbSubtopics(topicId: string) {
+    if (!topicId) { setQbSubtopics([]); setQbSubtopicId(""); return; }
+    setQbSubtopicsLoading(true);
+    setQbSubtopicId("");
+    try {
+      const d = await fetch(`/api/taxonomy?level=subtopic&parentId=${topicId}`).then(r => r.json());
+      setQbSubtopics((d.data || []).map((s: any) => ({ id: s.id, name: s.name })));
+    } catch { setQbSubtopics([]); }
+    finally { setQbSubtopicsLoading(false); }
+  }
+
+  function quickEditQBQuestion(q: QuestionItem) {
+    const options = (q.options || []).map(o => ({ text: o.text, isCorrect: o.isCorrect }));
+    const existingIdx = reviewItems.findIndex(r => r.existingQuestionId === q.id);
+    if (existingIdx >= 0) {
+      setEditingIdx(existingIdx);
+      return;
+    }
+    const item: ReviewItem = {
+      key: `qb_${q.id}_${Date.now()}`,
+      existingQuestionId: q.id,
+      isEdited: false,
+      stem: q.stem, type: q.type, difficulty: q.difficulty,
+      explanation: q.explanation || "", categoryId: q.categoryId || "",
+      subjectId: q.subjectId || "", topicId: q.topicId || "", subtopicId: q.subtopicId || "",
+      sourceTag: "", marks: 1, negativeMarks: 0, options,
+      status: "clean" as const, errors: [], warnings: [], selected: false,
+    };
+    setReviewItems(prev => {
+      const next = [...prev, item];
+      setTimeout(() => setEditingIdx(next.length - 1), 0);
+      return next;
+    });
+    setQbSelected(prev => { const s = new Set(prev); s.add(q.id); return s; });
   }
 
   function importQBSelected() {
@@ -660,12 +717,32 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
                 </select>
                 <select
                   value={qbSubjectId}
-                  onChange={e => setQbSubjectId(e.target.value)}
+                  onChange={e => { const v = e.target.value; setQbSubjectId(v); loadQbTopics(v); }}
                   style={inp}
                   disabled={!qbCategoryId || qbSubjectsLoading}
                 >
                   <option value="">{qbSubjectsLoading ? "Loading…" : qbCategoryId ? "All Subjects" : "— Select Category first —"}</option>
                   {qbSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                <select
+                  value={qbTopicId}
+                  onChange={e => { const v = e.target.value; setQbTopicId(v); loadQbSubtopics(v); }}
+                  style={inp}
+                  disabled={!qbSubjectId || qbTopicsLoading}
+                >
+                  <option value="">{qbTopicsLoading ? "Loading…" : qbSubjectId ? "All Topics" : "— Select Subject first —"}</option>
+                  {qbTopics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+                <select
+                  value={qbSubtopicId}
+                  onChange={e => setQbSubtopicId(e.target.value)}
+                  style={inp}
+                  disabled={!qbTopicId || qbSubtopicsLoading}
+                >
+                  <option value="">{qbSubtopicsLoading ? "Loading…" : qbTopicId ? "All Sub-topics" : "— Select Topic first —"}</option>
+                  {qbSubtopics.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: "0.5rem" }}>
@@ -685,21 +762,63 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
               <>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
                   <thead><tr style={{ borderBottom: "2px solid #e2e8f0" }}>
-                    <th style={th}></th><th style={th}>Type</th><th style={th}>Stem</th><th style={th}>Diff</th><th style={th}>Status</th>
+                    <th style={th}></th><th style={th}>Type</th><th style={th}>Stem</th><th style={th}>Diff</th><th style={th}>Status</th><th style={th}>Actions</th>
                   </tr></thead>
                   <tbody>
                     {qbResults.map(q => (
-                      <tr key={q.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                        <td style={td}><input type="checkbox" checked={qbSelected.has(q.id)} onChange={e => {
-                          const s = new Set(qbSelected);
-                          e.target.checked ? s.add(q.id) : s.delete(q.id);
-                          setQbSelected(s);
-                        }} /></td>
-                        <td style={td}><span style={{ fontSize: "0.7rem", background: "#e0e7ff", color: "#3730a3", padding: "1px 5px", borderRadius: "4px" }}>{q.type}</span></td>
-                        <td style={{ ...td, maxWidth: "340px" }}><span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.stem}</span></td>
-                        <td style={td}>{q.difficulty}</td>
-                        <td style={td}><span style={{ fontSize: "0.7rem", background: q.status === "APPROVED" ? "#d1fae5" : "#fee2e2", color: q.status === "APPROVED" ? "#065f46" : "#991b1b", padding: "1px 5px", borderRadius: "4px" }}>{q.status}</span></td>
-                      </tr>
+                      <React.Fragment key={q.id}>
+                        <tr style={{ borderBottom: qbExpandedRow === q.id ? "none" : "1px solid #f1f5f9", background: qbSelected.has(q.id) ? "#faf5ff" : undefined }}>
+                          <td style={td}><input type="checkbox" checked={qbSelected.has(q.id)} onChange={e => {
+                            const s = new Set(qbSelected);
+                            e.target.checked ? s.add(q.id) : s.delete(q.id);
+                            setQbSelected(s);
+                          }} /></td>
+                          <td style={td}><span style={{ fontSize: "0.7rem", background: "#e0e7ff", color: "#3730a3", padding: "1px 5px", borderRadius: "4px" }}>{q.type}</span></td>
+                          <td style={{ ...td, maxWidth: "300px" }}><span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.stem}</span></td>
+                          <td style={td}>{q.difficulty}</td>
+                          <td style={td}><span style={{ fontSize: "0.7rem", background: q.status === "APPROVED" ? "#d1fae5" : "#fee2e2", color: q.status === "APPROVED" ? "#065f46" : "#991b1b", padding: "1px 5px", borderRadius: "4px" }}>{q.status}</span></td>
+                          <td style={td}>
+                            <div style={{ display: "flex", gap: "0.25rem" }}>
+                              <button
+                                onClick={() => setQbExpandedRow(qbExpandedRow === q.id ? null : q.id)}
+                                style={{ ...btn(qbExpandedRow === q.id ? "#6b7280" : "#e0e7ff", qbExpandedRow === q.id ? "#fff" : "#3730a3"), fontSize: "0.68rem", padding: "2px 6px" }}
+                                title="Preview options & explanation"
+                              >{qbExpandedRow === q.id ? "▲ Hide" : "▼ Preview"}</button>
+                              <button
+                                onClick={() => quickEditQBQuestion(q)}
+                                style={{ ...btn("#7c3aed"), fontSize: "0.68rem", padding: "2px 6px" }}
+                                title="Select & open full editor"
+                              >✎ Edit</button>
+                            </div>
+                          </td>
+                        </tr>
+                        {qbExpandedRow === q.id && (
+                          <tr style={{ borderBottom: "1px solid #f1f5f9", background: "#fafbff" }}>
+                            <td colSpan={6} style={{ padding: "0.625rem 1rem 0.75rem 2.5rem" }}>
+                              {q.options && q.options.length > 0 && (
+                                <div style={{ marginBottom: "0.5rem" }}>
+                                  <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b7280", marginBottom: "0.25rem" }}>Options</div>
+                                  {q.options.map((opt: any, oi: number) => (
+                                    <div key={oi} style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", marginBottom: "0.2rem" }}>
+                                      <span style={{ fontSize: "0.7rem", minWidth: "14px", color: opt.isCorrect ? "#059669" : "#94a3b8", fontWeight: 700 }}>{opt.isCorrect ? "✓" : String.fromCharCode(65 + oi)}</span>
+                                      <span style={{ fontSize: "0.78rem", color: opt.isCorrect ? "#059669" : "#374151", fontWeight: opt.isCorrect ? 600 : 400 }}>{opt.text}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {q.explanation && (
+                                <div>
+                                  <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b7280", marginBottom: "0.2rem" }}>Explanation</div>
+                                  <div style={{ fontSize: "0.78rem", color: "#374151", whiteSpace: "pre-wrap" }}>{q.explanation}</div>
+                                </div>
+                              )}
+                              {!q.explanation && (!q.options || q.options.length === 0) && (
+                                <div style={{ fontSize: "0.78rem", color: "#94a3b8" }}>No preview data available.</div>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
