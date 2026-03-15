@@ -1222,6 +1222,7 @@ export default function TestsPage() {
 
   const [testId, setTestId] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(false);
+  const [createStep, setCreateStep] = useState<1 | 2>(1);
   const [form, setForm] = useState({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", totalQuestions: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", xpEnabled: false, xpValue: "0", testStartTime: "" });
   const [hasSectionsManual, setHasSectionsManual] = useState(false);
   const [sectionPresetOpen, setSectionPresetOpen] = useState<number | null>(null);
@@ -1264,9 +1265,9 @@ export default function TestsPage() {
   }, []);
 
   function openCreate() {
-    setTestId(null); setIsPublished(false);
+    setTestId(null); setIsPublished(false); setCreateStep(1);
     setForm({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", totalQuestions: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", xpEnabled: false, xpValue: "0", testStartTime: "" });
-    setHasSectionsManual(false);
+    setHasSectionsManual(true);
     setSections([]); setTestQuestions([]); setValidation(null);
     setView("builder");
   }
@@ -1498,11 +1499,32 @@ export default function TestsPage() {
       <div style={{ fontFamily: "system-ui, sans-serif", maxWidth: "1200px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
           <h1 style={{ fontSize: "1.375rem", fontWeight: 700, color: "#111", margin: 0 }}>
-            {testId ? "Edit Test" : "New Test"}
-            {isPublished && <span style={{ marginLeft: "0.625rem", fontSize: "0.75rem", background: "#d1fae5", color: "#065f46", padding: "2px 8px", borderRadius: "10px", verticalAlign: "middle" }}>PUBLISHED</span>}
+            {testId
+              ? <>Edit Test {isPublished && <span style={{ marginLeft: "0.625rem", fontSize: "0.75rem", background: "#d1fae5", color: "#065f46", padding: "2px 8px", borderRadius: "10px", verticalAlign: "middle" }}>PUBLISHED</span>}</>
+              : createStep === 1 ? "New Test — Step 1 of 2: Basic Details" : "New Test — Step 2 of 2: Define Sections"
+            }
           </h1>
           <button onClick={() => { setView("list"); fetchList(); }} style={btn("#6b7280")}>← Back to List</button>
         </div>
+
+        {!testId && (
+          <div style={{ display: "flex", alignItems: "center", gap: "0", marginBottom: "1.25rem" }}>
+            {[1, 2].map(step => (
+              <div key={step} style={{ display: "flex", alignItems: "center" }}>
+                <div style={{
+                  width: "28px", height: "28px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                  fontWeight: 700, fontSize: "0.8rem",
+                  background: createStep >= step ? "#7c3aed" : "#e5e7eb",
+                  color: createStep >= step ? "#fff" : "#6b7280",
+                }}>{step}</div>
+                <div style={{ marginLeft: "0.4rem", fontSize: "0.8rem", fontWeight: 600, color: createStep >= step ? "#7c3aed" : "#9ca3af" }}>
+                  {step === 1 ? "Basic Details" : "Sections & Targets"}
+                </div>
+                {step < 2 && <div style={{ width: "48px", height: "2px", background: createStep > step ? "#7c3aed" : "#e5e7eb", margin: "0 0.75rem" }} />}
+              </div>
+            ))}
+          </div>
+        )}
 
         {toast && (
           <div style={{ padding: "0.5rem 1rem", marginBottom: "1rem", borderRadius: "6px", background: toast.type === "success" ? "#ecfdf5" : "#fef2f2", color: toast.type === "success" ? "#059669" : "#dc2626", border: `1px solid ${toast.type === "success" ? "#a7f3d0" : "#fecaca"}`, fontSize: "0.875rem" }}>
@@ -1510,11 +1532,11 @@ export default function TestsPage() {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: "1rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: testId ? "1fr 280px" : "1fr", gap: "1rem" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
 
-            {/* TEST DETAILS */}
-            <div style={card}>
+            {/* TEST DETAILS — shown in edit mode OR create step 1 */}
+            {(!!testId || createStep === 1) && <div style={card}>
               <h3 style={{ margin: "0 0 0.75rem", fontSize: "0.875rem", fontWeight: 700, color: "#374151" }}>Test Details</h3>
               <div style={{ display: "grid", gap: "0.625rem" }}>
                 <div>
@@ -1618,10 +1640,26 @@ export default function TestsPage() {
                   ))}
                 </div>
               </div>
-            </div>
+            </div>}
 
-            {/* SHUFFLE SETTINGS */}
-            <div style={card}>
+            {/* Create step 1 navigation */}
+            {!testId && createStep === 1 && (
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => {
+                    if (!form.title.trim()) { showToast("Title is required", "error"); return; }
+                    if (!form.categoryId) { showToast("Category is required", "error"); return; }
+                    setCreateStep(2);
+                  }}
+                  style={{ ...btn(BRAND.purple), padding: "0.6rem 1.5rem", fontSize: "0.9rem" }}
+                >
+                  Next: Add Sections →
+                </button>
+              </div>
+            )}
+
+            {/* SHUFFLE SETTINGS — edit mode only */}
+            {!!testId && <div style={card}>
               <h3 style={{ margin: "0 0 0.75rem 0", fontSize: "0.875rem", fontWeight: 700, color: "#374151" }}>Shuffle Settings</h3>
               <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.75rem", color: "#6b7280" }}>
                 Controls how questions and options are randomised at exam runtime. Hierarchy integrity is always preserved — questions never cross section or subsection boundaries.
@@ -1673,7 +1711,7 @@ export default function TestsPage() {
                   </div>
                 )}
               </div>
-            </div>
+            </div>}
 
             {/* SECTIONS + SUBSECTIONS */}
             {hasSections && (
@@ -1796,8 +1834,27 @@ export default function TestsPage() {
               </div>
             )}
 
-            {/* QUESTIONS TABLE */}
-            <div style={card}>
+            {/* Create step 2 navigation */}
+            {!testId && createStep === 2 && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px" }}>
+                <button onClick={() => setCreateStep(1)} style={btn("#6b7280")}>← Back to Details</button>
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>
+                    {sections.length === 0 ? "Add at least one section to continue" : `${sections.length} section(s) defined`}
+                  </span>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving || sections.length === 0}
+                    style={{ ...btn(BRAND.purple), padding: "0.6rem 1.5rem", fontSize: "0.9rem", opacity: sections.length === 0 ? 0.5 : 1 }}
+                  >
+                    {saving ? "Saving..." : "💾 Save as Draft →"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* QUESTIONS TABLE — edit mode only */}
+            {!!testId && <div style={card}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.625rem" }}>
                 <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 700, color: "#374151" }}>
                   Questions ({testQuestions.length}){" "}
@@ -1882,11 +1939,11 @@ export default function TestsPage() {
                   </tbody>
                 </table>
               )}
-            </div>
+            </div>}
           </div>
 
-          {/* SIDEBAR */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          {/* SIDEBAR — edit mode only */}
+          {!!testId && <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             <div style={card}>
               <h3 style={{ margin: "0 0 0.5rem", fontSize: "0.875rem", fontWeight: 700, color: "#374151" }}>Actions</h3>
               <div style={{ display: "grid", gap: "0.375rem" }}>
@@ -1918,7 +1975,7 @@ export default function TestsPage() {
                 {validation.warnings.map((w, i) => <div key={i} style={{ fontSize: "0.75rem", color: "#f59e0b", padding: "0.2rem 0" }}>⚠ {w}</div>)}
               </div>
             )}
-          </div>
+          </div>}
         </div>
 
         {addQModal && testId && (

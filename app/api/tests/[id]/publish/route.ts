@@ -43,12 +43,29 @@ export async function POST(
 
     if (test.isTimed && !test.durationSec) errors.push("Timed test missing duration.");
 
-    if (["SECTIONAL", "MULTI_SECTION"].includes(test.mode)) {
-      if (test.sections.length === 0) errors.push("Test mode requires sections but none exist.");
-      const sectionsWithTimer = test.sections.filter((s) => s.durationSec && s.durationSec > 0);
+    if (test.sections.length > 0) {
+      const topLevelSections = test.sections.filter((s) => !s.parentSectionId);
+
+      for (const section of topLevelSections) {
+        const actual = test.questions.filter((tq) => tq.sectionId === section.id).length;
+        if ((section.targetCount ?? 0) > 0 && actual !== section.targetCount) {
+          errors.push(`Section "${section.title}": expected ${section.targetCount} question(s), found ${actual}.`);
+        } else if (actual === 0) {
+          errors.push(`Section "${section.title}" has no questions assigned.`);
+        }
+      }
+
+      const questionsWithoutSection = test.questions.filter((tq) => !tq.sectionId);
+      if (questionsWithoutSection.length > 0) {
+        errors.push(`${questionsWithoutSection.length} question(s) are not assigned to any section.`);
+      }
+
+      const sectionsWithTimer = topLevelSections.filter((s) => s.durationSec && s.durationSec > 0);
       if (sectionsWithTimer.length > 0 && test.durationSec) {
-        const totalSectionTime = sectionsWithTimer.reduce((sum, s) => sum + (s.durationSec || 0), 0);
-        if (totalSectionTime > test.durationSec) errors.push("Section timers exceed universal timer.");
+        const totalSectionSec = sectionsWithTimer.reduce((sum, s) => sum + (s.durationSec || 0), 0);
+        if (totalSectionSec > test.durationSec) {
+          errors.push(`Section time total (${Math.round(totalSectionSec / 60)} min) exceeds test total time (${Math.round(test.durationSec / 60)} min).`);
+        }
       }
     }
 

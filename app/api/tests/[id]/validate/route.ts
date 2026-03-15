@@ -49,27 +49,42 @@ export async function POST(
     }
 
     if (test.isTimed && !test.durationSec) {
-      errors.push("Test is timed but durationSec is not set.");
+      errors.push("Test is timed but total duration is not set.");
     }
 
-    if (["SECTIONAL", "MULTI_SECTION"].includes(test.mode)) {
-      if (test.sections.length === 0) {
-        errors.push("Test mode requires sections but none exist.");
-      }
+    if (test.sections.length > 0) {
+      const topLevelSections = test.sections.filter((s) => !s.parentSectionId);
 
-      const sectionsWithTimer = test.sections.filter((s) => s.durationSec && s.durationSec > 0);
-      if (sectionsWithTimer.length > 0 && test.durationSec) {
-        const totalSectionTime = sectionsWithTimer.reduce((sum, s) => sum + (s.durationSec || 0), 0);
-        if (totalSectionTime > test.durationSec) {
+      for (const section of topLevelSections) {
+        const actual = test.questions.filter((tq) => tq.sectionId === section.id).length;
+
+        if ((section.targetCount ?? 0) > 0 && actual !== section.targetCount) {
           errors.push(
-            `Section timers total (${totalSectionTime}s) exceeds universal timer (${test.durationSec}s).`
+            `Section "${section.title}": expected ${section.targetCount} question(s), found ${actual}.`
           );
+        } else if (actual === 0) {
+          warnings.push(`Section "${section.title}" has no questions assigned.`);
         }
       }
 
       const questionsWithoutSection = test.questions.filter((tq) => !tq.sectionId);
       if (questionsWithoutSection.length > 0) {
-        warnings.push(`${questionsWithoutSection.length} question(s) are not assigned to any section.`);
+        errors.push(`${questionsWithoutSection.length} question(s) are not assigned to any section.`);
+      }
+
+      const sectionsWithTimer = topLevelSections.filter((s) => s.durationSec && s.durationSec > 0);
+      if (sectionsWithTimer.length > 0 && test.durationSec) {
+        const totalSectionSec = sectionsWithTimer.reduce((sum, s) => sum + (s.durationSec || 0), 0);
+        if (totalSectionSec > test.durationSec) {
+          errors.push(
+            `Section time total (${Math.round(totalSectionSec / 60)} min) exceeds test total time (${Math.round(test.durationSec / 60)} min).`
+          );
+        }
+        if (sectionsWithTimer.length === topLevelSections.length && totalSectionSec !== test.durationSec) {
+          warnings.push(
+            `All sections have timers, but their sum (${Math.round(totalSectionSec / 60)} min) does not equal the test total time (${Math.round(test.durationSec / 60)} min).`
+          );
+        }
       }
     }
 
