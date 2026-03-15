@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { title, instructions, mode, isTimed, durationSec, totalQuestions, allowPause, strictSectionMode,
             shuffleQuestions, shuffleOptions, shuffleGroups, shuffleGroupChildren, seriesId,
-            xpEnabled, xpValue, testStartTime } = body;
+            sections, questions, xpEnabled, xpValue, testStartTime } = body;
     let { categoryId, examId } = body;
 
     if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -77,40 +77,88 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const test = await prisma.test.create({
-      data: {
-        title: title.trim(),
-        instructions: instructions?.trim() || null,
-        mode,
-        isTimed: isTimed !== undefined ? isTimed : true,
-        durationSec: durationSec ? parseInt(durationSec) : null,
-        totalQuestions: totalQuestions ? parseInt(totalQuestions) : null,
-        allowPause: allowPause || false,
-        strictSectionMode: strictSectionMode || false,
-        shuffleQuestions: shuffleQuestions || false,
-        shuffleOptions: shuffleOptions || false,
-        shuffleGroups: shuffleGroups || false,
-        shuffleGroupChildren: shuffleGroupChildren || false,
-        seriesId: seriesId || null,
-        categoryId: categoryId || null,
-        examId: examId || null,
-        xpEnabled: xpEnabled === true,
-        xpValue: xpValue !== undefined ? Math.max(0, parseInt(xpValue) || 0) : 0,
-        testStartTime: testStartTime ? new Date(testStartTime) : null,
-        createdById: user.id,
-      },
-      include: {
-        sections: { orderBy: { order: "asc" } },
-        questions: { orderBy: { order: "asc" }, include: { question: true } },
-      },
+    const test = await prisma.$transaction(async (tx) => {
+      const created = await tx.test.create({
+        data: {
+          title: title.trim(),
+          instructions: instructions?.trim() || null,
+          mode,
+          isTimed: isTimed !== undefined ? isTimed : true,
+          durationSec: durationSec ? parseInt(durationSec) : null,
+          totalQuestions: totalQuestions ? parseInt(totalQuestions) : null,
+          allowPause: allowPause || false,
+          strictSectionMode: strictSectionMode || false,
+          shuffleQuestions: shuffleQuestions || false,
+          shuffleOptions: shuffleOptions || false,
+          shuffleGroups: shuffleGroups || false,
+          shuffleGroupChildren: shuffleGroupChildren || false,
+          seriesId: seriesId || null,
+          categoryId: categoryId || null,
+          examId: examId || null,
+          xpEnabled: xpEnabled === true,
+          xpValue: xpValue !== undefined ? Math.max(0, parseInt(xpValue) || 0) : 0,
+          testStartTime: testStartTime ? new Date(testStartTime) : null,
+          createdById: user.id,
+        },
+      });
+
+      const createdSections: { id: string }[] = [];
+      if (Array.isArray(sections) && sections.length > 0) {
+        for (let i = 0; i < sections.length; i++) {
+          const s = sections[i];
+          const parentId = (s.parentIndex !== null && s.parentIndex !== undefined && createdSections[s.parentIndex])
+            ? createdSections[s.parentIndex].id
+            : null;
+          const sec = await tx.testSection.create({
+            data: {
+              testId: created.id,
+              title: s.title || `Section ${i + 1}`,
+              order: i,
+              durationSec: s.durationSec ? parseInt(s.durationSec) : null,
+              targetCount: s.targetCount ? parseInt(s.targetCount) : null,
+              parentSectionId: parentId,
+            },
+          });
+          createdSections.push(sec);
+        }
+      }
+
+      if (Array.isArray(questions) && questions.length > 0) {
+        const tqData = questions.map((q: any, i: number) => {
+          let sectionId: string | null = null;
+          if (q.sectionIndex !== undefined && q.sectionIndex !== null && createdSections[q.sectionIndex]) {
+            sectionId = createdSections[q.sectionIndex].id;
+          }
+          return {
+            testId: created.id,
+            questionId: q.questionId,
+            sectionId,
+            order: i,
+            marks: q.marks !== undefined ? parseFloat(String(q.marks)) || 1 : 1,
+            negativeMarks: q.negativeMarks !== undefined ? parseFloat(String(q.negativeMarks)) || 0 : 0,
+          };
+        });
+        await tx.testQuestion.createMany({ data: tqData });
+      }
+
+      return tx.test.findUnique({
+        where: { id: created.id },
+        include: {
+          sections: {
+            orderBy: { order: "asc" },
+            select: { id: true, title: true, order: true, durationSec: true, targetCount: true, parentSectionId: true },
+          },
+          questions: { orderBy: { order: "asc" }, include: { question: true } },
+        },
+      });
     });
 
     writeAuditLog({
       actorId: user.id,
       action: "TEST_CREATE",
       entityType: "Test",
-      entityId: test.id,
-      after: { title: test.title, mode: test.mode },
+      entityId: test!.id,
+      after: { title: test!.title, mode: test!.mode },
     }).catch(() => {});
 
     return NextResponse.json({ data: test }, { status: 201 });
