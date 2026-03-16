@@ -46,6 +46,19 @@ export async function POST(req: NextRequest) {
         OR: [{ email: normalizedIdentifier }, { mobile: normalizedIdentifier }],
         deletedAt: null,
       },
+      select: {
+        id: true,
+        email: true,
+        mobile: true,
+        name: true,
+        passwordHash: true,
+        role: true,
+        isActive: true,
+        isBlocked: true,
+        blockedReason: true,
+        mustChangePassword: true,
+        deletedAt: true,
+      },
     });
 
     if (!user || !user.passwordHash) {

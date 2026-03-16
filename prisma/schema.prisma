@@ -219,6 +219,9 @@ model User {
   mustChangePassword   Boolean @default(false)
   legalAcceptedAt      DateTime?
   legalVersion         String?
+  // Extended profile fields — nullable, optional
+  state                String?
+  gender               String?
   refunds              Refund[] @relation("RefundUser")
   processedRefunds     Refund[] @relation("RefundAdmin")
   @@index([role])
@@ -539,6 +542,9 @@ model AttemptAnswer {
   // Student-frontend columns — DO NOT DROP
   isMarkedForReview Boolean  @default(false)
   timeSpentMs       Int      @default(0)
+  // Legacy singular field — kept for backward compat with older student app versions
+  selectedOptionId  String?
+  savedAt           DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   @@unique([attemptId, questionId])

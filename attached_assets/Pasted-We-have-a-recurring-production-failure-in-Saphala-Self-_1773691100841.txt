@@ -1,0 +1,122 @@
+We have a recurring production failure in Saphala Self Prep caused by schema drift between Prisma schema and the live Neon database.
+
+Problem
+The Prisma schema includes fields that do not exist in the production database. Example:
+
+User model contains:
+- state
+- gender
+
+But the live Neon DB does not have these columns.
+
+When the login route runs:
+
+prisma.user.findUnique()
+
+Prisma selects all columns defined in the schema. Postgres throws:
+
+column "state" does not exist
+
+The error is caught and returned as a 503, causing login failure.
+
+Health check still passes because it only runs:
+
+prisma.user.count()
+
+which does not select columns.
+
+Goal
+Implement a PERMANENT fix so that:
+
+1. Prisma schema and the production database can never drift again.
+2. Any new fields added to the schema are automatically applied to the DB.
+3. Login and other queries never fail due to missing columns again.
+
+Tasks
+
+PHASE 1 — Audit Schema vs Production DB
+Compare Prisma schema models with the live Neon database structure for:
+
+- User
+- Attempt
+- AttemptAnswer
+- Question
+- QuestionOption
+- Session
+- Category
+
+List any fields present in the Prisma schema but missing from the DB.
+
+PHASE 2 — Create Safe Additive Migration
+Generate a Prisma migration that adds all missing fields as nullable columns.
+
+Example for User:
+
+ALTER TABLE "User"
+ADD COLUMN IF NOT EXISTS "state" TEXT,
+ADD COLUMN IF NOT EXISTS "gender" TEXT;
+
+Important rules:
+- Never drop columns
+- Never change types automatically
+- Only add missing nullable columns
+- Ensure existing data remains untouched
+
+PHASE 3 — Commit Prisma Migration
+Create a proper migration in:
+
+/prisma/migrations/
+
+so the schema history is preserved.
+
+Run:
+
+npx prisma migrate dev
+
+Then ensure production can run:
+
+npx prisma migrate deploy
+
+PHASE 4 — Harden Login Query
+Modify login route so it explicitly selects required fields only:
+
+Example:
+
+prisma.user.findUnique({
+  where: { email },
+  select: {
+    id: true,
+    email: true,
+    mobile: true,
+    passwordHash: true,
+    role: true,
+    isActive: true,
+    isBlocked: true
+  }
+})
+
+This prevents future crashes if optional columns are missing.
+
+PHASE 5 — Add Startup Schema Check
+Add a safe startup check that verifies critical columns exist for:
+
+User
+Session
+Attempt
+
+If critical fields are missing, log a clear error message.
+
+PHASE 6 — Verification
+After applying migration:
+
+1. Run Prisma generate
+2. Restart the app
+3. Test login
+4. Test register
+5. Confirm `/api/auth/login` returns 200
+6. Confirm `/api/public/categories` works
+
+Expected Outcome
+- Production DB schema permanently matches Prisma schema
+- Login will no longer break after deployments
+- Future schema changes will apply via migrations instead of manual fixes

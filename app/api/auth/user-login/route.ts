@@ -43,6 +43,20 @@ export async function POST(req: NextRequest) {
 
     const user = await prisma.user.findFirst({
       where: { OR: [{ email: normalizedIdentifier }, { mobile: normalizedIdentifier }] },
+      select: {
+        id: true,
+        email: true,
+        mobile: true,
+        name: true,
+        passwordHash: true,
+        role: true,
+        isActive: true,
+        isBlocked: true,
+        blockedReason: true,
+        deletedAt: true,
+        maxWebDevices: true,
+        mustChangePassword: true,
+      },
     });
 
     if (!user || !user.passwordHash) {
