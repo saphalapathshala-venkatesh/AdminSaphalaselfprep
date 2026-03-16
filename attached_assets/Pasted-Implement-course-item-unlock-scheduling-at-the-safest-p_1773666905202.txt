@@ -1,0 +1,88 @@
+Implement course-item unlock scheduling at the safest possible level, using an additive and backward-compatible approach.
+
+GOAL
+Add optional unlockAt to LessonItem so each item inside a lesson can have its own release date/time, without breaking existing content-level unlockAt behavior on Video/PDF/HTML/Flashcard/Test.
+
+ARCHITECTURE RULE
+For course consumption, effective unlock logic must be:
+LessonItem.unlockAt ?? underlying content record unlockAt ?? null
+
+So:
+- LessonItem.unlockAt overrides content-level unlockAt
+- content-level unlockAt remains as fallback/default
+- existing standalone content scheduling must continue to work
+
+SAFETY REQUIREMENTS
+- Additive schema change only
+- No destructive migration
+- Do not remove or rename any existing unlockAt fields
+- Do not backfill existing lesson items automatically
+- Keep all existing APIs working
+- Preserve current behavior for lesson items where LessonItem.unlockAt is null
+
+IMPLEMENTATION STEPS
+
+1) PRISMA SCHEMA
+Add:
+LessonItem.unlockAt DateTime?
+Do not change anything else destructively.
+
+2) PRISMA CLIENT
+Regenerate client after schema update.
+
+3) CURRICULUM ADMIN APIs
+Update lesson item create/update/read flows so LessonItem unlockAt can be saved and returned.
+Any API that returns curriculum structure should include LessonItem.unlockAt.
+
+4) EFFECTIVE LOCK COMPUTATION
+Where curriculum is returned for preview/student consumption, compute per item:
+- effectiveUnlockAt
+- isLocked (based on current time)
+Use:
+lessonItem.unlockAt ?? sourceContent.unlockAt ?? null
+
+5) ADMIN UI
+In curriculum builder (not just content editors), add optional date-time input for each LessonItem:
+Label: Unlock on (optional)
+Help text: Overrides the content’s default unlock date for this course item.
+
+Support create + edit.
+Do not disturb reorder behavior.
+
+6) STUDENT / PREVIEW ENFORCEMENT
+Where a lesson item is opened/rendered:
+- if locked, prevent open
+- show lock state and unlock date
+- do not allow completion
+Where progress completion is posted, reject locked items with a clear error code like ITEM_LOCKED.
+
+7) UI BEHAVIOR
+Locked lesson items should show:
+- lock icon
+- “Unlocks on …” date text
+- disabled/open-blocked state
+
+8) TESTING
+Verify these scenarios:
+- LessonItem.unlockAt set, content.unlockAt null → item locked/unlocked by LessonItem date
+- LessonItem.unlockAt null, content.unlockAt set → fallback works
+- both null → item opens immediately
+- both set → LessonItem date wins
+- locked item cannot be opened
+- locked item cannot be marked complete
+- existing course items without LessonItem.unlockAt continue to work
+
+9) DO NOT IMPLEMENT NOW
+- No lesson-wide locking
+- No prerequisite chains
+- No destructive schema cleanup
+- No removal of legacy content-level unlockAt
+
+At the end, provide:
+- exact files changed
+- schema diff summary
+- API routes changed
+- UI pages changed
+- the effective unlock logic used
+- any migration command run
+- any edge cases that still remain

@@ -8,7 +8,7 @@ import { ContentTypeIcon, contentTypeLabel } from "@/components/ui/ContentTypeIc
 import FlashcardPlayer from "@/components/ui/FlashcardPlayer";
 import EBookViewer from "@/components/ui/EBookViewer";
 
-type LessonItem = { id: string; itemType: string; sourceId: string; titleSnapshot: string | null; sortOrder: number };
+type LessonItem = { id: string; itemType: string; sourceId: string; titleSnapshot: string | null; sortOrder: number; unlockAt: string | null; effectiveUnlockAt: string | null; isLocked: boolean };
 type Lesson = { id: string; title: string; description: string | null; status: string; sortOrder: number; items: LessonItem[] };
 type Chapter = { id: string; title: string; description: string | null; sortOrder: number; lessons: Lesson[] };
 type Subject = { id: string; name: string };
@@ -32,6 +32,7 @@ export default function SubjectLearningPage() {
   const [ebookLoading, setEbookLoading] = useState(false);
 
   async function openEbook(item: LessonItem) {
+    if (item.isLocked) return;
     setEbookLoading(true);
     setEbookItem(item);
     try {
@@ -321,34 +322,48 @@ export default function SubjectLearningPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
                 {activeLesson.items.map((item, idx) => {
                   const isDone = !!completed[item.id];
+                  const isLocked = item.isLocked;
+                  const unlockDate = item.effectiveUnlockAt ? new Date(item.effectiveUnlockAt) : null;
 
                   return (
                     <div
                       key={item.id}
                       style={{
-                        background: "#fff",
+                        background: isLocked ? "#faf5ff" : "#fff",
                         borderRadius: 14,
-                        border: `1.5px solid ${isDone ? "#86efac" : "#e2e8f0"}`,
-                        boxShadow: isDone ? "0 2px 12px rgba(34,197,94,0.08)" : "0 2px 12px rgba(0,0,0,0.04)",
+                        border: `1.5px solid ${isLocked ? "#ddd6fe" : isDone ? "#86efac" : "#e2e8f0"}`,
+                        boxShadow: isLocked ? "0 2px 12px rgba(124,58,237,0.06)" : isDone ? "0 2px 12px rgba(34,197,94,0.08)" : "0 2px 12px rgba(0,0,0,0.04)",
                         overflow: "hidden",
                         transition: "border-color 0.2s, box-shadow 0.2s",
+                        opacity: isLocked ? 0.85 : 1,
                       }}
                     >
+                      {/* Locked banner */}
+                      {isLocked && (
+                        <div style={{ background: "#ede9fe", borderBottom: "1px solid #ddd6fe", padding: "0.4rem 1.25rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <span style={{ fontSize: "0.875rem" }}>🔒</span>
+                          <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#5b21b6" }}>
+                            Locked — Unlocks on {unlockDate?.toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                      )}
+
                       <div style={{ padding: "1rem 1.25rem", display: "flex", alignItems: "center", gap: "1rem" }}>
-                        <div style={{ flexShrink: 0 }}>
+                        <div style={{ flexShrink: 0, filter: isLocked ? "grayscale(0.5)" : "none" }}>
                           <ContentTypeIcon type={item.itemType as "VIDEO"} size={44} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
-                            <span style={{ fontSize: "0.7rem", background: isDone ? "#dcfce7" : "#f1f5f9", color: isDone ? "#16a34a" : "#64748b", borderRadius: 5, padding: "2px 7px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>{contentTypeLabel(item.itemType as "VIDEO")}</span>
+                            <span style={{ fontSize: "0.7rem", background: isDone ? "#dcfce7" : isLocked ? "#ede9fe" : "#f1f5f9", color: isDone ? "#16a34a" : isLocked ? "#7c3aed" : "#64748b", borderRadius: 5, padding: "2px 7px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>{contentTypeLabel(item.itemType as "VIDEO")}</span>
                             {isDone && <span style={{ fontSize: "0.7rem", background: "#dcfce7", color: "#16a34a", borderRadius: 5, padding: "2px 7px", fontWeight: 700 }}>✓ Completed</span>}
+                            {isLocked && <span style={{ fontSize: "0.7rem", background: "#ede9fe", color: "#7c3aed", borderRadius: 5, padding: "2px 7px", fontWeight: 700 }}>🔒 Not yet available</span>}
                           </div>
-                          <div style={{ fontWeight: 700, fontSize: "1.0rem", color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <div style={{ fontWeight: 700, fontSize: "1.0rem", color: isLocked ? "#64748b" : "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {item.titleSnapshot || `Item ${idx + 1}`}
                           </div>
                         </div>
                         <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0, alignItems: "center" }}>
-                          {item.itemType === "FLASHCARD_DECK" && (
+                          {!isLocked && item.itemType === "FLASHCARD_DECK" && (
                             <button
                               onClick={() => setFlashcardItem(item)}
                               style={{ padding: "0.4rem 0.875rem", borderRadius: 8, background: "#ede9fe", border: "1.5px solid #ddd6fe", color: "#5b21b6", cursor: "pointer", fontWeight: 700, fontSize: "0.8rem" }}
@@ -356,7 +371,7 @@ export default function SubjectLearningPage() {
                               🃏 Open Player
                             </button>
                           )}
-                          {item.itemType === "HTML_PAGE" && (
+                          {!isLocked && item.itemType === "HTML_PAGE" && (
                             <button
                               onClick={() => openEbook(item)}
                               style={{ padding: "0.4rem 0.875rem", borderRadius: 8, background: "#dbeafe", border: "1.5px solid #bfdbfe", color: "#1d4ed8", cursor: "pointer", fontWeight: 700, fontSize: "0.8rem" }}
@@ -364,7 +379,7 @@ export default function SubjectLearningPage() {
                               📖 Open E-Book
                             </button>
                           )}
-                          {!isDone && (
+                          {!isLocked && !isDone && (
                             <button
                               onClick={() => markComplete(item.id)}
                               style={{ padding: "0.4rem 0.875rem", borderRadius: 9, background: "#fff", border: `1.5px solid ${color}`, color: color, cursor: "pointer", fontWeight: 700, fontSize: "0.8rem" }}
@@ -372,40 +387,47 @@ export default function SubjectLearningPage() {
                               Mark Done
                             </button>
                           )}
+                          {isLocked && (
+                            <div style={{ padding: "0.4rem 0.875rem", borderRadius: 9, background: "#ede9fe", border: "1.5px solid #ddd6fe", color: "#7c3aed", fontWeight: 700, fontSize: "0.8rem", cursor: "not-allowed", userSelect: "none" }}>
+                              🔒 Locked
+                            </div>
+                          )}
                         </div>
-                        {isDone && (
+                        {isDone && !isLocked && (
                           <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#22c55e", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "1.125rem", flexShrink: 0 }}>✓</div>
                         )}
                       </div>
 
                       {/* Anti-copy protected content area */}
-                      <div
-                        style={{
-                          padding: "0.875rem 1.25rem",
-                          background: "#f9fafb",
-                          borderTop: "1px solid #f1f5f9",
-                          position: "relative",
-                          userSelect: "none",
-                        }}
-                        onContextMenu={(e) => e.preventDefault()}
-                      >
-                        <div style={{ fontSize: "0.8rem", color: "#94a3b8", fontStyle: "italic" }}>
-                          {item.itemType === "VIDEO" && "▶ Video content — opens in player"}
-                          {item.itemType === "HTML_PAGE" && "📖 E-Book — opens in protected viewer"}
-                          {item.itemType === "PDF" && "📋 PDF Document — opens in protected PDF viewer"}
-                          {item.itemType === "FLASHCARD_DECK" && "🃏 Flashcard Deck — opens in card player"}
-                          {item.itemType === "LIVE_CLASS" && "🔴 Live Class — view schedule and join link"}
+                      {!isLocked && (
+                        <div
+                          style={{
+                            padding: "0.875rem 1.25rem",
+                            background: "#f9fafb",
+                            borderTop: "1px solid #f1f5f9",
+                            position: "relative",
+                            userSelect: "none",
+                          }}
+                          onContextMenu={(e) => e.preventDefault()}
+                        >
+                          <div style={{ fontSize: "0.8rem", color: "#94a3b8", fontStyle: "italic" }}>
+                            {item.itemType === "VIDEO" && "▶ Video content — opens in player"}
+                            {item.itemType === "HTML_PAGE" && "📖 E-Book — opens in protected viewer"}
+                            {item.itemType === "PDF" && "📋 PDF Document — opens in protected PDF viewer"}
+                            {item.itemType === "FLASHCARD_DECK" && "🃏 Flashcard Deck — opens in card player"}
+                            {item.itemType === "LIVE_CLASS" && "🔴 Live Class — view schedule and join link"}
+                          </div>
+                          {/* Subtle watermark */}
+                          <div style={{
+                            position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                            pointerEvents: "none", opacity: 0.035,
+                            fontSize: "0.7rem", fontWeight: 900, color: "#000", letterSpacing: "0.2em",
+                            textTransform: "uppercase", userSelect: "none",
+                          }}>
+                            SAPHALA PATHSHALA · PROTECTED CONTENT
+                          </div>
                         </div>
-                        {/* Subtle watermark */}
-                        <div style={{
-                          position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-                          pointerEvents: "none", opacity: 0.035,
-                          fontSize: "0.7rem", fontWeight: 900, color: "#000", letterSpacing: "0.2em",
-                          textTransform: "uppercase", userSelect: "none",
-                        }}>
-                          SAPHALA PATHSHALA · PROTECTED CONTENT
-                        </div>
-                      </div>
+                      )}
                     </div>
                   );
                 })}

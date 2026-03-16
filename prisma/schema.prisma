@@ -1220,6 +1220,10 @@ model LessonItem {
   sourceId      String
   titleSnapshot String?
   sortOrder     Int            @default(0)
+  // unlockAt: overrides the content-level unlockAt for this specific course item.
+  // Effective logic: LessonItem.unlockAt ?? sourceContent.unlockAt ?? null
+  // null = no LessonItem-level restriction (falls back to content-level or open immediately)
+  unlockAt      DateTime?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   completions   UserItemCompletion[]

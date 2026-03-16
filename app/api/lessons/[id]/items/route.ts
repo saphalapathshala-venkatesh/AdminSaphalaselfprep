@@ -19,7 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { itemType, sourceId, titleSnapshot } = body;
+  const { itemType, sourceId, titleSnapshot, unlockAt } = body;
 
   if (!itemType || !sourceId) return NextResponse.json({ error: "itemType and sourceId required" }, { status: 400 });
 
@@ -35,6 +35,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       sourceId,
       titleSnapshot: titleSnapshot || null,
       sortOrder: count,
+      unlockAt: unlockAt ? new Date(unlockAt) : null,
     },
   });
   return NextResponse.json(item, { status: 201 });

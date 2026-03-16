@@ -9,7 +9,7 @@ import { ContentTypeIcon, contentTypeLabel } from "@/components/ui/ContentTypeIc
 const PURPLE = "#7c3aed";
 
 type Subject = { id: string; name: string; categoryId: string };
-type LessonItem = { id: string; itemType: string; sourceId: string; titleSnapshot: string | null; sortOrder: number };
+type LessonItem = { id: string; itemType: string; sourceId: string; titleSnapshot: string | null; sortOrder: number; unlockAt: string | null; effectiveUnlockAt: string | null; isLocked: boolean };
 type Lesson = { id: string; title: string; description: string | null; status: string; sortOrder: number; items: LessonItem[] };
 type Chapter = { id: string; title: string; description: string | null; sortOrder: number; lessons: Lesson[] };
 type Section = { id: string; subjectId: string; label: string | null; subtitle: string | null; sortOrder: number; subject: Subject | null; chapters: Chapter[] };
@@ -54,6 +54,7 @@ export default function CurriculumPage() {
   const [lessonForm, setLessonForm] = useState({ title: "", description: "", status: "PUBLISHED" });
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ type: string; id: string; name: string } | null>(null);
+  const [unlockEditItem, setUnlockEditItem] = useState<{ id: string; lessonId: string; value: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -268,6 +269,16 @@ export default function CurriculumPage() {
     await load();
   }
 
+  async function saveItemUnlockAt(lessonId: string, itemId: string, unlockAt: string) {
+    await fetch(`/api/lessons/${lessonId}/items/${itemId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ unlockAt: unlockAt || null }),
+    });
+    setUnlockEditItem(null);
+    await load();
+  }
+
   // ─── Helpers ──────────────────────────────────────────────
 
   function getSubjectColorForSection(sec: Section): string {
@@ -467,17 +478,51 @@ export default function CurriculumPage() {
                                 {/* Lesson items */}
                                 {lesson.items.length > 0 && (
                                   <div style={{ paddingLeft: "4.5rem", paddingRight: "1.5rem", paddingBottom: "0.5rem", background: "#f9fafb" }}>
-                                    {lesson.items.map((item, iIdx) => (
-                                      <div key={item.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.375rem 0.625rem", marginBottom: "0.25rem", background: "#fff", borderRadius: 8, border: "1px solid #f1f5f9" }}>
-                                        <ContentTypeIcon type={item.itemType as "VIDEO"} size={28} />
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                          <div style={{ fontWeight: 600, fontSize: "0.825rem", color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.titleSnapshot || item.sourceId}</div>
-                                          <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{contentTypeLabel(item.itemType as "VIDEO")}</div>
+                                    {lesson.items.map((item, iIdx) => {
+                                      const isEditingUnlock = unlockEditItem?.id === item.id;
+                                      const hasItemLock = !!item.unlockAt;
+                                      const hasEffectiveLock = !!item.effectiveUnlockAt;
+                                      return (
+                                        <div key={item.id} style={{ marginBottom: "0.25rem", background: "#fff", borderRadius: 8, border: `1px solid ${hasEffectiveLock ? "#ddd6fe" : "#f1f5f9"}` }}>
+                                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.375rem 0.625rem" }}>
+                                            <ContentTypeIcon type={item.itemType as "VIDEO"} size={28} />
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                              <div style={{ fontWeight: 600, fontSize: "0.825rem", color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.titleSnapshot || item.sourceId}</div>
+                                              <div style={{ fontSize: "0.7rem", color: "#94a3b8", display: "flex", alignItems: "center", gap: "0.375rem" }}>
+                                                {contentTypeLabel(item.itemType as "VIDEO")}
+                                                {hasEffectiveLock && (
+                                                  <span style={{ color: "#7c3aed", fontWeight: 700 }}>
+                                                    · 🔒 {hasItemLock ? "Item unlock:" : "Content unlock:"} {new Date(item.effectiveUnlockAt!).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </div>
+                                            <button
+                                              title="Set unlock date for this course item"
+                                              onClick={() => setUnlockEditItem(isEditingUnlock ? null : { id: item.id, lessonId: lesson.id, value: item.unlockAt ? item.unlockAt.slice(0, 16) : "" })}
+                                              style={{ width: 22, height: 22, borderRadius: 4, border: `1px solid ${hasItemLock ? "#7c3aed" : "#e2e8f0"}`, background: hasItemLock ? "#ede9fe" : "#f8fafc", cursor: "pointer", color: hasItemLock ? "#7c3aed" : "#64748b", fontSize: "0.65rem" }}
+                                            >📅</button>
+                                            <button onClick={() => moveLessonItemUp(lesson, iIdx)} disabled={iIdx === 0} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", color: "#64748b", fontSize: "0.7rem", opacity: iIdx === 0 ? 0.35 : 1 }}>↑</button>
+                                            <button onClick={() => removeLessonItem(lesson.id, item.id)} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #fca5a5", background: "#fff5f5", cursor: "pointer", color: "#dc2626", fontSize: "0.75rem" }}>×</button>
+                                          </div>
+                                          {isEditingUnlock && unlockEditItem && (
+                                            <div style={{ padding: "0.375rem 0.625rem 0.5rem", borderTop: "1px solid #f1f5f9", background: "#faf5ff", display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                                              <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "#7c3aed", whiteSpace: "nowrap" }}>🔒 Unlock on</span>
+                                              <input
+                                                type="datetime-local"
+                                                value={unlockEditItem.value}
+                                                onChange={(e) => setUnlockEditItem({ ...unlockEditItem, value: e.target.value })}
+                                                style={{ padding: "0.2rem 0.5rem", border: "1px solid #ddd6fe", borderRadius: 5, fontSize: "0.8rem", background: "#fff" }}
+                                              />
+                                              <span style={{ fontSize: "0.68rem", color: "#94a3b8" }}>Overrides content-level date for this course item</span>
+                                              <button onClick={() => saveItemUnlockAt(lesson.id, item.id, unlockEditItem.value)} style={{ padding: "0.2rem 0.625rem", background: PURPLE, color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: "0.75rem" }}>Save</button>
+                                              <button onClick={() => saveItemUnlockAt(lesson.id, item.id, "")} style={{ padding: "0.2rem 0.5rem", background: "#f8fafc", color: "#dc2626", border: "1px solid #fca5a5", borderRadius: 5, cursor: "pointer", fontSize: "0.75rem" }}>Clear</button>
+                                              <button onClick={() => setUnlockEditItem(null)} style={{ padding: "0.2rem 0.5rem", background: "#f8fafc", color: "#64748b", border: "1px solid #e2e8f0", borderRadius: 5, cursor: "pointer", fontSize: "0.75rem" }}>Cancel</button>
+                                            </div>
+                                          )}
                                         </div>
-                                        <button onClick={() => moveLessonItemUp(lesson, iIdx)} disabled={iIdx === 0} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", color: "#64748b", fontSize: "0.7rem", opacity: iIdx === 0 ? 0.35 : 1 }}>↑</button>
-                                        <button onClick={() => removeLessonItem(lesson.id, item.id)} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #fca5a5", background: "#fff5f5", cursor: "pointer", color: "#dc2626", fontSize: "0.75rem" }}>×</button>
-                                      </div>
-                                    ))}
+                                      );
+                                    })}
                                   </div>
                                 )}
                               </div>
