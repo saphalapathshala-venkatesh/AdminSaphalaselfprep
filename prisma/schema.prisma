@@ -515,11 +515,14 @@ model Attempt {
   unansweredCount Int                @default(0)
   rrGenerated     Boolean            @default(false)
   // Student-frontend columns — DO NOT DROP
-  attemptNumber   Int                @default(1)
-  language        LanguageAvailable  @default(EN)
-  status          AttemptStatus      @default(IN_PROGRESS)
-  totalTimeUsedMs Int                @default(0)
-  answers         AttemptAnswer[]
+  attemptNumber      Int                @default(1)
+  language           LanguageAvailable  @default(EN)
+  status             AttemptStatus      @default(IN_PROGRESS)
+  totalTimeUsedMs    Int                @default(0)
+  endsAt             DateTime?
+  lockedSessionToken String?
+  answers            AttemptAnswer[]
+  pauseEvents        AttemptPause[]
   createdAt       DateTime           @default(now())
   @@index([userId, startedAt])
   @@index([testId, startedAt])
@@ -542,6 +545,16 @@ model AttemptAnswer {
   @@index([attemptId])
   @@index([questionId])
 }
+// Pause events for an Attempt — created on pause, updated on resume
+model AttemptPause {
+  id        String    @id @default(cuid())
+  attemptId String
+  attempt   Attempt   @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  pausedAt  DateTime  @default(now())
+  resumedAt DateTime?
+  @@index([attemptId])
+}
+
 // FLASHCARDS (Deck → Cards)
 model FlashcardDeck {
   id             String  @id @default(cuid())
@@ -1304,6 +1317,7 @@ enum AnnotationType {
 // Student-frontend enums — shared with the student app; DO NOT rename or remove values
 enum AttemptStatus {
   IN_PROGRESS
+  PAUSED
   SUBMITTED
 }
 

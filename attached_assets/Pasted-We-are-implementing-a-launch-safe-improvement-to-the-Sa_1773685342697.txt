@@ -1,0 +1,165 @@
+We are implementing a launch-safe improvement to the Saphala Self Prep Test system. This prompt is for the ADMIN / BACKEND APP only.
+
+IMPORTANT
+- Do not work on student frontend rendering in this prompt
+- Focus only on schema/API/backend/admin-side support needed for the student test panel
+- Keep existing test functionality intact
+- No destructive schema changes
+- Audit first before editing anything
+
+FEATURE GOALS
+1. Expose test sections cleanly to the student frontend
+2. Expose subsection structure cleanly when enabled
+3. Expose pause-test capability to frontend when enabled in admin
+4. Ensure timer structure supports:
+   - only total timer when no sections
+   - total + section timer when sections enabled
+   - total + section + subsection timer when subsections enabled
+5. Ensure question palette on frontend can be limited to current section/current subsection based on backend test structure
+6. Keep all changes scoped to the test system only
+
+PHASE 1 — AUDIT FIRST
+Read and audit all relevant files before editing:
+- prisma/schema.prisma
+- all Test/TestSeries/Attempt related models
+- test create/edit APIs
+- test fetch APIs used by student frontend:
+  - test brief route
+  - attempt-data route
+  - any route returning test structure/questions/sections
+- any section/subsection models or JSON structures currently used
+- any admin test builder files
+- any pause-test related existing fields/logic
+- any timer-related logic already present
+- XP/attempt logic only if directly affected
+- result-generation logic only if directly affected
+
+Before implementing, provide a short report:
+- current test structure source of truth
+- whether sections/subsections are modeled in DB or JSON
+- whether pauseTest already exists in schema/data
+- current timer model
+- safest place to extend API response for FE
+
+PHASE 2 — BACKEND / DATA CONTRACT DESIGN
+Design and implement a clean student-facing test payload that includes:
+
+A. Test level
+- id
+- title
+- totalDurationMinutes (or equivalent)
+- pauseAllowed
+- sectionsEnabled
+- subsectionsEnabled
+
+B. Section level
+For each section:
+- id
+- title
+- sortOrder
+- durationMinutes (if section timer enabled)
+- questionCount
+- question number range or ordered question ids
+
+C. Subsection level (if enabled)
+For each subsection:
+- id
+- title
+- sortOrder
+- durationMinutes
+- questionCount
+- ordered question ids
+
+D. Question level
+Each question should carry enough info for FE to know:
+- questionId
+- sectionId
+- subsectionId (if any)
+- displayOrderWithinTest
+- displayOrderWithinSection if useful
+
+PHASE 3 — PAUSE TEST SUPPORT
+If admin has a setting like pauseAllowed / canPause / enablePause, expose it in student-facing APIs.
+
+Requirements:
+- FE must be able to know if pause is allowed
+- attempt state must support paused/resumed safely
+- if pause already exists partially, complete the backend support cleanly
+- if pause does not exist, implement the minimum safe version:
+  - endpoint to pause attempt
+  - endpoint to resume attempt
+  - attempt status should distinguish active vs paused if needed
+  - time accounting must remain correct
+
+Important:
+- pausing must not corrupt attempt answers
+- pause state must persist in DB, not only client-side
+- if pause is disabled for a test, API should reject pause requests
+
+PHASE 4 — TIMER SUPPORT
+Support these timer modes in backend payload:
+
+CASE 1 — no sections
+- total timer only
+
+CASE 2 — sections enabled
+- total timer
+- current section timer
+
+CASE 3 — subsections enabled
+- total timer
+- current section timer
+- current subsection timer
+
+Ensure FE receives enough timing metadata to render these accurately.
+
+Important:
+- backend must define source of truth for duration values
+- validate that section/subsection durations align with total duration where applicable
+- do not break existing tests that only use total duration
+
+PHASE 5 — ATTEMPT-DATA API
+Update the student attempt-data route (or equivalent main student test data route) so it returns:
+- test metadata
+- pauseAllowed
+- section/subsection structure
+- timing data
+- current attempt state if already started
+- question-to-section mapping
+
+This payload must be FE-friendly and avoid requiring FE to reconstruct structure from raw scattered fields.
+
+PHASE 6 — SAFE VALIDATION
+Add backend validation for:
+- section timer values
+- subsection timer values
+- impossible timing combinations
+- subsection without section if your model disallows that
+- pause request when test disallows pause
+- resume request when attempt is not paused
+
+PHASE 7 — DO NOT CHANGE
+- Do not redesign question bank
+- Do not redesign XP
+- Do not redesign result logic unless directly required
+- Do not touch unrelated admin modules
+- Do not change UI styling in student app here
+
+PHASE 8 — TESTING
+After implementation:
+- run TypeScript check
+- verify old tests without sections still work
+- verify tests with sections return section metadata
+- verify subsection metadata if enabled
+- verify pauseAllowed appears correctly
+- verify pause/resume APIs work if implemented
+- verify no existing student APIs break
+
+FINAL OUTPUT REQUIRED
+1. files changed
+2. schema changes, if any
+3. API routes changed
+4. exact student-facing payload shape
+5. how pause is persisted
+6. how timer metadata is exposed
+7. any deferred edge cases
