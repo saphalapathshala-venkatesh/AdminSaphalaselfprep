@@ -10,6 +10,7 @@ import { getStudentUserFromRequest } from "@/lib/studentAuth";
  *
  * Pauses an IN_PROGRESS attempt.
  * - Validates that the test allows pause (allowPause = true)
+ * - Checks endsAt: if the test has already expired, marks EXPIRED and rejects pause
  * - Creates an AttemptPause record with pausedAt = now
  * - Sets Attempt.status = PAUSED
  *
@@ -28,7 +29,7 @@ export async function POST(
 
     const attempt = await prisma.attempt.findUnique({
       where: { id: params.id },
-      select: { id: true, userId: true, status: true, testId: true },
+      select: { id: true, userId: true, status: true, testId: true, endsAt: true },
     });
 
     if (!attempt) return NextResponse.json({ error: "Attempt not found" }, { status: 404 });
@@ -40,7 +41,17 @@ export async function POST(
       );
     }
 
-    // Verify the test allows pause
+    // ── Timer check: reject pause if test has expired ────────────────────────
+    const now = new Date();
+    if (attempt.endsAt && now > attempt.endsAt) {
+      await prisma.attempt.update({ where: { id: params.id }, data: { status: "EXPIRED" } });
+      return NextResponse.json(
+        { error: "Test time has expired.", code: "TEST_EXPIRED" },
+        { status: 403 }
+      );
+    }
+
+    // ── Verify the test allows pause ─────────────────────────────────────────
     const test = await prisma.test.findUnique({
       where: { id: attempt.testId },
       select: { allowPause: true },
@@ -53,9 +64,7 @@ export async function POST(
       );
     }
 
-    const now = new Date();
-
-    // Atomically: create pause event + update attempt status
+    // ── Atomically: create pause event + update attempt status ───────────────
     await prisma.$transaction([
       prisma.attemptPause.create({
         data: { attemptId: params.id, pausedAt: now },

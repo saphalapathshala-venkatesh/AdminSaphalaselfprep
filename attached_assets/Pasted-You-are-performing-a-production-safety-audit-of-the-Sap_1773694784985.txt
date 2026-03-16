@@ -1,0 +1,346 @@
+You are performing a production safety audit of the Saphala Self Prep TestHub backend.
+
+Your task is NOT to build new features unless a critical gap is discovered.
+Your primary job is to verify correctness, enforce invariants, and ensure the system cannot break under real student usage.
+
+Work carefully and read all relevant files before making any change.
+
+CONTEXT
+
+This system powers the Saphala Self Prep TestHub exam engine.
+
+Students take timed tests consisting of:
+
+Test
+→ Sections
+→ Optional Subsections
+→ Questions
+
+Key engine capabilities already implemented:
+
+strictSectionMode (section locking)
+
+pause/resume attempts
+
+XP rules based on attempt number
+
+timer tracking
+
+result generation
+
+attempt storage
+
+question palette
+
+admin test builder
+
+However, before public launch we must verify backend safety guarantees.
+
+STEP 1 — FULL TEST ATTEMPT LIFECYCLE AUDIT
+
+Trace the entire lifecycle of an attempt.
+
+Expected lifecycle:
+
+START TEST
+   ↓
+Attempt created
+   ↓
+answers saved
+   ↓
+(optional pause)
+   ↓
+resume
+   ↓
+submit section (if strictSectionMode)
+   ↓
+final submit
+   ↓
+result generation
+
+Verify these backend invariants:
+
+1️⃣ A user cannot have more than one ACTIVE attempt for the same test.
+
+2️⃣ Attempt must track:
+
+status
+STARTED
+PAUSED
+SUBMITTED
+EXPIRED
+
+3️⃣ Once an attempt is SUBMITTED:
+
+answers cannot be modified
+
+XP cannot change
+
+result cannot recompute
+
+4️⃣ If test expires:
+
+status must become EXPIRED.
+
+STEP 2 — TIMER INTEGRITY AUDIT
+
+Verify timer enforcement is server authoritative.
+
+Students must never be able to extend time from frontend manipulation.
+
+Confirm:
+
+Attempt stores:
+
+startedAt
+endsAt
+
+On every API that mutates answers:
+
+Server must verify:
+
+now <= endsAt
+
+If not:
+
+return TEST_EXPIRED
+STEP 3 — PAUSE / RESUME LOGIC
+
+Audit pause/resume behavior.
+
+Expected rules:
+
+Pause:
+
+remaining = endsAt - now
+store remainingSeconds
+status = PAUSED
+
+Resume:
+
+endsAt = now + remainingSeconds
+status = STARTED
+
+Verify:
+
+• resume cannot extend original test duration
+• pause cannot be abused repeatedly to gain time
+
+Enforce:
+
+resumeCount limit (optional)
+
+if missing, report.
+
+STEP 4 — STRICT SECTION MODE
+
+When strictSectionMode = true:
+
+Students must submit sections sequentially.
+
+Rules:
+
+1️⃣ Student cannot access section N+1
+until section N submitted.
+
+2️⃣ Once section submitted:
+
+answers become locked.
+
+Verify backend protection exists.
+
+If missing:
+
+Implement AttemptSectionSubmit table
+
+AttemptSectionSubmit
+id
+attemptId
+sectionId
+submittedAt
+
+Server must check:
+
+if section submitted → reject edits
+STEP 5 — SECTION TIMER VALIDATION
+
+If sections have timers:
+
+Ensure:
+
+sum(section timers) <= test timer
+
+Validation must run:
+
+when creating test
+
+when editing test
+
+Reject invalid configuration.
+
+STEP 6 — MULTI DEVICE RESTRICTION
+
+Users must only use 1 device simultaneously.
+
+Verify:
+
+User table includes:
+
+maxWebDevices
+
+Session system must enforce:
+
+activeSessions <= maxWebDevices
+
+If login occurs on second device:
+
+either
+
+reject login
+
+or
+
+invalidate old session
+
+But never allow both.
+
+STEP 7 — ATTEMPT NUMBER XP RULES
+
+Verify XP logic:
+
+attempt 1 → 100% XP
+attempt 2 → 50% XP
+attempt >=3 → 0 XP
+
+Confirm XP is computed using:
+
+attemptNumber
+
+Where:
+
+attemptNumber = count(previous attempts) + 1
+
+Ensure XP cannot be recalculated later.
+
+XP must be stored permanently.
+
+STEP 8 — UNPUBLISHED TEST PROTECTION
+
+Students must never start:
+
+isPublished = false
+
+Verify every student endpoint checks:
+
+test.isPublished === true
+
+before allowing:
+
+start
+resume
+submit
+STEP 9 — RESULT COMPUTATION SAFETY
+
+Verify result generation:
+
+must be idempotent.
+
+If called multiple times:
+
+result must not change.
+
+Store:
+
+AttemptResult
+attemptId
+marks
+correct
+incorrect
+unanswered
+xpAwarded
+
+Ensure results read from DB after generation.
+
+STEP 10 — QUESTION PALETTE INDEX
+
+Confirm question indexing starts at 1 not 0.
+
+If backend sends 0-based index:
+
+convert to 1-based.
+
+STEP 11 — DATA CONSISTENCY CHECK
+
+Verify:
+
+Each AttemptAnswer references:
+
+questionId
+selectedOptionId
+
+Ensure:
+
+options belong to question
+
+question belongs to test
+
+Prevent cross-test injection.
+
+STEP 12 — REPORT FINDINGS
+
+At the end produce a report:
+
+BACKEND SANITY REPORT
+
+Sections:
+
+1️⃣ attempt lifecycle safety
+2️⃣ timer integrity
+3️⃣ strictSectionMode enforcement
+4️⃣ pause/resume correctness
+5️⃣ XP calculation correctness
+6️⃣ device restriction enforcement
+7️⃣ unpublished test protection
+8️⃣ result generation safety
+9️⃣ data consistency checks
+
+Each marked:
+
+PASS
+FIXED
+WARNING
+IMPORTANT RULES
+
+Do NOT:
+
+• rewrite large modules
+• change DB schema unless necessary
+• break existing API contracts
+
+Only implement fixes that guarantee system safety.
+
+EXPECTED OUTPUT
+
+After audit provide:
+
+1️⃣ summary of backend health
+2️⃣ fixes applied
+3️⃣ any remaining risks
+
+Why this prompt is powerful
+
+This will force Replit to behave like a production backend auditor, not a random coder.
+
+It protects:
+
+exam fairness
+
+timer manipulation
+
+XP exploitation
+
+multi device cheating
+
+test builder errors
+
+Exactly the things that destroy test platforms if not fixed early.

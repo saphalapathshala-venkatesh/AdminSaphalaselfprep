@@ -1338,6 +1338,7 @@ enum AttemptStatus {
   IN_PROGRESS
   PAUSED
   SUBMITTED
+  EXPIRED
 }
 
 enum LanguageAvailable {

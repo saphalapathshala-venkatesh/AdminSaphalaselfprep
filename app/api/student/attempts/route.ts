@@ -12,7 +12,12 @@ import { getStudentUserFromRequest } from "@/lib/studentAuth";
  *
  * Body: { testId: string, language?: "EN" | "TE" | "BOTH" }
  *
- * Returns: { data: { attemptId, attemptNumber, status, startedAt } }
+ * Returns: { data: { attemptId, attemptNumber, status, startedAt, endsAt? } }
+ *
+ * Security:
+ *  - Test must be published and unlocked.
+ *  - attemptsAllowed enforced (counts only SUBMITTED attempts).
+ *  - endsAt is set by the SERVER at creation time — never trusted from client.
  */
 export async function POST(req: NextRequest) {
   const user = await getStudentUserFromRequest(req);
@@ -26,7 +31,14 @@ export async function POST(req: NextRequest) {
 
     const test = await prisma.test.findUnique({
       where: { id: testId },
-      select: { id: true, isPublished: true, attemptsAllowed: true, unlockAt: true },
+      select: {
+        id: true,
+        isPublished: true,
+        attemptsAllowed: true,
+        unlockAt: true,
+        isTimed: true,
+        durationSec: true,
+      },
     });
 
     if (!test) return NextResponse.json({ error: "Test not found" }, { status: 404 });
@@ -42,6 +54,7 @@ export async function POST(req: NextRequest) {
         userId: user.id,
         status: { in: ["IN_PROGRESS", "PAUSED"] },
       },
+      select: { id: true, attemptNumber: true, status: true, startedAt: true, endsAt: true },
       orderBy: { startedAt: "desc" },
     });
 
@@ -52,6 +65,7 @@ export async function POST(req: NextRequest) {
           attemptNumber: activeAttempt.attemptNumber,
           status: activeAttempt.status,
           startedAt: activeAttempt.startedAt.toISOString(),
+          endsAt: activeAttempt.endsAt?.toISOString() ?? null,
           resumed: true,
         },
       });
@@ -69,6 +83,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ── Compute server-authoritative endsAt ─────────────────────────────────
+    // endsAt is the absolute deadline — the client timer must never exceed this.
+    const endsAt =
+      test.isTimed && test.durationSec
+        ? new Date(Date.now() + test.durationSec * 1000)
+        : null;
+
     // ── Create new attempt ───────────────────────────────────────────────────
     const attempt = await prisma.attempt.create({
       data: {
@@ -77,6 +98,7 @@ export async function POST(req: NextRequest) {
         language: (language as "EN" | "TE" | "BOTH") ?? "EN",
         status: "IN_PROGRESS",
         attemptNumber: pastCount + 1,
+        ...(endsAt ? { endsAt } : {}),
       },
     });
 
@@ -87,6 +109,7 @@ export async function POST(req: NextRequest) {
           attemptNumber: attempt.attemptNumber,
           status: attempt.status,
           startedAt: attempt.startedAt.toISOString(),
+          endsAt: attempt.endsAt?.toISOString() ?? null,
           resumed: false,
         },
       },
