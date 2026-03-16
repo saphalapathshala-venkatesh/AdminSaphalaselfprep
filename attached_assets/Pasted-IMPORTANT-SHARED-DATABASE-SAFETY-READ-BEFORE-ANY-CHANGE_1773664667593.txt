@@ -1,0 +1,98 @@
+IMPORTANT — SHARED DATABASE SAFETY (READ BEFORE ANY CHANGE)
+
+This project uses TWO separate applications connected to ONE shared production database:
+
+1. Admin Saphala Self Prep
+2. Saphala Self Prep Student Frontend
+
+Both apps connect to the same Neon PostgreSQL database.
+
+STRICT RULES (DO NOT VIOLATE):
+1. NEVER run destructive schema operations.
+2. NEVER use --accept-data-loss.
+3. NEVER drop columns or tables automatically.
+4. NEVER remove “unused” columns unless explicitly instructed.
+5. Only ADDITIVE schema changes are allowed.
+6. If a column exists in the database but is not referenced in code, PRESERVE it.
+7. Always assume the other app may depend on that column.
+8. Production database structure must remain stable.
+
+SAFE PRACTICES:
+- Prefer ALTER TABLE ADD COLUMN IF NOT EXISTS
+- Never perform automatic cleanup of “orphan” columns
+- Never modify schema without checking both apps
+- Protect production stability above refactoring or aesthetics
+
+-------------------------------------
+
+APP CONTEXT
+This prompt is for the Admin Saphala Self Prep app.
+
+TASK — Audit whether course → lessons structure already exists, and provide exact BE/FE structure
+
+Goal:
+Before proposing changes, audit whether the system already supports lessons inside a course with a dedicated internal structure.
+
+We need a precise structural answer, not guesses.
+
+Required work:
+
+PART A — Backend audit
+Inspect schema/models/routes related to:
+- Course
+- ContentPage / E-book / HTML content
+- Video
+- PdfAsset
+- FlashcardDeck
+- TestSeries / Tests
+- any join tables or order tables
+- any fields that indicate course sections, modules, lessons, sequence, product composition, or reusable content mapping
+
+Answer clearly:
+1. Does course → lesson structure already exist in backend?
+2. If yes, what is the exact model structure?
+3. If partially, what is present vs missing?
+4. How are ordering and content association currently handled?
+
+PART B — Frontend audit
+Inspect student/frontend and admin UI structure for:
+- course detail pages
+- content listing inside course
+- sequence/order logic
+- lesson-like rendering
+- product composition UI
+
+Answer clearly:
+1. Does frontend already render lessons/modules inside courses?
+2. If yes, how exactly?
+3. If not, what is it rendering instead?
+4. What content types are currently grouped inside a course?
+
+PART C — Exact structure report
+Provide a clean structural report in this format:
+
+1. BACKEND STRUCTURE
+- exact models/tables involved
+- exact relation flow
+- exact order/sequence fields
+- exact course-content mapping pattern
+
+2. FRONTEND STRUCTURE
+- exact pages/components involved
+- exact data fetch path
+- exact rendering pattern
+
+3. CURRENT STATUS
+- fully wired
+- partially wired
+- not wired
+
+4. GAPS / LIMITATIONS
+- what is missing if we want a true course → module → lesson architecture
+
+PART D — Deliverables
+A. Exact backend structure
+B. Exact frontend structure
+C. Whether lessons-inside-course already exists
+D. Whether it is partial or complete
+E. What changes would be needed next if we want to refine it
