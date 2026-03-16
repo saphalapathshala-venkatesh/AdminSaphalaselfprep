@@ -17,11 +17,15 @@ export async function GET(req: NextRequest) {
   const seriesId = searchParams.get("seriesId");
   const published = searchParams.get("published");
 
+  const quizParam = searchParams.get("quiz");
   const where: any = {};
   if (search) where.title = { contains: search, mode: "insensitive" };
   if (seriesId) where.seriesId = seriesId;
   if (published === "true") where.isPublished = true;
   if (published === "false") where.isPublished = false;
+  // Separate quiz records from regular tests. Default to isQuiz=false (normal tests).
+  if (quizParam === "true") where.isQuiz = true;
+  else where.isQuiz = false;
 
   try {
     const [items, total] = await Promise.all([
@@ -57,7 +61,7 @@ export async function POST(req: NextRequest) {
     const { title, instructions, mode, isTimed, durationSec, totalQuestions, marksPerQuestion, negativeMarksPerQuestion,
             allowPause, strictSectionMode,
             shuffleQuestions, shuffleOptions, shuffleGroups, shuffleGroupChildren, seriesId,
-            sections, questions, xpEnabled, xpValue, testStartTime, isFree, unlockAt } = body;
+            sections, questions, xpEnabled, xpValue, testStartTime, isFree, unlockAt, isQuiz } = body;
     let { categoryId, examId } = body;
 
     if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -103,6 +107,7 @@ export async function POST(req: NextRequest) {
           testStartTime: testStartTime ? new Date(testStartTime) : null,
           isFree: isFree === true,
           unlockAt: unlockAt ? new Date(unlockAt) : null,
+          isQuiz: isQuiz === true,
           createdById: user.id,
         },
       });
@@ -182,7 +187,7 @@ export async function PUT(req: NextRequest) {
     const { id, title, instructions, mode, isTimed, durationSec, totalQuestions, marksPerQuestion, negativeMarksPerQuestion,
             allowPause, strictSectionMode,
             shuffleQuestions, shuffleOptions, shuffleGroups, shuffleGroupChildren,
-            seriesId, sections, questions, xpEnabled, xpValue, testStartTime, isFree, unlockAt } = body;
+            seriesId, sections, questions, xpEnabled, xpValue, testStartTime, isFree, unlockAt, isQuiz } = body;
     let { categoryId, examId } = body;
 
     if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
@@ -233,6 +238,7 @@ export async function PUT(req: NextRequest) {
           testStartTime: testStartTime !== undefined ? (testStartTime ? new Date(testStartTime) : null) : existing.testStartTime,
           isFree: isFree !== undefined ? isFree === true : existing.isFree,
           unlockAt: unlockAt !== undefined ? (unlockAt ? new Date(unlockAt) : null) : existing.unlockAt,
+          isQuiz: isQuiz !== undefined ? isQuiz === true : existing.isQuiz,
         },
       });
 

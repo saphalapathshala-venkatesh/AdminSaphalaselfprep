@@ -449,6 +449,9 @@ model Test {
   publishedAt          DateTime?
   // unlockAt: students cannot access this test before this datetime (null = no unlock restriction)
   unlockAt             DateTime?
+  // isQuiz: when true, this record belongs to the Quiz feature (standalone, no series required).
+  // Existing tests always have isQuiz=false. Quiz admin at /admin/quiz filters isQuiz=true.
+  isQuiz               Boolean  @default(false)
   // Student-frontend columns — DO NOT DROP
   code                 String?  @unique
   attemptsAllowed      Int      @default(2)
@@ -1007,6 +1010,7 @@ enum CourseItemType {
   PDF
   FLASHCARD_DECK
   HTML_PAGE
+  QUIZ
 }
 
 enum LessonStatus {

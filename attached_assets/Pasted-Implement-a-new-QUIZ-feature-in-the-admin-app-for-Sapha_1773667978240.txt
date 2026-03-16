@@ -1,0 +1,121 @@
+Implement a new QUIZ feature in the admin app for Saphala Self Prep. QUIZ should behave like a test in all important ways, but must NOT require a Test Series. It must be assignable directly to course curriculum later.
+
+IMPORTANT PRODUCT DECISION
+- Canonical course system is Curriculum:
+  Course → CourseSubjectSection → Chapter → Lesson → LessonItem
+- We want a separate QUIZ feature because course lessons need quizzes without forcing Test Series creation
+- QUIZ should feel like a lightweight standalone test product for lesson-level/course-level learning checks
+- Keep launch-safe and avoid destructive refactors
+
+GOALS
+1. Add a separate Quiz admin menu/page
+2. Allow creating/editing/publishing quizzes without any Test Series dependency
+3. Reuse as much existing test infrastructure as safely possible
+4. Keep taxonomy, question picker, timers, scoring, shuffle, attempts, XP logic aligned with tests wherever appropriate
+5. Design it so quizzes can later be added as LessonItems in Curriculum
+6. Do not break existing Tests/Test Series/TestHub flows
+
+FIRST: AUDIT BEFORE CHANGES
+Read and audit:
+- prisma/schema.prisma
+- all Test/TestSeries models
+- question bank models and APIs
+- test create/edit/list pages
+- test builder components
+- test attempt/result models
+- XP/attempt logic
+- taxonomy usage in tests
+- any current standalone test logic
+- curriculum LessonItem / CourseItemType enums
+- any student-facing test rendering that could be shared later
+
+AUDIT OUTPUT REQUIRED BEFORE IMPLEMENTATION
+Report:
+- which test components/services can be safely reused
+- what is tightly coupled to Test Series today
+- minimum schema needed for Quiz
+- whether Quiz should be a separate model or a carefully isolated variant
+- what can be deferred to keep launch-safe
+
+IMPLEMENTATION DIRECTION
+Prefer the safest architecture. If possible, use a separate Quiz model or a clearly isolated test-like structure that avoids forcing Test Series linkage. Do NOT hack around by creating fake Test Series.
+
+QUIZ REQUIREMENTS
+
+A. ADMIN MENU
+Add a separate sidebar/menu item:
+- Quiz
+
+Suggested routes:
+- /admin/quiz
+- /admin/quiz/new
+- /admin/quiz/[id]
+
+B. QUIZ CAPABILITIES
+Quiz should support:
+- title
+- description
+- category / exam / taxonomy linkage as appropriate
+- status: Draft / Published
+- optional instructions
+- duration
+- total marks
+- negative marks if supported by current test engine
+- section/subsection structure if safely reusable
+- question picker from Question Bank
+- manual single-question creation only if already safely reusable; otherwise defer
+- shuffle options if already supported cleanly
+- attempts / XP behavior aligned with existing test logic unless tightly coupled
+- unlockAt if safely aligned with current test scheduling model
+
+C. NO TEST SERIES REQUIREMENT
+A quiz must be creatable and publishable without being inside a Test Series.
+This is the core requirement.
+
+D. REUSE RULE
+Reuse existing test builder logic where safe, but do not create hidden coupling that will make future maintenance confusing.
+Prefer clarity over cleverness.
+
+E. CURRICULUM FUTURE-READINESS
+Design Quiz so it can later be attached to LessonItem as a new item type:
+- QUIZ
+Do not wire curriculum attachment in this prompt unless it is very low-risk and clearly safe.
+But structure the implementation so that later we can do:
+LessonItem(itemType=QUIZ, sourceId=quizId)
+
+F. STUDENT-SIDE SCOPE FOR NOW
+Only implement student-facing behavior if required for admin preview/testing and if it is low-risk.
+Main focus is admin creation and safe persistence.
+If full student delivery is not needed now, clearly say what remains.
+
+G. LAUNCH SAFETY
+- No destructive schema changes
+- Do not break existing Test or Test Series flows
+- Do not remove test code/fields unless absolutely necessary
+- No fake series records
+- Keep migrations additive
+
+ATTEMPTS / XP
+Default recommendation:
+- align with current test behavior if already reusable
+- if not safely reusable, isolate Quiz attempts/results but document it
+- do not over-engineer
+
+VERIFICATION
+After implementation:
+- run TypeScript check
+- verify admin list page works
+- verify create/edit/publish works
+- verify question selection works
+- verify no Test Series is required
+- verify existing Tests/Test Series still work
+
+FINAL OUTPUT REQUIRED
+At the end provide:
+1. architecture chosen for Quiz
+2. why it was the safest option
+3. files changed
+4. schema changes
+5. what is reusable from existing tests
+6. what remains for future curriculum attachment
+7. any risks or deferred items

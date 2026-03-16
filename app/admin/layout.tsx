@@ -20,6 +20,7 @@ const navSections = [
       { label: "Imports", href: "/admin/imports" },
       { label: "Test Series", href: "/admin/test-series" },
       { label: "Tests", href: "/admin/tests" },
+      { label: "Quiz", href: "/admin/quiz" },
       { label: "Flashcards", href: "/admin/flashcards" },
       { label: "Content Library", href: "/admin/content-library" },
     ],
