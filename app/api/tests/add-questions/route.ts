@@ -88,9 +88,11 @@ export async function POST(req: NextRequest) {
               const newQ = await tx.question.create({
                 data: {
                   stem,
+                  stemSecondary: item.stemSecondary?.trim() || null,
                   type,
                   difficulty,
                   explanation: item.explanation?.trim() || null,
+                  explanationSecondary: item.explanationSecondary?.trim() || null,
                   categoryId: item.categoryId || null,
                   subjectId: item.subjectId || null,
                   topicId: item.topicId || null,
@@ -99,8 +101,9 @@ export async function POST(req: NextRequest) {
                   contentHash: hash,
                   status: "APPROVED",
                   options: {
-                    create: options.map((opt: { text: string; isCorrect: boolean }, idx: number) => ({
+                    create: options.map((opt: { text: string; textSecondary?: string; isCorrect: boolean }, idx: number) => ({
                       text: opt.text.trim(),
+                      textSecondary: opt.textSecondary?.trim() || null,
                       isCorrect: opt.isCorrect === true,
                       order: idx,
                     })),

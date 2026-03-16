@@ -48,7 +48,9 @@ export async function PUT(
       type,
       difficulty,
       stem,
+      stemSecondary,
       explanation,
+      explanationSecondary,
       tags,
       categoryId,
       subjectId,
@@ -80,6 +82,7 @@ export async function PUT(
       }
       validatedOptions = options.map((o: any, i: number) => ({
         text: String(o.text || ""),
+        textSecondary: o.textSecondary ? String(o.textSecondary) : undefined,
         isCorrect: Boolean(o.isCorrect),
         order: i,
       }));
@@ -176,6 +179,7 @@ export async function PUT(
           data: validatedOptions.map((o) => ({
             questionId: id,
             text: o.text,
+            textSecondary: (o as any).textSecondary || null,
             isCorrect: o.isCorrect,
             order: o.order,
           })),
@@ -189,7 +193,9 @@ export async function PUT(
           difficulty: finalDifficulty as any,
           status: finalStatus as any,
           stem: finalStem,
+          stemSecondary: stemSecondary !== undefined ? stemSecondary?.trim() || null : undefined,
           explanation: explanation !== undefined ? explanation || null : undefined,
+          explanationSecondary: explanationSecondary !== undefined ? explanationSecondary?.trim() || null : undefined,
           tags: tags !== undefined
             ? Array.isArray(tags)
               ? tags.filter((t: any) => typeof t === "string" && t.trim())

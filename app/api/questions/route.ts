@@ -121,7 +121,9 @@ export async function POST(req: NextRequest) {
       type,
       difficulty,
       stem,
+      stemSecondary,
       explanation,
+      explanationSecondary,
       tags,
       categoryId,
       subjectId,
@@ -154,6 +156,7 @@ export async function POST(req: NextRequest) {
       }
       validatedOptions = options.map((o: any, i: number) => ({
         text: String(o.text || ""),
+        textSecondary: o.textSecondary ? String(o.textSecondary) : undefined,
         isCorrect: Boolean(o.isCorrect),
         order: i,
       }));
@@ -232,7 +235,9 @@ export async function POST(req: NextRequest) {
         difficulty: difficulty as any,
         status: finalStatus as any,
         stem: stem.trim(),
+        stemSecondary: stemSecondary?.trim() || null,
         explanation: explanation || null,
+        explanationSecondary: explanationSecondary?.trim() || null,
         tags: Array.isArray(tags) ? tags.filter((t: any) => typeof t === "string" && t.trim()) : [],
         contentHash,
         categoryId: categoryId || null,
@@ -243,6 +248,7 @@ export async function POST(req: NextRequest) {
           ? {
               create: validatedOptions.map((o) => ({
                 text: o.text,
+                textSecondary: (o as any).textSecondary || null,
                 isCorrect: o.isCorrect,
                 order: o.order,
               })),

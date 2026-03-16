@@ -6,10 +6,10 @@ import { BRAND, adminBtn } from "@/lib/adminStyles";
 // TYPES
 // ─────────────────────────────────────────────
 type QuestionItem = {
-  id: string; type: string; stem: string; difficulty: string; status: string;
+  id: string; type: string; stem: string; stemSecondary?: string; difficulty: string; status: string;
   categoryId?: string; subjectId?: string; topicId?: string; subtopicId?: string;
-  explanation?: string; tags?: string[];
-  options?: { id: string; text: string; isCorrect: boolean; order: number }[];
+  explanation?: string; explanationSecondary?: string; tags?: string[];
+  options?: { id: string; text: string; textSecondary?: string; isCorrect: boolean; order: number }[];
 };
 type SectionState = {
   id?: string;
@@ -57,9 +57,11 @@ type ReviewItem = {
   existingQuestionId?: string;
   isEdited: boolean;
   stem: string;
+  stemSecondary?: string;
   type: string;
   difficulty: string;
   explanation: string;
+  explanationSecondary?: string;
   categoryId: string;
   subjectId: string;
   topicId: string;
@@ -67,7 +69,7 @@ type ReviewItem = {
   sourceTag: string;
   marks: number;
   negativeMarks: number;
-  options: { text: string; isCorrect: boolean }[];
+  options: { text: string; textSecondary?: string; isCorrect: boolean }[];
   passageText?: string;
   groupId?: string;
   status: "clean" | "warning" | "error";
@@ -123,6 +125,11 @@ function parseCSV(text: string): string[][] {
   return rows;
 }
 
+// Detect if header row uses new bilingual format (contains "question_primary" or "_primary" columns)
+function isBilingualHeader(headerRow: string[]): boolean {
+  return headerRow.some(h => h.toLowerCase().replace(/\s/g, "").includes("_primary"));
+}
+
 function parseCsvToReviewItems(text: string): { items: ReviewItem[]; parseErrors: string[] } {
   const rows = parseCSV(text);
   if (rows.length === 0) return { items: [], parseErrors: ["Empty file"] };
@@ -135,69 +142,146 @@ function parseCsvToReviewItems(text: string): { items: ReviewItem[]; parseErrors
   let rowNum = 0;
 
   const HEADER_EXPECTED = "rowtype";
-  const firstRow = rows[0][0]?.toLowerCase().replace(/\s/g, "");
-  if (firstRow === HEADER_EXPECTED) rowNum = 1;
+  const firstRowNorm = rows[0][0]?.toLowerCase().replace(/\s/g, "");
+  const hasHeader = firstRowNorm === HEADER_EXPECTED;
+  if (hasHeader) rowNum = 1;
+
+  // Determine format: bilingual (new) or legacy (English-only)
+  const bilingual = hasHeader && isBilingualHeader(rows[0]);
 
   for (let i = rowNum; i < rows.length; i++) {
     const r = rows[i];
     const get = (idx: number) => (r[idx] || "").trim();
     const rowType = get(0).toUpperCase() || "QUESTION";
 
-    if (rowType === "PASSAGE_START") {
-      if (groupOpen) parseErrors.push(`Row ${i + 1}: PASSAGE_START before previous GROUP_END`);
-      passageText = get(1);
-      groupId = get(16) || `group_${i}`;
-      groupOpen = true;
-      continue;
+    if (bilingual) {
+      // ── BILINGUAL FORMAT ──────────────────────────────────────────────────
+      // Col 0: RowType
+      // Col 1: question_primary   Col 2: question_secondary
+      // Col 3: optionA_primary    Col 4: optionA_secondary
+      // Col 5: optionB_primary    Col 6: optionB_secondary
+      // Col 7: optionC_primary    Col 8: optionC_secondary
+      // Col 9: optionD_primary    Col 10: optionD_secondary
+      // Col 11: CorrectOption
+      // Col 12: explanation_primary  Col 13: explanation_secondary
+      // Col 14: Category  Col 15: Subject  Col 16: Topic  Col 17: Subtopic
+      // Col 18: Difficulty  Col 19: Marks  Col 20: NegativeMarks
+      // Col 21: SourceTag  Col 22: GroupId
+      if (rowType === "PASSAGE_START") {
+        if (groupOpen) parseErrors.push(`Row ${i + 1}: PASSAGE_START before previous GROUP_END`);
+        passageText = get(1);
+        groupId = get(22) || `group_${i}`;
+        groupOpen = true;
+        continue;
+      }
+      if (rowType === "GROUP_END") { groupOpen = false; passageText = ""; groupId = ""; continue; }
+      if (rowType !== "QUESTION" && rowType !== "") continue;
+
+      const stem = get(1);
+      const stemSecondary = get(2) || undefined;
+      const optAPrimary = get(3), optASecondary = get(4) || undefined;
+      const optBPrimary = get(5), optBSecondary = get(6) || undefined;
+      const optCPrimary = get(7), optCSecondary = get(8) || undefined;
+      const optDPrimary = get(9), optDSecondary = get(10) || undefined;
+      const correctLetter = get(11).toUpperCase();
+      const explanation = get(12);
+      const explanationSecondary = get(13) || undefined;
+      const category = get(14), subject = get(15), topic = get(16), subtopic = get(17);
+      const diffRaw = get(18).toUpperCase();
+      const marksRaw = get(19), negRaw = get(20);
+      const sourceTag = get(21);
+      const rowGroupId = get(22) || (groupOpen ? groupId : "");
+
+      const errors: string[] = [];
+      const warnings: string[] = [];
+      if (!stem) errors.push("Missing question_primary (question stem)");
+      if (!optAPrimary || !optBPrimary) errors.push("Missing required options (optionA_primary, optionB_primary)");
+      if (!correctLetter || !CORRECT_OPT_MAP.hasOwnProperty(correctLetter)) errors.push(`Invalid CorrectOption "${get(11)}" — must be A, B, C, or D`);
+      if (!explanation) warnings.push("No explanation_primary provided");
+      if (!category) warnings.push("No category set");
+      if (!diffRaw || !DIFFICULTIES.includes(diffRaw as any)) warnings.push("Difficulty not set — defaulting to FOUNDATIONAL");
+
+      const primaryTexts = [optAPrimary, optBPrimary, optCPrimary, optDPrimary];
+      const secondaryTexts = [optASecondary, optBSecondary, optCSecondary, optDSecondary];
+      const correctIdx = CORRECT_OPT_MAP[correctLetter] ?? 0;
+      const options = primaryTexts
+        .map((text, idx) => ({ text, textSecondary: secondaryTexts[idx] || undefined, isCorrect: idx === correctIdx }))
+        .filter(o => o.text);
+
+      const difficulty = DIFFICULTIES.includes(diffRaw as any) ? diffRaw : "FOUNDATIONAL";
+      const marks = parseFloat(marksRaw) > 0 ? parseFloat(marksRaw) : 1;
+      const negativeMarks = parseFloat(negRaw) >= 0 ? parseFloat(negRaw) : 0;
+
+      items.push({
+        key: `csv_${i}_${Date.now()}`,
+        isEdited: false,
+        stem, stemSecondary, type: "MCQ_SINGLE", difficulty,
+        explanation, explanationSecondary,
+        categoryId: "", subjectId: "", topicId: "", subtopicId: "",
+        sourceTag, marks, negativeMarks, options,
+        passageText: groupOpen ? passageText : undefined,
+        groupId: rowGroupId || undefined,
+        status: errors.length > 0 ? "error" : warnings.length > 0 ? "warning" : "clean",
+        errors, warnings, selected: false,
+      });
+
+    } else {
+      // ── LEGACY FORMAT (English-only, backward compat) ─────────────────────
+      // Col 0: RowType
+      // Col 1: Stem  Col 2: OptionA  Col 3: OptionB  Col 4: OptionC  Col 5: OptionD
+      // Col 6: CorrectOption  Col 7: Explanation
+      // Col 8: Category  Col 9: Subject  Col 10: Topic  Col 11: Subtopic
+      // Col 12: Difficulty  Col 13: Marks  Col 14: NegativeMarks
+      // Col 15: SourceTag  Col 16: GroupId
+      if (rowType === "PASSAGE_START") {
+        if (groupOpen) parseErrors.push(`Row ${i + 1}: PASSAGE_START before previous GROUP_END`);
+        passageText = get(1);
+        groupId = get(16) || `group_${i}`;
+        groupOpen = true;
+        continue;
+      }
+      if (rowType === "GROUP_END") { groupOpen = false; passageText = ""; groupId = ""; continue; }
+      if (rowType !== "QUESTION" && rowType !== "") continue;
+
+      const stem = get(1);
+      const optA = get(2), optB = get(3), optC = get(4), optD = get(5);
+      const correctLetter = get(6).toUpperCase();
+      const explanation = get(7);
+      const category = get(8), subject = get(9), topic = get(10), subtopic = get(11);
+      const diffRaw = get(12).toUpperCase();
+      const marksRaw = get(13), negRaw = get(14);
+      const sourceTag = get(15);
+      const rowGroupId = get(16) || (groupOpen ? groupId : "");
+
+      const errors: string[] = [];
+      const warnings: string[] = [];
+      if (!stem) errors.push("Missing question stem");
+      if (!optA || !optB) errors.push("Missing required options (A, B)");
+      if (!correctLetter || !CORRECT_OPT_MAP.hasOwnProperty(correctLetter)) errors.push(`Invalid CorrectOption "${get(6)}" — must be A, B, C, or D`);
+      if (!explanation) warnings.push("No explanation provided");
+      if (!category) warnings.push("No category set");
+      if (!diffRaw || !DIFFICULTIES.includes(diffRaw as any)) warnings.push("Difficulty not set — defaulting to FOUNDATIONAL");
+
+      const optTexts = [optA, optB, optC, optD].filter(Boolean);
+      const correctIdx = CORRECT_OPT_MAP[correctLetter] ?? 0;
+      const options = optTexts.map((text, idx) => ({ text, isCorrect: idx === correctIdx }));
+
+      const difficulty = DIFFICULTIES.includes(diffRaw as any) ? diffRaw : "FOUNDATIONAL";
+      const marks = parseFloat(marksRaw) > 0 ? parseFloat(marksRaw) : 1;
+      const negativeMarks = parseFloat(negRaw) >= 0 ? parseFloat(negRaw) : 0;
+
+      items.push({
+        key: `csv_${i}_${Date.now()}`,
+        isEdited: false,
+        stem, type: "MCQ_SINGLE", difficulty,
+        explanation, categoryId: "", subjectId: "", topicId: "", subtopicId: "",
+        sourceTag, marks, negativeMarks, options,
+        passageText: groupOpen ? passageText : undefined,
+        groupId: rowGroupId || undefined,
+        status: errors.length > 0 ? "error" : warnings.length > 0 ? "warning" : "clean",
+        errors, warnings, selected: false,
+      });
     }
-    if (rowType === "GROUP_END") {
-      groupOpen = false;
-      passageText = "";
-      groupId = "";
-      continue;
-    }
-    if (rowType !== "QUESTION" && rowType !== "") continue;
-
-    const stem = get(1);
-    const optA = get(2), optB = get(3), optC = get(4), optD = get(5);
-    const correctLetter = get(6).toUpperCase();
-    const explanation = get(7);
-    const category = get(8), subject = get(9), topic = get(10), subtopic = get(11);
-    const diffRaw = get(12).toUpperCase();
-    const marksRaw = get(13);
-    const negRaw = get(14);
-    const sourceTag = get(15);
-    const rowGroupId = get(16) || (groupOpen ? groupId : "");
-
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    if (!stem) errors.push("Missing question stem");
-    if (!optA || !optB) errors.push("Missing required options (A, B)");
-    if (!correctLetter || !CORRECT_OPT_MAP.hasOwnProperty(correctLetter)) errors.push(`Invalid CorrectOption "${get(6)}" — must be A, B, C, or D`);
-    if (!explanation) warnings.push("No explanation provided");
-    if (!category) warnings.push("No category set");
-    if (!diffRaw || !DIFFICULTIES.includes(diffRaw as any)) warnings.push("Difficulty not set — defaulting to FOUNDATIONAL");
-
-    const optTexts = [optA, optB, optC, optD].filter(Boolean);
-    const correctIdx = CORRECT_OPT_MAP[correctLetter] ?? 0;
-    const options = optTexts.map((text, idx) => ({ text, isCorrect: idx === correctIdx }));
-
-    const difficulty = DIFFICULTIES.includes(diffRaw as any) ? diffRaw : "FOUNDATIONAL";
-    const marks = parseFloat(marksRaw) > 0 ? parseFloat(marksRaw) : 1;
-    const negativeMarks = parseFloat(negRaw) >= 0 ? parseFloat(negRaw) : 0;
-
-    items.push({
-      key: `csv_${i}_${Date.now()}`,
-      isEdited: false,
-      stem, type: "MCQ_SINGLE", difficulty,
-      explanation, categoryId: "", subjectId: "", topicId: "", subtopicId: "",
-      sourceTag, marks, negativeMarks, options,
-      passageText: groupOpen ? passageText : undefined,
-      groupId: rowGroupId || undefined,
-      status: errors.length > 0 ? "error" : warnings.length > 0 ? "warning" : "clean",
-      errors, warnings, selected: false,
-    });
   }
 
   if (groupOpen) parseErrors.push("Unclosed passage group — missing GROUP_END row");
@@ -655,11 +739,13 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
             <div style={{ marginTop: "1.5rem", padding: "1rem", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px" }}>
               <div style={{ fontWeight: 700, fontSize: "0.875rem", color: "#374151", marginBottom: "0.75rem" }}>📎 Templates & Import Rules</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-                <a href="/templates/question-import-sample.csv" download style={{ ...btn("#7c3aed"), textDecoration: "none", display: "inline-block" }}>⬇ Sample CSV</a>
+                <a href="/templates/question-import-sample.csv" download style={{ ...btn("#7c3aed"), textDecoration: "none", display: "inline-block" }}>⬇ Legacy CSV (English-only)</a>
+                <a href="/templates/question-import-bilingual-sample.csv" download style={{ ...btn("#059669"), textDecoration: "none", display: "inline-block" }}>⬇ Bilingual CSV (Primary + Secondary)</a>
                 <a href="/templates/import-rules.txt" download style={{ ...btn("#6b7280"), textDecoration: "none", display: "inline-block" }}>📋 Import Rules</a>
               </div>
               <p style={{ fontSize: "0.78rem", color: "#6b7280", marginTop: "0.5rem" }}>
-                Download the sample CSV to see the exact format required. Supported columns: RowType, Stem, OptionA–D, CorrectOption, Explanation, Category, Subject, Topic, Subtopic, Difficulty, Marks, NegativeMarks, SourceTag, GroupId
+                <strong>Legacy format</strong>: RowType, Stem, OptionA–D, CorrectOption, Explanation, Category, Subject, Topic, Subtopic, Difficulty, Marks, NegativeMarks, SourceTag, GroupId<br />
+                <strong>Bilingual format</strong>: RowType, question_primary, question_secondary, optionA_primary, optionA_secondary, optionB_primary, optionB_secondary, optionC_primary, optionC_secondary, optionD_primary, optionD_secondary, CorrectOption, explanation_primary, explanation_secondary, Category, Subject, Topic, Subtopic, Difficulty, Marks, NegativeMarks, SourceTag, GroupId
               </p>
             </div>
           </div>

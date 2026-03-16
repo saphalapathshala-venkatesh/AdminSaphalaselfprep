@@ -1,0 +1,105 @@
+We need to fix bilingual question storage and bulk upload in Admin Saphala Self Prep.
+
+Confirmed problems:
+1. During upload/import, the second language content got merged into the English/primary HTML instead of being stored separately.
+2. The current bulk upload format is effectively English-only.
+3. We now want the system to support maximum 2 languages per test.
+Examples:
+- English + Telugu
+- English + Hindi
+- English + Kannada
+- English + Tamil
+
+Important scope:
+- Maximum 2 languages only
+- One primary language
+- One secondary language
+- Do NOT redesign for unlimited languages right now
+- Keep this production-safe and fast to implement
+
+Goal:
+Fix question storage separation and update the bulk upload format/parser to support primary + secondary language cleanly.
+
+Required work:
+
+PART A — Audit current storage and import behavior
+1. Inspect the Question and Option models currently used for bilingual fields.
+2. Inspect:
+- question create/edit flow
+- question import parser
+- bulk upload template generation/download if present
+- row-to-field mapping logic
+3. Identify the exact root cause of why the second language content is being merged into the primary HTML field.
+
+PART B — Fix storage separation
+Ensure the system stores content as:
+- primary question text
+- secondary question text
+- primary option text
+- secondary option text
+- primary explanation
+- secondary explanation
+
+No language should be appended into the wrong field.
+
+If current DB fields are already something like:
+- stem / stemTe
+- text / textTe
+- explanation / explanationTe
+that is okay for now, but the logic should conceptually treat them as:
+- primary
+- secondary
+
+PART C — Update bulk upload format for max 2 languages
+Upgrade the upload template and parser so it supports two-language question upload.
+
+Recommended column pattern:
+- question_primary
+- question_secondary
+- optionA_primary
+- optionA_secondary
+- optionB_primary
+- optionB_secondary
+- optionC_primary
+- optionC_secondary
+- optionD_primary
+- optionD_secondary
+- explanation_primary
+- explanation_secondary
+
+Also include metadata columns as already needed for:
+- correct answer
+- category/taxonomy
+- difficulty
+- tags etc.
+
+PART D — Backward compatibility
+1. Existing English-only upload format should still work.
+2. Rows with only primary language should import correctly.
+3. Rows with both primary + secondary language should also import correctly.
+4. Existing question bank functionality must remain stable.
+
+PART E — Existing corrupted records
+If already-uploaded questions have merged primary + secondary language content in a single field:
+1. Identify whether they can be safely auto-cleaned.
+2. If auto-cleaning is risky, explain the safest manual or semi-automated cleanup strategy.
+3. Do not destructively rewrite question bank content blindly.
+
+PART F — Explanation storage
+Ensure that the actual uploaded explanation is stored and preserved correctly for:
+- primary language
+- secondary language
+This is important because the frontend should later display the real uploaded explanation, not a fallback line.
+
+PART G — Deliverables
+A. Exact root cause of the language merge bug
+B. Exact files changed
+C. Exact upload template changes
+D. Exact parser/import mapping changes
+E. Confirmation that question create/edit/import now store primary and secondary language separately
+F. Confirmation that bulk upload now supports max 2 languages
+G. Recommendation for safe cleanup of already-corrupted bilingual records
+
+Important:
+This prompt is for the Admin Saphala Self Prep app only.
+Do not redesign the student frontend here.

@@ -310,8 +310,10 @@ model Question {
   type         QuestionType
   difficulty   DifficultyLevel
   status       QuestionStatus @default(DRAFT)
-  stem         String
-  explanation  String?
+  stem              String
+  stemSecondary     String?
+  explanation       String?
+  explanationSecondary String?
   tags         String[]       @default([])
   contentHash  String         @unique
   options      QuestionOption[]
@@ -327,7 +329,8 @@ model QuestionOption {
   id         String   @id @default(cuid())
   questionId String
   question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  text       String
+  text          String
+  textSecondary String?
   isCorrect  Boolean  @default(false)
   order      Int
   @@index([questionId])

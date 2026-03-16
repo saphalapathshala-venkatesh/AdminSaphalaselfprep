@@ -28,6 +28,7 @@ const MCQ_TYPES = ["MCQ_SINGLE", "MCQ_MULTIPLE"];
 
 interface Option {
   text: string;
+  textSecondary?: string;
   isCorrect: boolean;
 }
 
@@ -37,13 +38,15 @@ interface Question {
   difficulty: string;
   status: string;
   stem: string;
+  stemSecondary?: string | null;
   explanation: string | null;
+  explanationSecondary?: string | null;
   tags: string[];
   categoryId: string | null;
   subjectId: string | null;
   topicId: string | null;
   subtopicId: string | null;
-  options: { id: string; text: string; isCorrect: boolean; order: number }[];
+  options: { id: string; text: string; textSecondary?: string | null; isCorrect: boolean; order: number }[];
   subtopic?: {
     id: string;
     name: string;
@@ -98,7 +101,9 @@ export default function QuestionBankPage() {
   const [formDifficulty, setFormDifficulty] = useState("FOUNDATIONAL");
   const [formStatus, setFormStatus] = useState("DRAFT");
   const [formStem, setFormStem] = useState("");
+  const [formStemSecondary, setFormStemSecondary] = useState("");
   const [formExplanation, setFormExplanation] = useState("");
+  const [formExplanationSecondary, setFormExplanationSecondary] = useState("");
   const [formTags, setFormTags] = useState("");
   const [formCategoryId, setFormCategoryId] = useState("");
   const [formSubjectId, setFormSubjectId] = useState("");
@@ -250,7 +255,9 @@ export default function QuestionBankPage() {
     setFormDifficulty("FOUNDATIONAL");
     setFormStatus("DRAFT");
     setFormStem("");
+    setFormStemSecondary("");
     setFormExplanation("");
+    setFormExplanationSecondary("");
     setFormTags("");
     setFormCategoryId("");
     setFormSubjectId("");
@@ -277,7 +284,9 @@ export default function QuestionBankPage() {
     setFormDifficulty(q.difficulty);
     setFormStatus(q.status);
     setFormStem(q.stem);
+    setFormStemSecondary(q.stemSecondary || "");
     setFormExplanation(q.explanation || "");
+    setFormExplanationSecondary(q.explanationSecondary || "");
     setFormTags(q.tags.join(", "));
     setFormError("");
     setNearDupWarning(null);
@@ -309,7 +318,7 @@ export default function QuestionBankPage() {
 
     if (MCQ_TYPES.includes(q.type) && q.options.length > 0) {
       setFormOptions(
-        q.options.map((o) => ({ text: o.text, isCorrect: o.isCorrect }))
+        q.options.map((o) => ({ text: o.text, textSecondary: o.textSecondary || "", isCorrect: o.isCorrect }))
       );
     } else {
       setFormOptions([
@@ -345,7 +354,9 @@ export default function QuestionBankPage() {
       difficulty: formDifficulty,
       status: formStatus,
       stem: formStem,
+      stemSecondary: formStemSecondary.trim() || null,
       explanation: hasVisibleText(formExplanation) ? formExplanation : null,
+      explanationSecondary: formExplanationSecondary.trim() || null,
       tags: formTags
         .split(",")
         .map((t) => t.trim())
@@ -360,6 +371,7 @@ export default function QuestionBankPage() {
     if (isMCQ) {
       payload.options = formOptions.map((o) => ({
         text: o.text.trim(),
+        textSecondary: o.textSecondary?.trim() || null,
         isCorrect: o.isCorrect,
       }));
     }
@@ -580,7 +592,7 @@ export default function QuestionBankPage() {
     setFormOptions(formOptions.filter((_, i) => i !== index));
   }
 
-  function updateOption(index: number, field: "text" | "isCorrect", value: any) {
+  function updateOption(index: number, field: "text" | "textSecondary" | "isCorrect", value: any) {
     setFormOptions(
       formOptions.map((o, i) => {
         if (i !== index) {
@@ -747,12 +759,21 @@ export default function QuestionBankPage() {
           </div>
 
           <div style={{ marginBottom: "1rem" }}>
-            <label style={labelStyle}>Question Stem *</label>
+            <label style={labelStyle}>Question Stem (Primary Language) *</label>
             <RichEditor
               value={formStem}
               onChange={setFormStem}
               placeholder="Type question text, paste an image/screenshot, or insert an equation…"
               minHeight={80}
+            />
+          </div>
+          <div style={{ marginBottom: "1rem" }}>
+            <label style={{ ...labelStyle, color: "#059669" }}>Question Stem — Secondary Language <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: "0.72rem" }}>(optional — e.g. Telugu, Hindi)</span></label>
+            <RichEditor
+              value={formStemSecondary}
+              onChange={setFormStemSecondary}
+              placeholder="Secondary language translation of the question stem…"
+              minHeight={60}
             />
           </div>
 
@@ -790,8 +811,14 @@ export default function QuestionBankPage() {
                     <RichEditor
                       value={opt.text}
                       onChange={(html) => updateOption(i, "text", html)}
-                      placeholder={`Option ${i + 1} — text, image, or equation`}
+                      placeholder={`Option ${i + 1} primary — text, image, or equation`}
                       minHeight={44}
+                    />
+                    <RichEditor
+                      value={opt.textSecondary || ""}
+                      onChange={(html) => updateOption(i, "textSecondary", html)}
+                      placeholder={`Option ${i + 1} secondary language (optional)`}
+                      minHeight={36}
                     />
                   </div>
                   {formOptions.length > 2 && (
@@ -810,12 +837,21 @@ export default function QuestionBankPage() {
           )}
 
           <div style={{ marginBottom: "1rem" }}>
-            <label style={labelStyle}>Explanation</label>
+            <label style={labelStyle}>Explanation (Primary Language)</label>
             <RichEditor
               value={formExplanation}
               onChange={setFormExplanation}
               placeholder="Explain the correct answer — include images or equations if needed…"
               minHeight={60}
+            />
+          </div>
+          <div style={{ marginBottom: "1rem" }}>
+            <label style={{ ...labelStyle, color: "#059669" }}>Explanation — Secondary Language <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: "0.72rem" }}>(optional)</span></label>
+            <RichEditor
+              value={formExplanationSecondary}
+              onChange={setFormExplanationSecondary}
+              placeholder="Secondary language translation of the explanation…"
+              minHeight={50}
             />
           </div>
 
