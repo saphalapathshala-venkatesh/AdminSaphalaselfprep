@@ -5,6 +5,47 @@ import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 
+/**
+ * Validates that section timers are consistent with the test total timer.
+ * Rules:
+ *   1. Each section durationSec must be a positive integer.
+ *   2. sum(top-level section durations) <= totalDurationSec (when both are set).
+ * Returns an error string, or null if valid.
+ */
+function validateSectionTimers(
+  totalDurationSec: number | null | undefined,
+  sections: Array<{ durationSec?: number | string | null; parentIndex?: number | null }> | undefined
+): string | null {
+  if (!sections || sections.length === 0) return null;
+
+  // Only top-level sections (no parent) participate in the total timer check
+  const topLevel = sections.filter(
+    (s) => s.parentIndex === null || s.parentIndex === undefined
+  );
+
+  const timedSections = topLevel.filter((s) => s.durationSec !== null && s.durationSec !== undefined && s.durationSec !== "");
+  if (timedSections.length === 0) return null;
+
+  for (const s of timedSections) {
+    const sec = parseInt(String(s.durationSec));
+    if (!sec || sec <= 0) {
+      return "Section duration must be a positive number.";
+    }
+  }
+
+  if (totalDurationSec) {
+    const totalSectionSec = timedSections.reduce(
+      (sum, s) => sum + (parseInt(String(s.durationSec)) || 0),
+      0
+    );
+    if (totalSectionSec > totalDurationSec) {
+      return `Total test duration must be greater than or equal to the sum of section durations. (Sections total: ${Math.round(totalSectionSec / 60)} min, Test total: ${Math.round(totalDurationSec / 60)} min.)`;
+    }
+  }
+
+  return null;
+}
+
 export async function GET(req: NextRequest) {
   const user = await getSessionUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -67,6 +108,13 @@ export async function POST(req: NextRequest) {
     if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
     if (!mode || !["TIMED", "SECTIONAL", "MULTI_SECTION"].includes(mode)) {
       return NextResponse.json({ error: "Invalid mode" }, { status: 400 });
+    }
+
+    // Timer validation: section durations must not exceed total test duration
+    if (Array.isArray(sections) && sections.length > 0) {
+      const totalSec = durationSec ? parseInt(durationSec) : null;
+      const timerError = validateSectionTimers(totalSec, sections);
+      if (timerError) return NextResponse.json({ error: timerError }, { status: 400 });
     }
 
     if (seriesId) {
@@ -197,6 +245,15 @@ export async function PUT(req: NextRequest) {
       include: { sections: true, questions: true },
     });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    // Timer validation on update: only when sections are being replaced
+    if (sections !== undefined && Array.isArray(sections) && sections.length > 0) {
+      const resolvedDurationSec = durationSec !== undefined
+        ? (durationSec ? parseInt(durationSec) : null)
+        : existing.durationSec;
+      const timerError = validateSectionTimers(resolvedDurationSec, sections);
+      if (timerError) return NextResponse.json({ error: timerError }, { status: 400 });
+    }
 
     const resolvedSeriesId = seriesId !== undefined ? (seriesId || null) : existing.seriesId;
     if (resolvedSeriesId) {

@@ -43,6 +43,7 @@ The console uses a consistent brand palette with purple as the primary CTA color
     - **Quiz Feature**: Standalone quiz product using the `Test` model with an `isQuiz` flag, separate admin UI, and API filtering.
     - **Schema Drift Prevention**: Implements startup checks and health endpoint probes to detect and report schema-DB drift. Uses `prisma db push` for migrations.
     - **Student Test API & Pause/Resume**: New student-facing API for test attempts, including starting, resuming, answering, pausing, and submitting tests.
+    - **TestHub Improvements**: (1) `strictSectionMode` already existed in schema/admin UI/student API — no change needed. (2) `AttemptSectionSubmit` model added to track per-section submissions (`@@unique([attemptId, sectionId])`); virtual back-relation on `Attempt`. `POST /api/student/attempts/[id]/section-submit` — validates `strictSectionMode=true`, idempotent upsert, returns `{ nextSection }` or `{ allSectionsSubmitted: true }`. (3) `validateSectionTimers()` helper blocks test save (POST + PUT) when section durations exceed total duration or are non-positive. (4) `resume` route now extends `endsAt` by pause duration — learner does not lose time during a pause.
     - **Bilingual Question Support**: `Question` and `QuestionOption` models include `secondary` fields for a second language, supported in Question Bank forms and CSV imports.
 
 ## External Dependencies

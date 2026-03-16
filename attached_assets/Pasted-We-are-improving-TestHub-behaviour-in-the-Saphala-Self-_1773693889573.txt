@@ -1,0 +1,186 @@
+We are improving TestHub behaviour in the Saphala Self Prep ADMIN / BACKEND APP.
+
+IMPORTANT
+Audit first.
+Avoid unnecessary schema changes.
+Maintain backward compatibility.
+
+--------------------------------------------------
+
+FEATURE SET
+
+1. Strict Section Lock Mode
+
+Add checkbox in test creation:
+
+"Lock sections until time ends or section is submitted"
+
+Behaviour when enabled:
+
+- learner cannot jump to next section early
+- learner cannot revisit previous section
+- section must be submitted or time must expire
+- after section submission learner automatically moves to next section
+- previous section becomes inaccessible
+
+--------------------------------------------------
+
+2. Section Submit Feature
+
+Implement "Submit Section".
+
+Behaviour:
+
+Submit Section button appears when strict mode enabled.
+
+When clicked:
+- close current section
+- persist answers
+- advance learner to next section
+- previous section becomes locked
+
+If last section submitted → proceed to full test submit.
+
+--------------------------------------------------
+
+3. Timer Validation (CRITICAL FIX)
+
+Currently system allows:
+
+sectionDuration > totalDuration
+
+This must never happen.
+
+Add validation in test creation:
+
+Rules:
+
+totalDuration ≥ sum(sectionDurations)
+
+If violated:
+
+Block test save with error:
+
+"Total test duration must be greater than or equal to the sum of section durations."
+
+Also validate:
+
+sectionDuration must be positive.
+
+--------------------------------------------------
+
+4. Pause Test Backend Support
+
+Frontend shows "Failed to pause".
+
+Audit pause implementation.
+
+Ensure routes exist:
+
+POST /attempts/{id}/pause
+POST /attempts/{id}/resume
+
+Pause must:
+
+- create AttemptPause record
+- change AttemptStatus → PAUSED
+- freeze timers
+
+Resume must:
+
+- close pause event
+- extend endsAt by pause duration
+- change AttemptStatus → IN_PROGRESS
+
+--------------------------------------------------
+
+5. Section Metadata for Frontend
+
+Ensure student test API returns:
+
+sectionsEnabled
+subsectionsEnabled
+strictSectionMode
+sectionDuration
+timerMode
+
+Frontend uses these to render behaviour.
+
+--------------------------------------------------
+
+6. Schema Safety
+
+Do not introduce schema drift.
+
+Keep existing columns:
+
+User
+state
+gender
+
+AttemptAnswer
+selectedOptionId
+savedAt
+
+Question
+stem
+stemSecondary
+explanation
+explanationSecondary
+
+QuestionOption
+text
+textSecondary
+
+Do not rename these fields.
+
+--------------------------------------------------
+
+PHASE 1 — AUDIT
+
+Before implementing:
+
+Review:
+
+- prisma/schema.prisma
+- Test
+- TestSection
+- Attempt
+- AttemptPause
+- student test APIs
+
+Report:
+
+- whether strictSectionMode already exists
+- how timers stored
+- how sections linked
+
+--------------------------------------------------
+
+PHASE 2 — IMPLEMENT
+
+Add strict lock logic + timer validation.
+
+--------------------------------------------------
+
+PHASE 3 — TEST
+
+Verify:
+
+- sectional navigation
+- section submit
+- timer validation
+- pause/resume
+- no schema drift
+
+--------------------------------------------------
+
+OUTPUT
+
+Return:
+
+1. schema changes (if any)
+2. validation logic added
+3. section lock implementation
+4. pause/resume verification
+5. backward compatibility check

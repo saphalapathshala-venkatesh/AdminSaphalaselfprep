@@ -9,8 +9,8 @@ import { getStudentUserFromRequest } from "@/lib/studentAuth";
  * POST /api/student/attempts/[id]/resume
  *
  * Resumes a PAUSED attempt.
- * - Validates the attempt is PAUSED
  * - Closes the latest open AttemptPause event (sets resumedAt = now)
+ * - Extends Attempt.endsAt by the pause duration so the learner does not lose time
  * - Sets Attempt.status = IN_PROGRESS
  */
 export async function POST(
@@ -23,7 +23,7 @@ export async function POST(
   try {
     const attempt = await prisma.attempt.findUnique({
       where: { id: params.id },
-      select: { id: true, userId: true, status: true },
+      select: { id: true, userId: true, status: true, endsAt: true },
     });
 
     if (!attempt) return NextResponse.json({ error: "Attempt not found" }, { status: 404 });
@@ -43,23 +43,38 @@ export async function POST(
 
     const now = new Date();
 
+    // Extend endsAt by the duration of this pause so the learner doesn't lose time
+    let newEndsAt: Date | undefined;
+    if (openPause && attempt.endsAt) {
+      const pauseDurationMs = now.getTime() - openPause.pausedAt.getTime();
+      newEndsAt = new Date(attempt.endsAt.getTime() + pauseDurationMs);
+    }
+
     await prisma.$transaction([
-      // Close the open pause event if one exists
+      // Close the open pause event
       ...(openPause
         ? [prisma.attemptPause.update({
             where: { id: openPause.id },
             data: { resumedAt: now },
           })]
         : []),
-      // Set attempt back to IN_PROGRESS
+      // Restore IN_PROGRESS and extend timer
       prisma.attempt.update({
         where: { id: params.id },
-        data: { status: "IN_PROGRESS" },
+        data: {
+          status: "IN_PROGRESS",
+          ...(newEndsAt ? { endsAt: newEndsAt } : {}),
+        },
       }),
     ]);
 
     return NextResponse.json({
-      data: { attemptId: params.id, status: "IN_PROGRESS", resumedAt: now.toISOString() },
+      data: {
+        attemptId: params.id,
+        status: "IN_PROGRESS",
+        resumedAt: now.toISOString(),
+        ...(newEndsAt ? { endsAt: newEndsAt.toISOString() } : {}),
+      },
     });
   } catch (err) {
     console.error("[student/attempts/[id]/resume/POST]", err);

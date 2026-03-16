@@ -526,6 +526,7 @@ model Attempt {
   lockedSessionToken String?
   answers            AttemptAnswer[]
   pauseEvents        AttemptPause[]
+  sectionSubmits     AttemptSectionSubmit[]
   createdAt       DateTime           @default(now())
   @@index([userId, startedAt])
   @@index([testId, startedAt])
@@ -558,6 +559,18 @@ model AttemptPause {
   attempt   Attempt   @relation(fields: [attemptId], references: [id], onDelete: Cascade)
   pausedAt  DateTime  @default(now())
   resumedAt DateTime?
+  @@index([attemptId])
+}
+
+// Tracks per-section submissions in strict-section-mode tests
+// One row per (attempt, section) — unique enforced; idempotent on duplicate submit
+model AttemptSectionSubmit {
+  id          String   @id @default(cuid())
+  attemptId   String
+  attempt     Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  sectionId   String
+  submittedAt DateTime @default(now())
+  @@unique([attemptId, sectionId])
   @@index([attemptId])
 }
 
