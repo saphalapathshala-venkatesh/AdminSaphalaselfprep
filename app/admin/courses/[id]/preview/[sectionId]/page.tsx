@@ -8,7 +8,7 @@ import { ContentTypeIcon, contentTypeLabel } from "@/components/ui/ContentTypeIc
 import FlashcardPlayer from "@/components/ui/FlashcardPlayer";
 import EBookViewer from "@/components/ui/EBookViewer";
 
-type LessonItem = { id: string; itemType: string; sourceId: string; titleSnapshot: string | null; sortOrder: number; unlockAt: string | null; effectiveUnlockAt: string | null; isLocked: boolean };
+type LessonItem = { id: string; itemType: string; sourceId: string | null; titleSnapshot: string | null; sortOrder: number; unlockAt: string | null; effectiveUnlockAt: string | null; isLocked: boolean; externalUrl?: string | null; description?: string | null };
 type Lesson = { id: string; title: string; description: string | null; status: string; sortOrder: number; items: LessonItem[] };
 type Chapter = { id: string; title: string; description: string | null; sortOrder: number; lessons: Lesson[] };
 type Subject = { id: string; name: string };
@@ -94,6 +94,18 @@ export default function SubjectLearningPage() {
     setCompleted((prev) => ({ ...prev, [itemId]: true }));
   }
 
+  async function openExternalLink(item: LessonItem) {
+    if (item.isLocked || !item.externalUrl) return;
+    // Fire progress completion before opening
+    await fetch("/api/progress/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lessonItemId: item.id }),
+    });
+    setCompleted((prev) => ({ ...prev, [item.id]: true }));
+    window.open(item.externalUrl, "_blank", "noopener,noreferrer");
+  }
+
   function toggleChapter(id: string) {
     setExpandedChapters((prev) => {
       const next = new Set(prev);
@@ -142,7 +154,7 @@ export default function SubjectLearningPage() {
       {/* FlashcardPlayer Modal */}
       {flashcardItem && (
         <FlashcardPlayer
-          deckId={flashcardItem.sourceId}
+          deckId={flashcardItem.sourceId!}
           subjectColor={color}
           onComplete={() => { markComplete(flashcardItem.id); setFlashcardItem(null); }}
           onExit={() => setFlashcardItem(null)}
@@ -152,7 +164,7 @@ export default function SubjectLearningPage() {
       {/* EBookViewer Modal */}
       {ebookItem && !ebookLoading && (
         <EBookViewer
-          contentId={ebookItem.sourceId}
+          contentId={ebookItem.sourceId!}
           htmlContent={ebookHtml}
           title={ebookItem.titleSnapshot || "E-Book"}
           subjectColor={color}
@@ -363,6 +375,14 @@ export default function SubjectLearningPage() {
                           </div>
                         </div>
                         <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0, alignItems: "center" }}>
+                          {!isLocked && item.itemType === "EXTERNAL_LINK" && (
+                            <button
+                              onClick={() => openExternalLink(item)}
+                              style={{ padding: "0.4rem 0.875rem", borderRadius: 9, background: "#0369a1", color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: "0.8rem" }}
+                            >
+                              🌐 Open Resource
+                            </button>
+                          )}
                           {!isLocked && item.itemType === "FLASHCARD_DECK" && (
                             <button
                               onClick={() => setFlashcardItem(item)}
@@ -416,6 +436,13 @@ export default function SubjectLearningPage() {
                             {item.itemType === "PDF" && "📋 PDF Document — opens in protected PDF viewer"}
                             {item.itemType === "FLASHCARD_DECK" && "🃏 Flashcard Deck — opens in card player"}
                             {item.itemType === "LIVE_CLASS" && "🔴 Live Class — view schedule and join link"}
+                            {item.itemType === "EXTERNAL_LINK" && (
+                              <span>
+                                🌐 External Resource
+                                {item.description && <span style={{ display: "block", marginTop: "0.2rem", color: "#374151", fontStyle: "normal" }}>{item.description}</span>}
+                                {item.externalUrl && <span style={{ display: "block", marginTop: "0.1rem", color: "#0369a1", wordBreak: "break-all" }}>{item.externalUrl}</span>}
+                              </span>
+                            )}
                           </div>
                           {/* Subtle watermark */}
                           <div style={{

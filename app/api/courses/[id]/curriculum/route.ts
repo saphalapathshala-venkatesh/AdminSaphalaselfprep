@@ -51,7 +51,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   // For each LessonItem we compute:
   //   effectiveUnlockAt = LessonItem.unlockAt ?? sourceContent.unlockAt ?? null
   //   isLocked = effectiveUnlockAt !== null && effectiveUnlockAt > now
-  // We batch-fetch only the fields we need from source content tables.
+  // EXTERNAL_LINK items have no source content — they only use LessonItem.unlockAt.
+  // We guard against null sourceId before pushing into ID arrays.
 
   const videoIds: string[] = [];
   const htmlPageIds: string[] = [];
@@ -62,6 +63,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     for (const ch of sec.chapters) {
       for (const les of ch.lessons) {
         for (const item of les.items) {
+          if (!item.sourceId) continue; // EXTERNAL_LINK and future types with no source
           if (item.itemType === "VIDEO") videoIds.push(item.sourceId);
           else if (item.itemType === "HTML_PAGE") htmlPageIds.push(item.sourceId);
           else if (item.itemType === "PDF") pdfIds.push(item.sourceId);
@@ -87,7 +89,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   function enrichItems(items: typeof sections[0]["chapters"][0]["lessons"][0]["items"]) {
     return items.map((item) => {
-      const contentUnlockAt = contentUnlockMap[item.sourceId] ?? null;
+      // EXTERNAL_LINK: no source content, unlock is only from LessonItem.unlockAt
+      const contentUnlockAt = item.sourceId ? (contentUnlockMap[item.sourceId] ?? null) : null;
       const effectiveUnlockAt: Date | null = item.unlockAt ?? contentUnlockAt ?? null;
       const isLocked = effectiveUnlockAt !== null && effectiveUnlockAt > now;
       return { ...item, effectiveUnlockAt, isLocked };

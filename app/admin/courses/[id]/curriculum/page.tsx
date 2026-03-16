@@ -9,7 +9,7 @@ import { ContentTypeIcon, contentTypeLabel } from "@/components/ui/ContentTypeIc
 const PURPLE = "#7c3aed";
 
 type Subject = { id: string; name: string; categoryId: string };
-type LessonItem = { id: string; itemType: string; sourceId: string; titleSnapshot: string | null; sortOrder: number; unlockAt: string | null; effectiveUnlockAt: string | null; isLocked: boolean };
+type LessonItem = { id: string; itemType: string; sourceId: string | null; titleSnapshot: string | null; sortOrder: number; unlockAt: string | null; effectiveUnlockAt: string | null; isLocked: boolean; externalUrl?: string | null; description?: string | null };
 type Lesson = { id: string; title: string; description: string | null; status: string; sortOrder: number; items: LessonItem[] };
 type Chapter = { id: string; title: string; description: string | null; sortOrder: number; lessons: Lesson[] };
 type Section = { id: string; subjectId: string; label: string | null; subtitle: string | null; sortOrder: number; subject: Subject | null; chapters: Chapter[] };
@@ -48,6 +48,10 @@ export default function CurriculumPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [candidateSearch, setCandidateSearch] = useState("");
   const [candidatesLoading, setCandidatesLoading] = useState(false);
+  // External link form (used when addItemType === "EXTERNAL_LINK")
+  const [extLinkForm, setExtLinkForm] = useState({ title: "", url: "", description: "", unlockAt: "" });
+  const [extLinkSaving, setExtLinkSaving] = useState(false);
+  const [extLinkError, setExtLinkError] = useState("");
 
   // Form helpers
   const [chapterForm, setChapterForm] = useState({ title: "", description: "" });
@@ -291,7 +295,35 @@ export default function CurriculumPage() {
     if (c.hasHtmlCourse) types.push("HTML_PAGE");
     if (c.hasPdfCourse) types.push("PDF");
     if (c.hasFlashcardDecks) types.push("FLASHCARD_DECK");
+    // EXTERNAL_LINK is always available — it doesn't depend on course product flags
+    types.push("EXTERNAL_LINK");
     return types;
+  }
+
+  async function addExternalLinkItem() {
+    if (!addItemPanel) return;
+    setExtLinkError("");
+    if (!extLinkForm.url.trim()) { setExtLinkError("URL is required"); return; }
+    try { new URL(extLinkForm.url.trim()); } catch { setExtLinkError("Invalid URL — must be a valid absolute URL (e.g. https://example.com)"); return; }
+    if (!extLinkForm.title.trim()) { setExtLinkError("Title is required"); return; }
+    setExtLinkSaving(true);
+    const res = await fetch(`/api/lessons/${addItemPanel.lessonId}/items`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        itemType: "EXTERNAL_LINK",
+        titleSnapshot: extLinkForm.title.trim(),
+        externalUrl: extLinkForm.url.trim(),
+        description: extLinkForm.description.trim() || null,
+        unlockAt: extLinkForm.unlockAt || null,
+      }),
+    });
+    const d = await res.json();
+    setExtLinkSaving(false);
+    if (!res.ok) { setExtLinkError(d.error || "Failed to add external link"); return; }
+    setExtLinkForm({ title: "", url: "", description: "", unlockAt: "" });
+    setAddItemPanel(null);
+    await load();
   }
 
   function toggleSection(id: string) {
@@ -487,9 +519,12 @@ export default function CurriculumPage() {
                                           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.375rem 0.625rem" }}>
                                             <ContentTypeIcon type={item.itemType as "VIDEO"} size={28} />
                                             <div style={{ flex: 1, minWidth: 0 }}>
-                                              <div style={{ fontWeight: 600, fontSize: "0.825rem", color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.titleSnapshot || item.sourceId}</div>
-                                              <div style={{ fontSize: "0.7rem", color: "#94a3b8", display: "flex", alignItems: "center", gap: "0.375rem" }}>
+                                              <div style={{ fontWeight: 600, fontSize: "0.825rem", color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.titleSnapshot || (item.itemType === "EXTERNAL_LINK" ? item.externalUrl : item.sourceId)}</div>
+                                              <div style={{ fontSize: "0.7rem", color: "#94a3b8", display: "flex", alignItems: "center", gap: "0.375rem", flexWrap: "wrap" }}>
                                                 {contentTypeLabel(item.itemType as "VIDEO")}
+                                                {item.itemType === "EXTERNAL_LINK" && item.externalUrl && (
+                                                  <span style={{ color: "#0369a1", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 160, display: "inline-block", verticalAlign: "middle" }}>{item.externalUrl}</span>
+                                                )}
                                                 {hasEffectiveLock && (
                                                   <span style={{ color: "#7c3aed", fontWeight: 700 }}>
                                                     · 🔒 {hasItemLock ? "Item unlock:" : "Content unlock:"} {new Date(item.effectiveUnlockAt!).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
@@ -668,8 +703,8 @@ export default function CurriculumPage() {
               {itemTypes.length === 0 && <div style={{ fontSize: "0.8rem", color: "#94a3b8" }}>No types enabled for this course.</div>}
             </div>
 
-            {/* Search */}
-            {addItemType && (
+            {/* Search (only for content types that use the candidate picker) */}
+            {addItemType && addItemType !== "EXTERNAL_LINK" && (
               <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
                 <input
                   value={candidateSearch}
@@ -680,29 +715,72 @@ export default function CurriculumPage() {
               </div>
             )}
 
-            {/* Candidate list */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "0.75rem" }}>
-              {!addItemType && <div style={{ color: "#94a3b8", fontSize: "0.875rem", padding: "0.75rem" }}>Select a content type above.</div>}
-              {addItemType && candidatesLoading && <div style={{ color: "#94a3b8", fontSize: "0.875rem", padding: "0.75rem" }}>Loading…</div>}
-              {addItemType && !candidatesLoading && candidates.length === 0 && (
-                <div style={{ color: "#94a3b8", fontSize: "0.875rem", padding: "0.75rem" }}>No available {contentTypeLabel(addItemType as "VIDEO")} items found.</div>
-              )}
-              {addItemType && !candidatesLoading && candidates.map((c) => (
-                <div key={c.id} style={{ display: "flex", alignItems: "center", gap: "0.625rem", padding: "0.625rem", borderRadius: 10, border: "1px solid #f1f5f9", background: "#fff", marginBottom: "0.375rem" }}>
-                  <ContentTypeIcon type={c.itemType as "VIDEO"} size={32} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.title}</div>
-                    <div style={{ fontSize: "0.72rem", color: "#94a3b8" }}>{contentTypeLabel(c.itemType as "VIDEO")}</div>
-                  </div>
-                  <button
-                    onClick={() => addLessonItem(c)}
-                    style={{ padding: "0.3rem 0.625rem", borderRadius: 7, background: PURPLE, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0 }}
-                  >
-                    Add
-                  </button>
+            {/* External Link form */}
+            {addItemType === "EXTERNAL_LINK" && (
+              <div style={{ flex: 1, overflowY: "auto", padding: "1rem" }}>
+                <div style={{ fontSize: "0.8rem", color: "#64748b", marginBottom: "1rem" }}>
+                  Attach any external resource (article, YouTube, report, etc.) directly inside this lesson.
                 </div>
-              ))}
-            </div>
+                {extLinkError && (
+                  <div style={{ background: "#fee2e2", color: "#991b1b", padding: "0.5rem 0.75rem", borderRadius: 6, fontSize: "0.8rem", marginBottom: "0.75rem" }}>
+                    {extLinkError}
+                  </div>
+                )}
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: "0.25rem" }}>Title *</label>
+                  <input value={extLinkForm.title} onChange={e => setExtLinkForm(f => ({ ...f, title: e.target.value }))}
+                    placeholder="e.g. Official NCERT Chapter 5"
+                    style={{ width: "100%", padding: "0.45rem 0.75rem", border: "1px solid #d1d5db", borderRadius: 8, fontSize: "0.875rem", boxSizing: "border-box" }} />
+                </div>
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: "0.25rem" }}>URL *</label>
+                  <input value={extLinkForm.url} onChange={e => setExtLinkForm(f => ({ ...f, url: e.target.value }))}
+                    placeholder="https://example.com/resource"
+                    style={{ width: "100%", padding: "0.45rem 0.75rem", border: "1px solid #d1d5db", borderRadius: 8, fontSize: "0.875rem", boxSizing: "border-box" }} />
+                </div>
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: "0.25rem" }}>Description (optional)</label>
+                  <textarea value={extLinkForm.description} onChange={e => setExtLinkForm(f => ({ ...f, description: e.target.value }))}
+                    placeholder="What will students find here?"
+                    style={{ width: "100%", padding: "0.45rem 0.75rem", border: "1px solid #d1d5db", borderRadius: 8, fontSize: "0.875rem", boxSizing: "border-box", minHeight: 70, resize: "vertical" }} />
+                </div>
+                <div style={{ marginBottom: "1rem" }}>
+                  <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: "0.25rem" }}>Unlock Date (optional)</label>
+                  <input type="datetime-local" value={extLinkForm.unlockAt} onChange={e => setExtLinkForm(f => ({ ...f, unlockAt: e.target.value }))}
+                    style={{ width: "100%", padding: "0.45rem 0.75rem", border: "1px solid #d1d5db", borderRadius: 8, fontSize: "0.875rem", boxSizing: "border-box" }} />
+                </div>
+                <button onClick={addExternalLinkItem} disabled={extLinkSaving}
+                  style={{ width: "100%", padding: "0.625rem", borderRadius: 8, background: PURPLE, color: "#fff", border: "none", cursor: extLinkSaving ? "not-allowed" : "pointer", fontWeight: 700, fontSize: "0.9rem", opacity: extLinkSaving ? 0.6 : 1 }}>
+                  {extLinkSaving ? "Adding…" : "🌐 Add External Link"}
+                </button>
+              </div>
+            )}
+
+            {/* Candidate list (all types except EXTERNAL_LINK) */}
+            {addItemType !== "EXTERNAL_LINK" && (
+              <div style={{ flex: 1, overflowY: "auto", padding: "0.75rem" }}>
+                {!addItemType && <div style={{ color: "#94a3b8", fontSize: "0.875rem", padding: "0.75rem" }}>Select a content type above.</div>}
+                {addItemType && candidatesLoading && <div style={{ color: "#94a3b8", fontSize: "0.875rem", padding: "0.75rem" }}>Loading…</div>}
+                {addItemType && !candidatesLoading && candidates.length === 0 && (
+                  <div style={{ color: "#94a3b8", fontSize: "0.875rem", padding: "0.75rem" }}>No available {contentTypeLabel(addItemType as "VIDEO")} items found.</div>
+                )}
+                {addItemType && !candidatesLoading && candidates.map((c) => (
+                  <div key={c.id} style={{ display: "flex", alignItems: "center", gap: "0.625rem", padding: "0.625rem", borderRadius: 10, border: "1px solid #f1f5f9", background: "#fff", marginBottom: "0.375rem" }}>
+                    <ContentTypeIcon type={c.itemType as "VIDEO"} size={32} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.title}</div>
+                      <div style={{ fontSize: "0.72rem", color: "#94a3b8" }}>{contentTypeLabel(c.itemType as "VIDEO")}</div>
+                    </div>
+                    <button
+                      onClick={() => addLessonItem(c)}
+                      style={{ padding: "0.3rem 0.625rem", borderRadius: 7, background: PURPLE, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0 }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

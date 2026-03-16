@@ -1011,6 +1011,7 @@ enum CourseItemType {
   FLASHCARD_DECK
   HTML_PAGE
   QUIZ
+  EXTERNAL_LINK
 }
 
 enum LessonStatus {
@@ -1221,13 +1222,17 @@ model LessonItem {
   lessonId      String
   lesson        Lesson         @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   itemType      CourseItemType
-  sourceId      String
+  // sourceId is null for EXTERNAL_LINK items (no source content record in DB)
+  sourceId      String?
   titleSnapshot String?
   sortOrder     Int            @default(0)
   // unlockAt: overrides the content-level unlockAt for this specific course item.
   // Effective logic: LessonItem.unlockAt ?? sourceContent.unlockAt ?? null
   // null = no LessonItem-level restriction (falls back to content-level or open immediately)
   unlockAt      DateTime?
+  // EXTERNAL_LINK fields (only populated when itemType = EXTERNAL_LINK)
+  externalUrl   String?
+  description   String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   completions   UserItemCompletion[]

@@ -18,6 +18,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   });
   const excludeMap: Record<string, string[]> = {};
   for (const e of existing) {
+    if (!e.sourceId) continue; // EXTERNAL_LINK items have no sourceId
     if (!excludeMap[e.itemType]) excludeMap[e.itemType] = [];
     excludeMap[e.itemType].push(e.sourceId);
   }

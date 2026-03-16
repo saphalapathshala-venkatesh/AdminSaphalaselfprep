@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
-async function getContentUnlockAt(itemType: string, sourceId: string): Promise<Date | null> {
+async function getContentUnlockAt(itemType: string, sourceId: string | null): Promise<Date | null> {
+  // EXTERNAL_LINK and any future types without a source record have no content-level unlock
+  if (!sourceId) return null;
+
   if (itemType === "VIDEO") {
     const r = await prisma.video.findUnique({ where: { id: sourceId }, select: { unlockAt: true } });
     return r?.unlockAt ?? null;
@@ -35,6 +38,7 @@ export async function POST(req: NextRequest) {
   if (!item) return NextResponse.json({ error: "Item not found" }, { status: 404 });
 
   // Effective unlock: LessonItem.unlockAt ?? sourceContent.unlockAt ?? null
+  // sourceId is null for EXTERNAL_LINK — getContentUnlockAt handles that gracefully
   const contentUnlockAt = await getContentUnlockAt(item.itemType, item.sourceId);
   const effectiveUnlockAt: Date | null = item.unlockAt ?? contentUnlockAt ?? null;
 

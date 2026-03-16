@@ -7,11 +7,24 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string; 
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { unlockAt, titleSnapshot } = body;
+  const { unlockAt, titleSnapshot, externalUrl, description } = body;
 
   const data: Record<string, unknown> = {};
   if (unlockAt !== undefined) data.unlockAt = unlockAt ? new Date(unlockAt) : null;
   if (titleSnapshot !== undefined) data.titleSnapshot = titleSnapshot || null;
+  if (externalUrl !== undefined) {
+    if (externalUrl) {
+      try {
+        new URL(externalUrl.trim());
+      } catch {
+        return NextResponse.json({ error: "Invalid URL — must be a valid absolute URL" }, { status: 400 });
+      }
+      data.externalUrl = externalUrl.trim();
+    } else {
+      data.externalUrl = null;
+    }
+  }
+  if (description !== undefined) data.description = description?.trim() || null;
 
   if (Object.keys(data).length === 0) return NextResponse.json({ error: "No fields to update" }, { status: 400 });
 

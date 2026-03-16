@@ -2,7 +2,7 @@
 
 import React from "react";
 
-type ItemType = "VIDEO" | "LIVE_CLASS" | "PDF" | "FLASHCARD_DECK" | "HTML_PAGE" | "TEST";
+type ItemType = "VIDEO" | "LIVE_CLASS" | "PDF" | "FLASHCARD_DECK" | "HTML_PAGE" | "TEST" | "EXTERNAL_LINK";
 
 interface ContentTypeIconProps {
   type: ItemType;
@@ -101,6 +101,20 @@ export function ContentTypeIcon({ type, size = 36, color }: ContentTypeIconProps
         </svg>
       );
 
+    case "EXTERNAL_LINK":
+      return (
+        <svg width={s} height={s} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="36" height="36" rx="8" fill={color || "#0369a1"} fillOpacity="0.12" />
+          <circle cx="18" cy="18" r="9" stroke={color || "#0369a1"} strokeWidth="1.4" fill="none" />
+          <ellipse cx="18" cy="18" rx="4.5" ry="9" stroke={color || "#0369a1"} strokeWidth="1.2" fill="none" />
+          <line x1="9" y1="18" x2="27" y2="18" stroke={color || "#0369a1"} strokeWidth="1.2" />
+          <line x1="10" y1="14" x2="26" y2="14" stroke={color || "#0369a1"} strokeWidth="1" />
+          <line x1="10" y1="22" x2="26" y2="22" stroke={color || "#0369a1"} strokeWidth="1" />
+          <polyline points="22,11 26,11 26,15" stroke={color || "#0369a1"} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+          <line x1="22" y1="15" x2="26" y2="11" stroke={color || "#0369a1"} strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+      );
+
     default:
       return (
         <svg width={s} height={s} viewBox="0 0 36 36" fill="none">
@@ -119,6 +133,7 @@ export function contentTypeLabel(type: ItemType): string {
     case "HTML_PAGE": return "E-Book";
     case "FLASHCARD_DECK": return "Flashcard Deck";
     case "TEST": return "Test";
+    case "EXTERNAL_LINK": return "External Link";
     default: return type;
   }
 }

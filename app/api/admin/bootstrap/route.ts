@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { validateNewPassword } from "@/lib/safetyChecks";
 
 export async function POST(req: NextRequest) {
   const key = req.headers.get("x-bootstrap-key");
@@ -20,6 +21,11 @@ export async function POST(req: NextRequest) {
       { error: "Missing ADMIN_SEED_EMAIL or ADMIN_SEED_PASSWORD" },
       { status: 500 }
     );
+  }
+
+  const pwError = validateNewPassword(password);
+  if (pwError) {
+    return NextResponse.json({ error: `ADMIN_SEED_PASSWORD: ${pwError}` }, { status: 400 });
   }
 
   try {

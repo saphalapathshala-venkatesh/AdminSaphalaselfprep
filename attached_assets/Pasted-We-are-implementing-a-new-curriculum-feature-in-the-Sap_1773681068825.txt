@@ -1,0 +1,299 @@
+We are implementing a new curriculum feature in the Saphala Self Prep platform.
+
+This feature allows adding an EXTERNAL_LINK as a LessonItem inside the course curriculum.
+
+The goal is to allow instructors to attach external learning resources (articles, YouTube, government reports, etc.) directly inside lessons.
+
+IMPORTANT RULES
+Do not modify unrelated systems.
+Do not change TestHub, XP, analytics, question bank, entitlements, or payment logic.
+This feature must integrate cleanly with the existing curriculum system and unlockAt mechanism.
+
+Follow the steps below carefully.
+
+--------------------------------------------------
+
+STEP 1 — AUDIT BEFORE CHANGES
+
+Before making changes, read these files fully to understand the architecture:
+
+- prisma/schema.prisma
+- app/api/lessons/[id]/items/route.ts
+- app/api/lessons/[id]/items/[itemId]/route.ts
+- app/api/courses/[id]/curriculum/route.ts
+- app/api/progress/complete/route.ts
+- app/admin/courses/[id]/curriculum/page.tsx
+- app/admin/courses/[id]/preview/[sectionId]/page.tsx
+
+Understand:
+
+• LessonItem structure
+• CourseItemType enum
+• unlockAt logic
+• effectiveUnlockAt calculation
+• progress tracking flow
+• how lesson items render in preview
+
+Do NOT modify behavior for existing item types.
+
+--------------------------------------------------
+
+STEP 2 — ENUM UPDATE
+
+Extend the CourseItemType enum.
+
+Add:
+
+EXTERNAL_LINK
+
+Final enum should be:
+
+VIDEO
+LIVE_CLASS
+PDF
+FLASHCARD_DECK
+HTML_PAGE
+EXTERNAL_LINK
+
+After editing schema run:
+
+npx prisma generate
+
+If enum requires migration, apply the safest additive migration.
+
+--------------------------------------------------
+
+STEP 3 — SCHEMA UPDATE
+
+Extend LessonItem model.
+
+Add fields:
+
+externalUrl   String?
+description   String?
+
+Result:
+
+model LessonItem {
+  id            String   @id @default(cuid())
+  lessonId      String
+  itemType      CourseItemType
+  sourceId      String?
+  titleSnapshot String
+  sortOrder     Int
+
+  unlockAt      DateTime?
+
+  externalUrl   String?
+  description   String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+Rules:
+
+If itemType = EXTERNAL_LINK
+
+sourceId must be null
+externalUrl must exist
+
+Run:
+
+npx prisma generate
+
+Do NOT drop any columns.
+
+--------------------------------------------------
+
+STEP 4 — CREATE ITEM API
+
+Modify:
+
+POST /api/lessons/[id]/items
+
+Add support for EXTERNAL_LINK.
+
+Behavior:
+
+If itemType === "EXTERNAL_LINK"
+
+• Validate externalUrl exists
+• Validate URL format using new URL()
+• Set sourceId = null
+• Save externalUrl and description
+
+Example validation:
+
+try {
+  new URL(externalUrl)
+} catch {
+  return error "Invalid URL"
+}
+
+Ensure unlockAt continues working.
+
+--------------------------------------------------
+
+STEP 5 — CURRICULUM API
+
+Modify:
+
+GET /api/courses/[id]/curriculum
+
+Ensure EXTERNAL_LINK items return:
+
+{
+ id
+ itemType
+ titleSnapshot
+ externalUrl
+ description
+ unlockAt
+ effectiveUnlockAt
+ isLocked
+}
+
+Do not attempt to fetch external content.
+
+Keep existing unlock logic:
+
+effectiveUnlockAt =
+LessonItem.unlockAt ?? sourceContent.unlockAt ?? null
+
+EXTERNAL_LINK will only use LessonItem.unlockAt.
+
+--------------------------------------------------
+
+STEP 6 — ADMIN CURRICULUM BUILDER
+
+File:
+
+app/admin/courses/[id]/curriculum/page.tsx
+
+Add "External Link" option to Add Item menu.
+
+When selected show inputs:
+
+Title
+External URL
+Description (optional)
+Unlock Date (existing field)
+
+Save using existing lesson item API.
+
+Display icon for external link:
+
+🌐
+
+Show lock badge if unlockAt set.
+
+--------------------------------------------------
+
+STEP 7 — STUDENT PREVIEW PAGE
+
+File:
+
+app/admin/courses/[id]/preview/[sectionId]/page.tsx
+
+Add handling for itemType === "EXTERNAL_LINK".
+
+Render:
+
+🌐 Title
+External Resource
+
+Button:
+
+Open Resource
+
+Click behavior:
+
+window.open(externalUrl, "_blank", "noopener,noreferrer")
+
+Before opening:
+
+Call progress completion API.
+
+await fetch("/api/progress/complete", {
+ method: "POST",
+ body: JSON.stringify({ lessonItemId: item.id })
+})
+
+If item is locked:
+
+Disable button
+Show:
+
+🔒 Locked — Unlocks on [date]
+
+--------------------------------------------------
+
+STEP 8 — PROGRESS API
+
+Confirm that:
+
+POST /api/progress/complete
+
+accepts LessonItem regardless of type.
+
+No special logic needed for EXTERNAL_LINK.
+
+Completion is triggered on click.
+
+--------------------------------------------------
+
+STEP 9 — TYPE SAFETY
+
+Update TypeScript types used in:
+
+curriculum page
+preview page
+LessonItem interface
+
+Add:
+
+externalUrl?: string
+description?: string
+
+Ensure build passes.
+
+Run:
+
+npx tsc --noEmit
+
+--------------------------------------------------
+
+STEP 10 — TESTING
+
+After implementation verify:
+
+Admin side:
+
+• Create lesson
+• Add External Link item
+• Save successfully
+• Unlock date works
+• Edit works
+
+Student preview:
+
+• External link appears correctly
+• Locked items cannot open
+• Clicking opens new tab
+• Completion API fires
+• Course progress updates
+
+--------------------------------------------------
+
+FINAL OUTPUT REQUIRED
+
+Provide:
+
+1. Files changed
+2. Prisma schema diff
+3. API modifications
+4. Admin UI changes
+5. Preview UI changes
+6. Confirmation TypeScript build passes
+7. Confirmation unlock logic works
