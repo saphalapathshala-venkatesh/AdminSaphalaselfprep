@@ -1,3 +1,29 @@
+// =============================================================================
+// SCHEMA FREEZE NOTICE — DO NOT MODIFY DESTRUCTIVELY
+// -----------------------------------------------------------------------------
+// Audit date : 2026-03-16
+// Auditor    : Production Stability Audit (pre-launch)
+// Status     : LAUNCH-FROZEN until Saphala Self Prep goes live.
+//
+// This schema is shared by TWO production apps on ONE Neon PostgreSQL database:
+//   1. Saphala Self Prep Admin Console (this repo)
+//   2. Saphala Self Prep Student Frontend (separate repo)
+//
+// RULES (enforced until post-launch):
+//   ✗ Never use --accept-data-loss with db push
+//   ✗ Never drop columns or tables
+//   ✗ Never rename columns
+//   ✗ Never change column types
+//   ✓ Additive changes only (new nullable columns with defaults are OK)
+//   ✓ Always use ALTER TABLE ... ADD COLUMN IF NOT EXISTS for hotfixes
+//
+// AUDIT RESULT (2026-03-16):
+//   All columns in User, Session, Attempt, AttemptAnswer, Question,
+//   QuestionOption, Test, TestSeries, UserEntitlement, TestQuestion, and
+//   TestSection are 100% aligned between Prisma schema and live DB.
+//   Zero columns missing. Zero columns to restore.
+// =============================================================================
+
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "rhel-openssl-3.0.x", "linux-arm64-openssl-3.0.x"]
@@ -199,6 +225,7 @@ model User {
   @@index([isBlocked])
   @@index([deletedAt])
 }
+// FROZEN — shared with student frontend; do not add/drop/rename columns
 model Session {
   id         String      @id @default(cuid())
   userId     String
@@ -213,7 +240,7 @@ model Session {
   @@index([userId, type])
   @@index([expiresAt])
 }
-// ENTITLEMENTS (LOCKED TABLE + FIELDS)
+// ENTITLEMENTS — FROZEN; shared with student frontend; do not add/drop/rename columns
 model UserEntitlement {
   id           String            @id @default(cuid())
   userId       String
@@ -462,6 +489,7 @@ model TestQuestion {
   @@index([sectionId, order])
 }
 // ATTEMPTS + RAPID REINFORCEMENT
+// FROZEN — shared with student frontend; do not add/drop/rename columns
 model Attempt {
   id          String   @id @default(cuid())
   userId      String
@@ -480,6 +508,7 @@ model Attempt {
   @@index([userId, startedAt])
   @@index([testId, startedAt])
 }
+// FROZEN — shared with student frontend; do not add/drop/rename columns
 model AttemptAnswer {
   id         String   @id @default(cuid())
   attemptId  String
