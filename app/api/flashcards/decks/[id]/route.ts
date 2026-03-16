@@ -18,7 +18,7 @@ export async function PUT(
 
     const body = await req.json();
     const { title, subtitle, description, categoryId, examId, subjectId, topicId, subtopicId,
-            titleTemplate, titleImageUrl, subjectColor, isPublished, xpEnabled, xpValue } = body;
+            titleTemplate, titleImageUrl, subjectColor, isPublished, xpEnabled, xpValue, unlockAt } = body;
 
     const data: any = {};
     if (title !== undefined) data.title = title.trim();
@@ -35,6 +35,7 @@ export async function PUT(
     if (isPublished !== undefined) data.isPublished = isPublished;
     if (xpEnabled !== undefined) data.xpEnabled = xpEnabled === true;
     if (xpValue !== undefined) data.xpValue = Math.max(0, parseInt(xpValue) || 0);
+    if (unlockAt !== undefined) data.unlockAt = unlockAt ? new Date(unlockAt) : null;
 
     const updated = await prisma.flashcardDeck.update({
       where: { id: params.id },

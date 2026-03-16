@@ -1433,7 +1433,7 @@ export default function TestsPage() {
   const [testId, setTestId] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(false);
   const [createStep, setCreateStep] = useState<1 | 2>(1);
-  const [form, setForm] = useState({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", totalQuestions: "", marksPerQuestion: "", negativeMarksPerQuestion: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", examId: "", xpEnabled: false, xpValue: "0", testStartTime: "", isFree: false });
+  const [form, setForm] = useState({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", totalQuestions: "", marksPerQuestion: "", negativeMarksPerQuestion: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", examId: "", xpEnabled: false, xpValue: "0", testStartTime: "", unlockAt: "", isFree: false });
   const [hasSectionsManual, setHasSectionsManual] = useState(false);
   const [sectionPresetOpen, setSectionPresetOpen] = useState<number | null>(null);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
@@ -1490,7 +1490,7 @@ export default function TestsPage() {
 
   function openCreate() {
     setTestId(null); setIsPublished(false); setCreateStep(1);
-    setForm({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", totalQuestions: "", marksPerQuestion: "", negativeMarksPerQuestion: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", examId: "", xpEnabled: false, xpValue: "0", testStartTime: "", isFree: false });
+    setForm({ title: "", instructions: "", mode: "TIMED", isTimed: true, durationSec: "", totalQuestions: "", marksPerQuestion: "", negativeMarksPerQuestion: "", allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false, shuffleGroups: false, shuffleGroupChildren: false, seriesId: "", categoryId: "", examId: "", xpEnabled: false, xpValue: "0", testStartTime: "", unlockAt: "", isFree: false });
     setHasSectionsManual(true);
     setSections([]); setTestQuestions([]); setValidation(null);
     setView("builder");
@@ -1503,7 +1503,7 @@ export default function TestsPage() {
       if (!res.ok) { showToast(d.error || "Failed", "error"); return; }
       const t: TestDetail = d.data;
       setTestId(t.id); setIsPublished(t.isPublished);
-      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(Math.round(t.durationSec / 60)) : "", totalQuestions: t.totalQuestions ? String(t.totalQuestions) : "", marksPerQuestion: t.marksPerQuestion != null ? String(t.marksPerQuestion) : "", negativeMarksPerQuestion: t.negativeMarksPerQuestion != null ? String(t.negativeMarksPerQuestion) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, shuffleQuestions: t.shuffleQuestions, shuffleOptions: t.shuffleOptions, shuffleGroups: t.shuffleGroups, shuffleGroupChildren: t.shuffleGroupChildren, seriesId: t.seriesId || "", categoryId: t.categoryId || "", examId: t.examId || "", xpEnabled: !!t.xpEnabled, xpValue: t.xpValue != null ? String(t.xpValue) : "0", testStartTime: t.testStartTime ? t.testStartTime.slice(0, 16) : "", isFree: !!t.isFree });
+      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(Math.round(t.durationSec / 60)) : "", totalQuestions: t.totalQuestions ? String(t.totalQuestions) : "", marksPerQuestion: t.marksPerQuestion != null ? String(t.marksPerQuestion) : "", negativeMarksPerQuestion: t.negativeMarksPerQuestion != null ? String(t.negativeMarksPerQuestion) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, shuffleQuestions: t.shuffleQuestions, shuffleOptions: t.shuffleOptions, shuffleGroups: t.shuffleGroups, shuffleGroupChildren: t.shuffleGroupChildren, seriesId: t.seriesId || "", categoryId: t.categoryId || "", examId: t.examId || "", xpEnabled: !!t.xpEnabled, xpValue: t.xpValue != null ? String(t.xpValue) : "0", testStartTime: t.testStartTime ? t.testStartTime.slice(0, 16) : "", unlockAt: (t as any).unlockAt ? (t as any).unlockAt.slice(0, 16) : "", isFree: !!t.isFree });
       setHasSectionsManual(t.sections.length > 0 || ["SECTIONAL", "MULTI_SECTION"].includes(t.mode));
       const flatSecs: SectionState[] = t.sections.map((s, i) => {
         const parentIndex = s.parentSectionId ? t.sections.findIndex(p => p.id === s.parentSectionId) : null;
@@ -1537,6 +1537,7 @@ export default function TestsPage() {
         seriesId: form.seriesId || null, categoryId: form.categoryId || null, examId: form.examId || null,
         xpEnabled: form.xpEnabled, xpValue: parseInt(form.xpValue) || 0,
         testStartTime: form.testStartTime || null,
+        unlockAt: form.unlockAt || null,
         isFree: form.isFree,
         sections: sections.map(s => ({ title: s.title, durationSec: s.durationSec ? String(parseInt(s.durationSec) * 60) : null, targetCount: s.targetCount || null, parentIndex: s.parentIndex })),
         questions: testQuestions.map(q => ({ questionId: q.questionId, sectionIndex: q.sectionIndex, marks: q.marks, negativeMarks: q.negativeMarks })),
@@ -1854,6 +1855,11 @@ export default function TestsPage() {
                   <div>
                     <label style={lbl}>Scheduled Start Time <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: "0.72rem" }}>(optional)</span></label>
                     <input type="datetime-local" value={form.testStartTime} onChange={e => setForm({ ...form, testStartTime: e.target.value })} style={inp} />
+                  </div>
+                  <div>
+                    <label style={lbl}>Unlock At <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: "0.72rem" }}>(optional — blocks access before this time)</span></label>
+                    <input type="datetime-local" value={form.unlockAt} onChange={e => setForm({ ...form, unlockAt: e.target.value })} style={inp} />
+                    {form.unlockAt && <p style={{ margin: "3px 0 0", fontSize: "0.7rem", color: "#7c3aed" }}>Access gated until {new Date(form.unlockAt).toLocaleString()}</p>}
                   </div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem" }}>

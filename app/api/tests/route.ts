@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     const { title, instructions, mode, isTimed, durationSec, totalQuestions, marksPerQuestion, negativeMarksPerQuestion,
             allowPause, strictSectionMode,
             shuffleQuestions, shuffleOptions, shuffleGroups, shuffleGroupChildren, seriesId,
-            sections, questions, xpEnabled, xpValue, testStartTime, isFree } = body;
+            sections, questions, xpEnabled, xpValue, testStartTime, isFree, unlockAt } = body;
     let { categoryId, examId } = body;
 
     if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -102,6 +102,7 @@ export async function POST(req: NextRequest) {
           xpValue: xpValue !== undefined ? Math.max(0, parseInt(xpValue) || 0) : 0,
           testStartTime: testStartTime ? new Date(testStartTime) : null,
           isFree: isFree === true,
+          unlockAt: unlockAt ? new Date(unlockAt) : null,
           createdById: user.id,
         },
       });
@@ -181,7 +182,7 @@ export async function PUT(req: NextRequest) {
     const { id, title, instructions, mode, isTimed, durationSec, totalQuestions, marksPerQuestion, negativeMarksPerQuestion,
             allowPause, strictSectionMode,
             shuffleQuestions, shuffleOptions, shuffleGroups, shuffleGroupChildren,
-            seriesId, sections, questions, xpEnabled, xpValue, testStartTime, isFree } = body;
+            seriesId, sections, questions, xpEnabled, xpValue, testStartTime, isFree, unlockAt } = body;
     let { categoryId, examId } = body;
 
     if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
@@ -231,6 +232,7 @@ export async function PUT(req: NextRequest) {
           xpValue: xpValue !== undefined ? Math.max(0, parseInt(xpValue) || 0) : existing.xpValue,
           testStartTime: testStartTime !== undefined ? (testStartTime ? new Date(testStartTime) : null) : existing.testStartTime,
           isFree: isFree !== undefined ? isFree === true : existing.isFree,
+          unlockAt: unlockAt !== undefined ? (unlockAt ? new Date(unlockAt) : null) : existing.unlockAt,
         },
       });
 

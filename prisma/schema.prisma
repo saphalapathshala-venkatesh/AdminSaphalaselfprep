@@ -446,7 +446,15 @@ model Test {
   negativeMarksPerQuestion Float?
   isFree               Boolean  @default(false)
   isPublished          Boolean  @default(false)
-  publishedAt    DateTime?
+  publishedAt          DateTime?
+  // unlockAt: students cannot access this test before this datetime (null = no unlock restriction)
+  unlockAt             DateTime?
+  // Student-frontend columns — DO NOT DROP
+  code                 String?  @unique
+  attemptsAllowed      Int      @default(2)
+  languageAvailable    LanguageAvailable @default(BOTH)
+  subjectIds           String[] @default([])
+  syllabusTags         String[] @default([])
   createdById    String
   createdBy      User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
   createdAt      DateTime @default(now())
@@ -491,33 +499,43 @@ model TestQuestion {
 // ATTEMPTS + RAPID REINFORCEMENT
 // FROZEN — shared with student frontend; do not add/drop/rename columns
 model Attempt {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  testId      String
-  test        Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
-  startedAt   DateTime @default(now())
-  submittedAt DateTime?
-  scorePct    Float    @default(0)
-  correctCount Int     @default(0)
-  wrongCount   Int     @default(0)
-  unansweredCount Int  @default(0)
-  rrGenerated Boolean  @default(false)
-  answers     AttemptAnswer[]
-  createdAt   DateTime @default(now())
+  id              String             @id @default(cuid())
+  userId          String
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  testId          String
+  test            Test               @relation(fields: [testId], references: [id], onDelete: Cascade)
+  startedAt       DateTime           @default(now())
+  submittedAt     DateTime?
+  scorePct        Float              @default(0)
+  correctCount    Int                @default(0)
+  wrongCount      Int                @default(0)
+  unansweredCount Int                @default(0)
+  rrGenerated     Boolean            @default(false)
+  // Student-frontend columns — DO NOT DROP
+  attemptNumber   Int                @default(1)
+  language        LanguageAvailable  @default(EN)
+  status          AttemptStatus      @default(IN_PROGRESS)
+  totalTimeUsedMs Int                @default(0)
+  answers         AttemptAnswer[]
+  createdAt       DateTime           @default(now())
   @@index([userId, startedAt])
   @@index([testId, startedAt])
 }
 // FROZEN — shared with student frontend; do not add/drop/rename columns
 model AttemptAnswer {
-  id         String   @id @default(cuid())
-  attemptId  String
-  attempt    Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  questionId String
-  question   Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  id                String   @id @default(cuid())
+  attemptId         String
+  attempt           Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId        String
+  question          Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
   selectedOptionIds String[] @default([])
-  isCorrect  Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  isCorrect         Boolean  @default(false)
+  // Student-frontend columns — DO NOT DROP
+  isMarkedForReview Boolean  @default(false)
+  timeSpentMs       Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  @@unique([attemptId, questionId])
   @@index([attemptId])
   @@index([questionId])
 }
@@ -539,6 +557,8 @@ model FlashcardDeck {
   xpEnabled      Boolean  @default(false)
   xpValue        Int      @default(0)
   isPublished    Boolean  @default(false)
+  // unlockAt: students cannot access this deck before this datetime (null = no unlock restriction)
+  unlockAt       DateTime?
   createdById    String
   createdBy      User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
   createdAt      DateTime @default(now())
@@ -595,6 +615,8 @@ model ContentPage {
   xpValue     Int     @default(0)
   isPublished Boolean @default(false)
   publishedAt DateTime?
+  // unlockAt: students cannot access this e-book before this datetime (null = no unlock restriction)
+  unlockAt    DateTime?
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Restrict)
   createdAt   DateTime @default(now())
@@ -632,6 +654,8 @@ model PdfAsset {
   isDownloadable Boolean @default(true)
   isPublished    Boolean @default(false)
   publishedAt    DateTime?
+  // unlockAt: students cannot access this PDF before this datetime (null = no unlock restriction)
+  unlockAt       DateTime?
   createdById    String
   createdBy      User   @relation(fields: [createdById], references: [id], onDelete: Restrict)
   createdAt      DateTime @default(now())
@@ -920,6 +944,8 @@ model Video {
   allowPreview     Boolean         @default(false)
   tags             String[]        @default([])
   publishedAt      DateTime?
+  // unlockAt: students cannot access this video before this datetime (null = no unlock restriction)
+  unlockAt         DateTime?
   createdById      String
   createdBy        User            @relation("VideoCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   createdAt        DateTime        @default(now())
@@ -1260,6 +1286,18 @@ model InfringementEvent {
 enum AnnotationType {
   HIGHLIGHT
   UNDERLINE
+}
+
+// Student-frontend enums — shared with the student app; DO NOT rename or remove values
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+}
+
+enum LanguageAvailable {
+  EN
+  TE
+  BOTH
 }
 
 model LearnerAnnotation {

@@ -34,7 +34,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       title, description, facultyId, courseId, categoryId, examId, subjectId, topicId, subtopicId,
       accessType, status, lessonOrder, durationSeconds, thumbnailUrl,
       provider, providerVideoId, hlsUrl, playbackUrl,
-      processingStatus, processingError, allowPreview, tags, publishedAt,
+      processingStatus, processingError, allowPreview, tags, publishedAt, unlockAt,
     } = body;
 
     const wasPublished = existing.status !== "PUBLISHED" && status === "PUBLISHED";
@@ -65,6 +65,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         allowPreview: allowPreview !== undefined ? Boolean(allowPreview) : existing.allowPreview,
         tags: Array.isArray(tags) ? tags : existing.tags,
         publishedAt: wasPublished ? new Date() : (publishedAt !== undefined ? (publishedAt ? new Date(publishedAt) : null) : existing.publishedAt),
+        unlockAt: unlockAt !== undefined ? (unlockAt ? new Date(unlockAt) : null) : existing.unlockAt,
       },
       include: {
         faculty: { select: { id: true, name: true } },

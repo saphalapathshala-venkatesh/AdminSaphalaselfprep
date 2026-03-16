@@ -30,7 +30,7 @@ export default function NewVideoPage() {
     accessType: "FREE", status: "DRAFT", provider: "MANUAL",
     providerVideoId: "", hlsUrl: "", playbackUrl: "", thumbnailUrl: "",
     durationSeconds: "", lessonOrder: "0", allowPreview: false,
-    tags: "",
+    tags: "", unlockAt: "",
   });
 
   const showToast = (msg: string, ok = true) => {
@@ -202,6 +202,11 @@ export default function NewVideoPage() {
             <input type="checkbox" checked={form.allowPreview} onChange={e => set("allowPreview", e.target.checked)} style={{ width: 16, height: 16, accentColor: PURPLE }} />
             <span style={{ fontSize: "0.875rem", color: "#374151" }}>Allow free preview (visible without entitlement)</span>
           </label>
+          <div style={{ marginTop: "1rem" }}>
+            <label style={labelStyle}>Unlock At <span style={{ fontWeight: 400, color: "#94a3b8" }}>(optional)</span></label>
+            <input type="datetime-local" value={form.unlockAt} onChange={e => set("unlockAt", e.target.value)} style={inputStyle} />
+            {form.unlockAt && <p style={{ margin: "4px 0 0", fontSize: "0.75rem", color: "#7c3aed" }}>Students can access from {new Date(form.unlockAt).toLocaleString()} onwards.</p>}
+          </div>
         </div>
 
         <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>

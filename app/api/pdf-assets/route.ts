@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
     const subtopicId = (formData.get("subtopicId") as string) || null;
     const isDownloadable = formData.get("isDownloadable") !== "false";
     const isPublished = formData.get("isPublished") === "true";
+    const unlockAtStr = (formData.get("unlockAt") as string) || null;
 
     if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
     if (!file) return NextResponse.json({ error: "PDF file is required" }, { status: 400 });
@@ -99,6 +100,7 @@ export async function POST(req: NextRequest) {
         isDownloadable,
         isPublished,
         publishedAt: isPublished ? new Date() : null,
+        unlockAt: unlockAtStr ? new Date(unlockAtStr) : null,
         createdById: user.id,
       },
       include: { createdBy: { select: { id: true, name: true, email: true } } },

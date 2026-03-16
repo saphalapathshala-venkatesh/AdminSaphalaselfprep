@@ -80,7 +80,7 @@ export default function ContentLibraryPage() {
   const [editingPage, setEditingPage] = useState<ContentPage | null>(null);
   const [pageForm, setPageForm] = useState({
     title: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "",
-    examId: "", isPublished: false, xpEnabled: false, xpValue: "0",
+    examId: "", isPublished: false, xpEnabled: false, xpValue: "0", unlockAt: "",
   });
   // Multi-page state
   const [editorPages, setEditorPages] = useState<EditorPage[]>([makeEmptyPage(0)]);
@@ -88,7 +88,7 @@ export default function ContentLibraryPage() {
 
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [editingPdf, setEditingPdf] = useState<PdfAsset | null>(null);
-  const [pdfForm, setPdfForm] = useState({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "", isPublished: false });
+  const [pdfForm, setPdfForm] = useState({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "", isPublished: false, unlockAt: "" });
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadForm, setUploadForm] = useState({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "" });
@@ -203,6 +203,7 @@ export default function ContentLibraryPage() {
         isPublished: fullRecord.isPublished,
         xpEnabled: !!(fullRecord as any).xpEnabled,
         xpValue: (fullRecord as any).xpValue != null ? String((fullRecord as any).xpValue) : "0",
+        unlockAt: (fullRecord as any).unlockAt ? (fullRecord as any).unlockAt.slice(0, 16) : "",
       });
       if (catId) setSubjects(await loadTax("subject", catId));
       if (subId) setTopics(await loadTax("topic", subId));
@@ -222,7 +223,7 @@ export default function ContentLibraryPage() {
       }
     } else {
       setEditingPage(null);
-      setPageForm({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "", isPublished: false, xpEnabled: false, xpValue: "0" });
+      setPageForm({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "", isPublished: false, xpEnabled: false, xpValue: "0", unlockAt: "" });
       setEditorPages([makeEmptyPage(0)]);
     }
     setCurrentPageIdx(0);
@@ -283,6 +284,7 @@ export default function ContentLibraryPage() {
         isPublished: pageForm.isPublished,
         xpEnabled: pageForm.xpEnabled,
         xpValue: parseInt(pageForm.xpValue) || 0,
+        unlockAt: pageForm.unlockAt || null,
         pages: editorPages.map((p, i) => ({
           ...(p.id ? { id: p.id } : {}),
           title: p.title.trim() || null,
@@ -359,6 +361,7 @@ export default function ContentLibraryPage() {
       topicId: pdf.topicId || "",
       subtopicId: pdf.subtopicId || "",
       isPublished: pdf.isPublished,
+      unlockAt: (pdf as any).unlockAt ? (pdf as any).unlockAt.slice(0, 16) : "",
     });
     if (pdf.categoryId) setSubjects(await loadTax("subject", pdf.categoryId));
     if (pdf.subjectId) setTopics(await loadTax("topic", pdf.subjectId));
@@ -380,6 +383,7 @@ export default function ContentLibraryPage() {
           topicId: pdfForm.topicId || null,
           subtopicId: pdfForm.subtopicId || null,
           isPublished: pdfForm.isPublished,
+          unlockAt: pdfForm.unlockAt || null,
         }),
       });
       const json = await res.json();
@@ -771,6 +775,13 @@ export default function ContentLibraryPage() {
               </label>
             </div>
 
+            {/* ── Unlock At ── */}
+            <div style={{ marginBottom: "12px" }}>
+              <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: "3px", display: "block" }}>Unlock At <span style={{ fontWeight: 400, color: "#94a3b8" }}>(optional — leave blank for immediate access)</span></label>
+              <input type="datetime-local" style={{ padding: "0.4rem 0.75rem", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "0.875rem", outline: "none", background: "#fff", width: "100%" }} value={pageForm.unlockAt} onChange={(e) => setPageForm({ ...pageForm, unlockAt: e.target.value })} />
+              {pageForm.unlockAt && <p style={{ margin: "3px 0 0", fontSize: "0.72rem", color: "#7c3aed" }}>Students can access from {new Date(pageForm.unlockAt).toLocaleString()} onwards.</p>}
+            </div>
+
             {/* ── XP Reward ── */}
             <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", background: "#f0f9ff", borderRadius: "8px", border: "1px solid #bae6fd", marginBottom: "20px" }}>
               <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.8125rem", fontWeight: 700, color: "#0369a1", cursor: "pointer", whiteSpace: "nowrap" }}>
@@ -832,6 +843,11 @@ export default function ContentLibraryPage() {
                 <input type="checkbox" checked={pdfForm.isPublished} onChange={(e) => setPdfForm({ ...pdfForm, isPublished: e.target.checked })} />
                 <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Published</span>
               </label>
+            </div>
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: "3px", display: "block" }}>Unlock At <span style={{ fontWeight: 400, color: "#94a3b8" }}>(optional — leave blank for immediate access)</span></label>
+              <input type="datetime-local" style={inputStyle} value={pdfForm.unlockAt} onChange={(e) => setPdfForm({ ...pdfForm, unlockAt: e.target.value })} />
+              {pdfForm.unlockAt && <p style={{ margin: "3px 0 0", fontSize: "0.72rem", color: "#7c3aed" }}>Students can access from {new Date(pdfForm.unlockAt).toLocaleString()} onwards.</p>}
             </div>
             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
               <button style={btnSecondary} onClick={() => setShowPdfModal(false)}>Cancel</button>

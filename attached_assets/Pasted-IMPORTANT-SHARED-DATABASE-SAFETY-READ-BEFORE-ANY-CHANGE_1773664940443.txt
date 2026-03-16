@@ -1,0 +1,99 @@
+IMPORTANT — SHARED DATABASE SAFETY (READ BEFORE ANY CHANGE)
+
+This project uses TWO separate applications connected to ONE shared production database:
+
+1. Admin Saphala Self Prep
+2. Saphala Self Prep Student Frontend
+
+Both apps connect to the same Neon PostgreSQL database.
+
+STRICT RULES (DO NOT VIOLATE):
+1. NEVER run destructive schema operations.
+2. NEVER use --accept-data-loss.
+3. NEVER drop columns or tables automatically.
+4. NEVER remove “unused” columns unless explicitly instructed.
+5. Only ADDITIVE schema changes are allowed.
+6. If a column exists in the database but is not referenced in code, PRESERVE it.
+7. Always assume the other app may depend on that column.
+8. Production database structure must remain stable.
+
+SAFE PRACTICES:
+- Prefer ALTER TABLE ADD COLUMN IF NOT EXISTS
+- Never perform automatic cleanup of “orphan” columns
+- Never modify schema without checking both apps
+- Protect production stability above refactoring or aesthetics
+
+-------------------------------------
+
+APP CONTEXT
+This prompt is for the Admin Saphala Self Prep app.
+
+TASK — Add unlock-date scheduling for all student-facing content types
+
+Goal:
+Allow admin to upload/create content in advance, but control the actual student unlock date for each feature/content item.
+
+Business requirement:
+Every student-facing content type should support a date/time field meaning:
+“This content becomes accessible to students only from this date/time onward.”
+
+This should apply to:
+- Videos
+- Ebooks / HTML content
+- Tests
+- Flashcards
+- PDFs
+
+Important:
+This is separate from publish status.
+Publish and Unlock Date must remain separate concepts.
+
+Required work:
+
+PART A — Audit current models/forms
+Inspect current schema, APIs, and admin forms for:
+- Test
+- Video
+- ContentPage / E-book / HTML content
+- FlashcardDeck / related flashcard models
+- PdfAsset / PDF content
+- any other student-facing content entities currently used by the app
+
+PART B — Add unlock date fields
+1. Add an additive field like:
+   - unlockAt DateTime? 
+to each relevant student-facing content model
+
+2. Keep it nullable for backward compatibility
+
+Meaning:
+- null = no delayed lock; available immediately after publish/access rules
+- future date = locked until that date/time
+- past date = already available if other rules allow
+
+PART C — Admin UI wiring
+Add an “Unlock Date” field to the relevant create/edit forms:
+- Tests
+- Videos
+- Ebooks / HTML content
+- Flashcards
+- PDFs
+
+Requirements:
+- clear label: “Unlock Date”
+- help text: “Students can access this content only on or after this date/time.”
+- optional field
+- should persist correctly in create/edit APIs
+
+PART D — Admin list visibility
+Where useful, show a small admin indicator such as:
+- Scheduled
+- Unlocks on [date]
+This is optional but recommended if low effort.
+
+PART E — Deliverables
+A. Exact models/entities updated
+B. Exact schema fields added
+C. Exact admin forms/pages/routes updated
+D. Confirmation that publish and unlock are separate
+E. Any entities intentionally excluded and why

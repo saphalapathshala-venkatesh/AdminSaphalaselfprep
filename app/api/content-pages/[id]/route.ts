@@ -51,7 +51,7 @@ export async function PUT(
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const body = await req.json();
-    const { title, body: pageBody, categoryId, examId, subjectId, topicId, subtopicId, isPublished, xpEnabled, xpValue } = body;
+    const { title, body: pageBody, categoryId, examId, subjectId, topicId, subtopicId, isPublished, xpEnabled, xpValue, unlockAt } = body;
 
     const data: any = {};
     if (title !== undefined) data.title = title.trim();
@@ -63,6 +63,7 @@ export async function PUT(
     if (subtopicId !== undefined) data.subtopicId = subtopicId || null;
     if (xpEnabled !== undefined) data.xpEnabled = xpEnabled === true;
     if (xpValue !== undefined) data.xpValue = Math.max(0, parseInt(xpValue) || 0);
+    if (unlockAt !== undefined) data.unlockAt = unlockAt ? new Date(unlockAt) : null;
 
     if (isPublished !== undefined) {
       data.isPublished = isPublished;

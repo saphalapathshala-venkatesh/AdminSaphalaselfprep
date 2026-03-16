@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { title, subtitle, description, categoryId, examId, subjectId, topicId, subtopicId,
-            titleTemplate, titleImageUrl, subjectColor, xpEnabled, xpValue } = body;
+            titleTemplate, titleImageUrl, subjectColor, xpEnabled, xpValue, unlockAt } = body;
 
     if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
 
@@ -76,6 +76,7 @@ export async function POST(req: NextRequest) {
         subjectColor: subjectColor?.trim() || null,
         xpEnabled: xpEnabled === true,
         xpValue: xpValue !== undefined ? Math.max(0, parseInt(xpValue) || 0) : 0,
+        unlockAt: unlockAt ? new Date(unlockAt) : null,
         createdById: user.id,
       },
       include: {

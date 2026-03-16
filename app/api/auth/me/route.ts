@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { isAdminRole } from "@/lib/safetyChecks";
 
 export async function GET(req: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
     }
 
     const { user } = session;
-    if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
+    if (!user.isActive || !isAdminRole(user.role)) {
       return NextResponse.json({ user: null }, { status: 403 });
     }
 

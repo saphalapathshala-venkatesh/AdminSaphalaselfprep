@@ -69,6 +69,7 @@ type DeckForm = {
   examId: string;
   titleTemplate: string; titleImageUrl: string; subjectColor: string;
   xpEnabled: boolean; xpValue: string;
+  unlockAt: string;
 };
 const emptyDeckForm = (): DeckForm => ({
   title: "", subtitle: "", description: "",
@@ -76,6 +77,7 @@ const emptyDeckForm = (): DeckForm => ({
   examId: "",
   titleTemplate: "minimal_academic", titleImageUrl: "", subjectColor: "",
   xpEnabled: false, xpValue: "",
+  unlockAt: "",
 });
 
 type ExamItem = { id: string; name: string; categoryId: string };
@@ -190,6 +192,7 @@ export default function FlashcardsPage() {
     titleTemplate: d.titleTemplate || "minimal_academic",
     titleImageUrl: d.titleImageUrl || "", subjectColor: d.subjectColor || "",
     xpEnabled: d.xpEnabled || false, xpValue: d.xpValue != null ? String(d.xpValue) : "",
+    unlockAt: (d as any).unlockAt ? (d as any).unlockAt.slice(0, 16) : "",
   });
 
   const selectDeck = (d: FlashcardDeck) => {
@@ -218,6 +221,7 @@ export default function FlashcardsPage() {
           subjectColor: newDeckForm.subjectColor || null,
           xpEnabled: newDeckForm.xpEnabled,
           xpValue: parseInt(newDeckForm.xpValue) || 0,
+          unlockAt: newDeckForm.unlockAt || null,
         }),
       });
       const json = await res.json();
@@ -246,6 +250,7 @@ export default function FlashcardsPage() {
           titleImageUrl: deckForm.titleImageUrl || null,
           subjectColor: deckForm.subjectColor || null,
           xpEnabled: deckForm.xpEnabled, xpValue: parseInt(deckForm.xpValue) || 0,
+          unlockAt: deckForm.unlockAt || null,
         }),
       });
       const json = await res.json();
@@ -706,6 +711,11 @@ export default function FlashcardsPage() {
             <span style={{ fontSize: "0.72rem", color: "#0369a1" }}>XP on completion</span>
           </div>
         )}
+      </div>
+      <div style={{ marginBottom: "6px" }}>
+        <label style={labelStyle}>Unlock At <span style={{ fontWeight: 400, color: "#94a3b8" }}>(optional — leave blank for immediate access)</span></label>
+        <input type="datetime-local" style={inputStyle} value={form.unlockAt} onChange={(e) => setForm({ ...form, unlockAt: e.target.value })} />
+        {form.unlockAt && <p style={{ margin: "3px 0 0", fontSize: "0.72rem", color: "#7c3aed" }}>Students can access this deck from {new Date(form.unlockAt).toLocaleString()} onwards.</p>}
       </div>
     </div>
   );
