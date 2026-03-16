@@ -1,0 +1,101 @@
+We need to stabilize the test platform schema and restore all important dropped test-related fields in Admin Saphala Self Prep.
+
+Problem:
+During earlier shared DB/schema reconciliation, some important test-related fields were dropped or treated as stale/orphaned. These fields are actually important for admin configuration, scoring logic, and future test behavior.
+
+Examples of important fields that were dropped or became disconnected:
+- Test.marksPerQuestion
+- Test.negativeMarksPerQuestion
+- Test.totalQuestions
+- Test.xpEnabled
+- Test.xpValue
+- Test.shuffleGroups
+- Test.shuffleGroupChildren
+- Test.shuffleQuestions
+- Test.shuffleOptions
+- TestQuestion.marks
+- TestQuestion.negativeMarks
+- any other test/test-series/test-section fields that admin still depends on
+
+Goal:
+Do a full audit and restore all important test-platform fields, then map them correctly to the code that should use them.
+
+Important constraints:
+- This is for the Admin Saphala Self Prep app
+- Shared DB is used by both admin and student frontend
+- Do NOT drop anything further
+- Do NOT use destructive sync shortcuts
+- We want stabilization, not random cleanup
+- Restore and wire only fields that are actually required by product logic, builder logic, scoring, XP, or reporting
+
+Required work:
+
+PART A — Full audit
+1. Inspect the Admin app schema and code for:
+- Test
+- TestSeries
+- TestSection
+- TestQuestion
+- Question
+- Attempt-related admin views if relevant
+
+2. Identify:
+- fields that existed earlier but were dropped from DB or code
+- fields still referenced in admin UI or APIs
+- fields no longer mapped but should be
+- fields needed for future locked requirements already decided by product
+
+3. Produce a clear list of:
+- must restore now
+- keep but not yet fully used
+- truly obsolete and safe to ignore
+
+PART B — Restore important fields
+Restore all important dropped fields in:
+- Prisma schema
+- database
+- relevant admin types/interfaces
+
+At minimum, audit and decide on:
+- marksPerQuestion
+- negativeMarksPerQuestion
+- totalQuestions
+- xpEnabled
+- xpValue
+- shuffleGroups
+- shuffleGroupChildren
+- shuffleQuestions
+- shuffleOptions
+- TestQuestion.marks
+- TestQuestion.negativeMarks
+- section-level counts/timers fields
+- any subsection-related fields already part of the product decisions
+
+PART C — Map fields to correct code
+Ensure restored fields are correctly connected to:
+- test create/edit forms
+- test builder step(s)
+- test sections/subsections
+- add-questions flow
+- scoring-related save/update logic
+- XP-related admin config
+- list/detail previews where relevant
+
+If a field should exist but is not yet fully used in frontend runtime, that is okay — but it must at least be correctly stored and preserved in admin.
+
+PART D — Protect shared DB integrity
+1. Make sure the shared schema used by admin includes all important shared test fields.
+2. Do not let future schema sync accidentally remove them again.
+3. Add comments/documentation if needed to indicate these are protected shared fields.
+
+PART E — Deliverables
+A. Exact list of important dropped/disconnected fields found
+B. Exact fields restored now
+C. Exact files changed
+D. Exact admin forms/APIs now mapped correctly
+E. Which fields are restored for future use but not yet fully consumed
+F. Final recommendation for which schema should be treated as source of truth for shared test-platform fields
+
+Important:
+We are trying to stabilize the Saphala test platform quickly and safely.
+Prioritize correctness, preservation, and product alignment over cleanup aesthetics.

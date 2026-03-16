@@ -54,7 +54,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title, instructions, mode, isTimed, durationSec, totalQuestions, allowPause, strictSectionMode,
+    const { title, instructions, mode, isTimed, durationSec, totalQuestions, marksPerQuestion, negativeMarksPerQuestion,
+            allowPause, strictSectionMode,
             shuffleQuestions, shuffleOptions, shuffleGroups, shuffleGroupChildren, seriesId,
             sections, questions, xpEnabled, xpValue, testStartTime, isFree } = body;
     let { categoryId, examId } = body;
@@ -86,6 +87,8 @@ export async function POST(req: NextRequest) {
           isTimed: isTimed !== undefined ? isTimed : true,
           durationSec: durationSec ? parseInt(durationSec) : null,
           totalQuestions: totalQuestions ? parseInt(totalQuestions) : null,
+          marksPerQuestion: marksPerQuestion != null ? parseFloat(marksPerQuestion) || null : null,
+          negativeMarksPerQuestion: negativeMarksPerQuestion != null ? parseFloat(negativeMarksPerQuestion) || null : null,
           allowPause: allowPause || false,
           strictSectionMode: strictSectionMode || false,
           shuffleQuestions: shuffleQuestions || false,
@@ -175,7 +178,8 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { id, title, instructions, mode, isTimed, durationSec, totalQuestions, allowPause, strictSectionMode,
+    const { id, title, instructions, mode, isTimed, durationSec, totalQuestions, marksPerQuestion, negativeMarksPerQuestion,
+            allowPause, strictSectionMode,
             shuffleQuestions, shuffleOptions, shuffleGroups, shuffleGroupChildren,
             seriesId, sections, questions, xpEnabled, xpValue, testStartTime, isFree } = body;
     let { categoryId, examId } = body;
@@ -212,6 +216,8 @@ export async function PUT(req: NextRequest) {
           isTimed: isTimed !== undefined ? isTimed : existing.isTimed,
           durationSec: durationSec !== undefined ? (durationSec ? parseInt(durationSec) : null) : existing.durationSec,
           totalQuestions: totalQuestions !== undefined ? (totalQuestions ? parseInt(totalQuestions) : null) : existing.totalQuestions,
+          marksPerQuestion: marksPerQuestion !== undefined ? (marksPerQuestion != null ? parseFloat(marksPerQuestion) || null : null) : existing.marksPerQuestion,
+          negativeMarksPerQuestion: negativeMarksPerQuestion !== undefined ? (negativeMarksPerQuestion != null ? parseFloat(negativeMarksPerQuestion) || null : null) : existing.negativeMarksPerQuestion,
           allowPause: allowPause !== undefined ? allowPause : existing.allowPause,
           strictSectionMode: strictSectionMode !== undefined ? strictSectionMode : existing.strictSectionMode,
           shuffleQuestions: shuffleQuestions !== undefined ? shuffleQuestions : existing.shuffleQuestions,

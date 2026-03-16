@@ -414,6 +414,9 @@ model Test {
   xpValue              Int      @default(0)
   testStartTime        DateTime?
   totalQuestions       Int?
+  // Default marking scheme for the whole test (applied as hint in builder; per-question overrides via TestQuestion.marks)
+  marksPerQuestion     Float?
+  negativeMarksPerQuestion Float?
   isFree               Boolean  @default(false)
   isPublished          Boolean  @default(false)
   publishedAt    DateTime?
