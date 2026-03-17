@@ -233,9 +233,8 @@ function RenderBlock({ block, compact }: { block: Block; compact?: boolean }) {
                         textAlign: "left",
                         color: thText,
                       }}
-                    >
-                      {h}
-                    </th>
+                      dangerouslySetInnerHTML={{ __html: h || "" }}
+                    />
                   ))}
                 </tr>
               </thead>

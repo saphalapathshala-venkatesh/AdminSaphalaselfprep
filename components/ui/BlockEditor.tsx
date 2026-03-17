@@ -696,8 +696,8 @@ function TablePanel({ block, onChange, disabled }: BlockPanelProps) {
         </label>
       </div>
 
-      {/* ── Header colour controls ─────────────────────────────────────── */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
+      {/* ── Header row colour + inline text-colour palette ──────────────── */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 6, flexWrap: "wrap", alignItems: "flex-end" }}>
         <ColorField
           label="Header background"
           value={hBg}
@@ -722,31 +722,48 @@ function TablePanel({ block, onChange, disabled }: BlockPanelProps) {
           </button>
         </div>
       </div>
-      <div style={{ overflowX: "auto" }}>
+
+      {/* ── Inline text-colour palette (works on selected text in any cell) ── */}
+      <TextColorPalette disabled={disabled} />
+
+      <div style={{ overflowX: "auto", marginTop: 8 }}>
         <table style={{ borderCollapse: "collapse", width: "100%" }}>
           <thead>
             <tr>
               {p.headers.map((h, ci) => (
                 <th
                   key={ci}
-                  style={{ border: "1px solid #d1d5db", padding: 2, background: hBg, minWidth: 80 }}
+                  style={{ border: "1px solid #d1d5db", padding: 2, background: hBg, minWidth: 100, verticalAlign: "top" }}
                 >
-                  <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
-                    <input
-                      value={h}
-                      onChange={(e) => {
-                        const nh = [...p.headers];
-                        nh[ci] = e.target.value;
-                        setHeaders(nh);
-                      }}
-                      style={{ ...inp, fontWeight: 700, fontSize: "0.8rem", padding: "3px 6px", color: hText, background: "transparent" }}
-                      disabled={disabled}
-                    />
+                  <div style={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
+                    <div style={{ flex: 1 }}>
+                      <InlineEditor
+                        value={h}
+                        onChange={(html) => {
+                          const nh = [...p.headers];
+                          nh[ci] = html;
+                          setHeaders(nh);
+                        }}
+                        singleLine
+                        placeholder={`Col ${ci + 1}`}
+                        style={{
+                          minHeight: "1.6rem",
+                          padding: "2px 5px",
+                          borderRadius: 3,
+                          fontSize: "0.8rem",
+                          fontWeight: 700,
+                          color: hText,
+                          background: "transparent",
+                          border: "1px solid rgba(0,0,0,0.12)",
+                        }}
+                        disabled={disabled}
+                      />
+                    </div>
                     {p.headers.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeCol(ci)}
-                        style={{ ...iconBtn("#dc2626"), padding: "1px 4px", fontSize: "0.7rem" }}
+                        style={{ ...iconBtn("#dc2626"), padding: "1px 4px", fontSize: "0.7rem", marginTop: 1 }}
                         disabled={disabled}
                       >
                         ✕
@@ -763,23 +780,32 @@ function TablePanel({ block, onChange, disabled }: BlockPanelProps) {
                 {row.map((cell, ci) => (
                   <td
                     key={ci}
-                    style={{ border: "1px solid #d1d5db", padding: 2, background: ri % 2 === 0 ? "#fff" : "#f9fafb" }}
+                    style={{ border: "1px solid #d1d5db", padding: 2, background: ri % 2 === 0 ? "#fff" : "#f9fafb", verticalAlign: "top" }}
                   >
-                    <input
+                    <InlineEditor
                       value={cell}
-                      onChange={(e) => {
+                      onChange={(html) => {
                         const nr = p.rows.map((r, r2) =>
-                          r2 === ri ? r.map((c, c2) => (c2 === ci ? e.target.value : c)) : r
+                          r2 === ri ? r.map((c, c2) => (c2 === ci ? html : c)) : r
                         );
                         setRows(nr);
                       }}
-                      style={{ ...inp, padding: "3px 6px", fontSize: "0.8rem" }}
+                      singleLine
+                      placeholder=""
+                      style={{
+                        minHeight: "1.6rem",
+                        padding: "2px 5px",
+                        borderRadius: 3,
+                        fontSize: "0.8rem",
+                        border: "1px solid rgba(0,0,0,0.08)",
+                        background: "transparent",
+                      }}
                       disabled={disabled}
                     />
                   </td>
                 ))}
                 {p.rows.length > 1 && (
-                  <td style={{ border: "none", padding: 2 }}>
+                  <td style={{ border: "none", padding: 2, verticalAlign: "top" }}>
                     <button
                       type="button"
                       onClick={() => removeRow(ri)}
