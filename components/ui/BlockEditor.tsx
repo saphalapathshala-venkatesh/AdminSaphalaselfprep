@@ -724,7 +724,7 @@ function BlockRow({ block, idx, total, onChange, onMove, onDelete, disabled, con
   );
 }
 
-// ─── Add block menu ───────────────────────────────────────────────────────────
+// ─── Inline block type strip (replaces floating dropdown — avoids overflow clipping) ──
 
 interface AddBlockMenuProps {
   types: BlockType[];
@@ -733,77 +733,66 @@ interface AddBlockMenuProps {
 }
 
 function AddBlockMenu({ types, onAdd, disabled }: AddBlockMenuProps) {
-  const [open, setOpen] = useState(false);
-
   return (
-    <div style={{ position: "relative", display: "inline-block" }}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        disabled={disabled}
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 4,
+        padding: "6px 8px",
+        background: "#f8fafc",
+        border: "1px solid #e2e8f0",
+        borderRadius: 8,
+        alignItems: "center",
+      }}
+    >
+      <span
         style={{
-          padding: "5px 14px",
-          background: PURPLE,
-          color: "#fff",
-          border: "none",
-          borderRadius: 6,
-          fontSize: "0.8rem",
+          fontSize: "0.68rem",
           fontWeight: 700,
-          cursor: disabled ? "not-allowed" : "pointer",
-          opacity: disabled ? 0.6 : 1,
+          color: "#9ca3af",
+          letterSpacing: "0.05em",
+          textTransform: "uppercase",
+          marginRight: 2,
+          whiteSpace: "nowrap",
         }}
       >
-        + Add Block
-      </button>
-      {open && (
-        <div
+        + Add:
+      </span>
+      {types.map((t) => (
+        <button
+          key={t}
+          type="button"
+          onClick={() => onAdd(t)}
+          disabled={disabled}
           style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            zIndex: 100,
+            padding: "3px 9px",
             background: "#fff",
             border: "1px solid #e2e8f0",
-            borderRadius: 8,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-            padding: 6,
-            marginTop: 4,
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 4,
-            minWidth: 220,
+            borderRadius: 5,
+            cursor: disabled ? "not-allowed" : "pointer",
+            fontSize: "0.75rem",
+            color: "#374151",
+            fontFamily: "inherit",
+            opacity: disabled ? 0.5 : 1,
+            whiteSpace: "nowrap",
+          }}
+          onMouseEnter={(e) => {
+            if (!disabled) {
+              (e.currentTarget as HTMLButtonElement).style.background = "#ede9fe";
+              (e.currentTarget as HTMLButtonElement).style.borderColor = PURPLE;
+              (e.currentTarget as HTMLButtonElement).style.color = PURPLE;
+            }
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "#fff";
+            (e.currentTarget as HTMLButtonElement).style.borderColor = "#e2e8f0";
+            (e.currentTarget as HTMLButtonElement).style.color = "#374151";
           }}
         >
-          {types.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => { onAdd(t); setOpen(false); }}
-              style={{
-                padding: "6px 10px",
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                borderRadius: 6,
-                cursor: "pointer",
-                fontSize: "0.8rem",
-                color: "#374151",
-                textAlign: "left",
-                fontFamily: "inherit",
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#ede9fe"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f8fafc"; }}
-            >
-              {BLOCK_LABELS[t]}
-            </button>
-          ))}
-        </div>
-      )}
-      {open && (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 99 }}
-          onClick={() => setOpen(false)}
-        />
-      )}
+          {BLOCK_LABELS[t]}
+        </button>
+      ))}
     </div>
   );
 }
