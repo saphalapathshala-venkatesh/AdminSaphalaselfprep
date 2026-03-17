@@ -171,31 +171,40 @@ interface BlockPanelProps {
   config: EditorConfig;
 }
 
-/** Compact palette swatch row for picking a text colour from the fixed set. */
-function TextColorPalette({
-  value,
-  onChange,
-  disabled,
-}: {
-  value?: string;
-  onChange: (hex: string | undefined) => void;
-  disabled?: boolean;
-}) {
+/**
+ * Compact palette swatch row.
+ * Uses onMouseDown + preventDefault so the contentEditable selection stays
+ * active when the button is clicked — then execCommand applies the colour
+ * only to the selected text, exactly like the bold/italic toolbar buttons.
+ */
+function TextColorPalette({ disabled }: { disabled?: boolean }) {
+  function applyColor(hex: string | null) {
+    if (disabled) return;
+    try { document.execCommand("styleWithCSS", false, "true"); } catch {}
+    if (hex) {
+      document.execCommand("foreColor", false, hex);
+    } else {
+      document.execCommand("removeFormat");
+    }
+  }
+
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", marginTop: 8 }}>
       <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em", marginRight: 2 }}>
         Text colour:
       </span>
-      {/* Default swatch */}
+      {/* ✕ = remove colour from selection */}
       <button
         type="button"
-        title="Default (no colour)"
-        onClick={() => !disabled && onChange(undefined)}
+        title="Remove colour"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => applyColor(null)}
+        disabled={disabled}
         style={{
           width: 20,
           height: 20,
           borderRadius: "50%",
-          border: !value ? "2.5px solid #7c3aed" : "1.5px solid #d1d5db",
+          border: "1.5px solid #d1d5db",
           background: "#fff",
           cursor: disabled ? "not-allowed" : "pointer",
           display: "flex",
@@ -214,15 +223,15 @@ function TextColorPalette({
           key={hex}
           type="button"
           title={name}
-          onClick={() => !disabled && onChange(hex)}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => applyColor(hex)}
+          disabled={disabled}
           style={{
             width: 20,
             height: 20,
             borderRadius: "50%",
             background: hex,
-            border: value === hex ? "2.5px solid #111" : "2px solid transparent",
-            outline: value === hex ? `2px solid ${hex}` : "none",
-            outlineOffset: 1,
+            border: "2px solid transparent",
             cursor: disabled ? "not-allowed" : "pointer",
             padding: 0,
             flexShrink: 0,
@@ -261,11 +270,7 @@ function ParagraphPanel({ block, onChange, disabled }: BlockPanelProps) {
           </button>
         ))}
       </div>
-      <TextColorPalette
-        value={p.textColor}
-        onChange={(hex) => onChange({ ...block, props: { ...p, textColor: hex } })}
-        disabled={disabled}
-      />
+      <TextColorPalette disabled={disabled} />
     </div>
   );
 }
