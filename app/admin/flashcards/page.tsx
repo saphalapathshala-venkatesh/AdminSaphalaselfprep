@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { SUBJECT_COLOR_LIST, DEFAULT_SUBJECT_COLOR } from "@/lib/subjectColors";
 import { TITLE_TEMPLATES } from "@/lib/titleTemplates";
 import RichTextEditor from "@/components/ui/RichTextEditor";
+import AdminImageUploader from "@/components/admin/AdminImageUploader";
 
 const CARD_TYPES = [
   { value: "TITLE",          label: "Title Card",              desc: "Deck cover / opener" },
@@ -673,11 +674,12 @@ export default function FlashcardsPage() {
             </select>
           </div>
           <div style={{ marginBottom: "10px" }}>
-            <label style={labelStyle}>Title Card Image URL (optional)</label>
-            <input style={inputStyle} value={form.titleImageUrl} onChange={(e) => setForm({ ...form, titleImageUrl: e.target.value })} placeholder="https://..." />
-            {form.titleImageUrl && (
-              <img src={form.titleImageUrl} alt="Preview" style={{ marginTop: "6px", maxWidth: "120px", maxHeight: "72px", borderRadius: "4px", border: "1px solid #e5e7eb" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-            )}
+            <AdminImageUploader
+              label="Title Card Image (optional)"
+              value={form.titleImageUrl || null}
+              onChange={(url) => setForm({ ...form, titleImageUrl: url || "" })}
+              disabled={saving}
+            />
           </div>
           <div style={{ marginBottom: "10px" }}>
             <label style={labelStyle}>Subject Color</label>
@@ -745,9 +747,12 @@ export default function FlashcardsPage() {
               <input style={inputStyle} value={cf.titleSubtitle} onChange={(e) => set({ titleSubtitle: e.target.value })} />
             </div>
             <div style={{ marginBottom: "10px" }}>
-              <label style={labelStyle}>Image URL (optional)</label>
-              <input style={inputStyle} value={cf.titleImageUrl} onChange={(e) => set({ titleImageUrl: e.target.value })} placeholder="https://..." />
-              {cf.titleImageUrl && <img src={cf.titleImageUrl} alt="Preview" style={{ marginTop: "6px", maxWidth: "120px", maxHeight: "80px", borderRadius: "4px" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />}
+              <AdminImageUploader
+                label="Image (optional)"
+                value={cf.titleImageUrl || null}
+                onChange={(url) => set({ titleImageUrl: url || "" })}
+                disabled={saving}
+              />
             </div>
             <div style={{ padding: "12px", background: "#faf5ff", border: "1px solid #ede9fe", borderRadius: "8px", borderLeft: `4px solid ${accentColor}` }}>
               <p style={{ margin: 0, fontSize: "0.78rem", color: "#5b21b6" }}>Preview template: <strong>{TITLE_TEMPLATES.find(t => t.id === cf.titleTemplate)?.label}</strong></p>
@@ -782,9 +787,12 @@ export default function FlashcardsPage() {
               <RichTextEditor value={cf.infoExample} onChange={(html) => set({ infoExample: html })} placeholder="Optional example or supporting note…" minHeight="80px" />
             </div>
             <div style={{ marginBottom: "10px" }}>
-              <label style={labelStyle}>Image URL (optional)</label>
-              <input style={inputStyle} value={cf.imageUrl} onChange={(e) => set({ imageUrl: e.target.value })} />
-              {cf.imageUrl && <img src={cf.imageUrl} alt="Preview" style={{ marginTop: "6px", maxWidth: "120px", maxHeight: "80px", borderRadius: "4px" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />}
+              <AdminImageUploader
+                label="Image (optional)"
+                value={cf.imageUrl || null}
+                onChange={(url) => set({ imageUrl: url || "" })}
+                disabled={saving}
+              />
             </div>
           </div>
         );

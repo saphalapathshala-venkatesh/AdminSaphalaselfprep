@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import AdminImageUploader from "@/components/admin/AdminImageUploader";
 
 interface TestSeries {
   id: string;
@@ -333,19 +334,12 @@ export default function TestSeriesPage() {
                 </div>
               </div>
               <div>
-                <label style={labelStyle}>Thumbnail URL</label>
-                <input
-                  value={form.thumbnailUrl}
-                  onChange={(e) => setForm({ ...form, thumbnailUrl: e.target.value })}
-                  placeholder="https://..."
-                  style={inputStyle}
+                <AdminImageUploader
+                  label="Thumbnail"
+                  value={form.thumbnailUrl || null}
+                  onChange={(url) => setForm({ ...form, thumbnailUrl: url || "" })}
+                  disabled={saving}
                 />
-                {form.thumbnailUrl && (
-                  <div style={{ marginTop: "0.375rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <img src={form.thumbnailUrl} alt="preview" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 6, border: "1px solid #e2e8f0" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                    <button type="button" onClick={() => setForm({ ...form, thumbnailUrl: "" })} style={{ fontSize: "0.75rem", color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}>Remove</button>
-                  </div>
-                )}
               </div>
               <div>
                 <label style={labelStyle}>Schedule (JSON)</label>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import AdminImageUploader from "@/components/admin/AdminImageUploader";
 
 const PURPLE = "#7c3aed";
 const inputStyle: React.CSSProperties = { width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "0.875rem", outline: "none", background: "#fff", boxSizing: "border-box" };
@@ -223,8 +224,12 @@ export default function EditVideoPage() {
               <input value={form.providerVideoId} onChange={e => set("providerVideoId", e.target.value)} style={inputStyle} />
             </div>
             <div>
-              <label style={labelStyle}>Thumbnail URL</label>
-              <input value={form.thumbnailUrl} onChange={e => set("thumbnailUrl", e.target.value)} style={inputStyle} />
+              <AdminImageUploader
+                label="Thumbnail"
+                value={form.thumbnailUrl || null}
+                onChange={(url) => set("thumbnailUrl", url || "")}
+                disabled={saving}
+              />
             </div>
           </div>
           <div style={{ marginBottom: "1rem" }}>

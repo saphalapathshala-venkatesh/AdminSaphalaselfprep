@@ -1,0 +1,60 @@
+Upgrade the Saphala admin app image handling UX from manual image-link entry to direct file upload from the admin’s local system.
+
+Goal:
+Replace fragile image URL inputs with a proper upload box + preview workflow across all relevant admin forms (course image, thumbnail, banner, PDF cover, flashcard deck image, ebook cover, etc. wherever image URL inputs currently exist).
+
+Requirements:
+
+1. Replace current image link input UI with:
+   - drag-and-drop upload box
+   - click-to-upload from local system
+   - image preview after selection/upload
+   - replace image option
+   - remove image option
+
+2. Upload flow:
+   - user selects image from device
+   - frontend uploads file to a backend upload endpoint
+   - backend stores image in object storage (not DB binary storage)
+   - backend returns the final public URL
+   - frontend saves that URL into the existing DB image field automatically
+
+3. Important:
+   - do NOT require admin to paste image links manually anymore
+   - preserve existing DB string URL fields if already present
+   - only introduce schema changes if absolutely necessary
+
+4. First audit current schema and forms:
+   - identify all places where image/imageUrl/thumbnail/banner fields exist
+   - confirm whether existing DB fields are already String URL columns
+   - if yes, reuse them with no schema change
+   - if not, propose the minimal safe schema change before implementing
+
+5. Storage:
+   - implement with the project’s preferred object storage provider
+   - do NOT store image binary in Prisma/Postgres
+   - save only the final URL/path in DB
+
+6. Admin UX:
+   - show upload progress/loading state
+   - validate file type (jpg, jpeg, png, webp)
+   - validate file size
+   - show clear error messages
+   - show current uploaded image preview in edit mode
+   - allow replacing existing image without breaking other fields
+
+7. Engineering requirements:
+   - reusable upload component for all admin forms
+   - clean separation between UI, upload API, and DB save logic
+   - ensure edit forms continue to work with previously saved URL-based images
+   - do not break existing records
+
+8. Deliverables:
+   - schema audit result: whether DB change is needed or not
+   - object storage wiring
+   - upload endpoint
+   - reusable admin image uploader component
+   - all relevant forms migrated from URL input to direct upload
+
+Expected outcome:
+Admin should upload images directly from system using a proper upload box, see preview immediately, and the app should save the resulting storage URL automatically into the existing DB field wherever possible.

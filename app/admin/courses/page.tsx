@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import AdminImageUploader from "@/components/admin/AdminImageUploader";
 
 const PURPLE = "#7c3aed";
 
@@ -125,13 +126,14 @@ const inputSt: React.CSSProperties = { width: "100%", padding: "0.4375rem 0.75re
 const labelSt: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "0.25rem" };
 
 // ─── Course form (shared for create + edit) ───────────────────────────────────
-function CourseForm({ form, onChange, error, isEdit, categories, exams }: {
+function CourseForm({ form, onChange, error, isEdit, categories, exams, disabled }: {
   form: FormData;
   onChange: (f: FormData) => void;
   error: string | null;
   isEdit?: boolean;
   categories: TaxOption[];
   exams: ExamOption[];
+  disabled?: boolean;
 }) {
   const set = (patch: Partial<FormData>) => onChange({ ...form, ...patch });
   return (
@@ -226,19 +228,12 @@ function CourseForm({ form, onChange, error, isEdit, categories, exams }: {
       </div>
 
       <div>
-        <label style={labelSt}>Thumbnail URL</label>
-        <input
-          value={form.thumbnailUrl}
-          onChange={e => set({ thumbnailUrl: e.target.value })}
-          placeholder="https://..."
-          style={inputSt}
+        <AdminImageUploader
+          label="Thumbnail"
+          value={form.thumbnailUrl || null}
+          onChange={(url) => set({ thumbnailUrl: url || "" })}
+          disabled={disabled}
         />
-        {form.thumbnailUrl && (
-          <div style={{ marginTop: "0.375rem", display: "flex", alignItems: "center", gap: "0.625rem" }}>
-            <img src={form.thumbnailUrl} alt="preview" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-            <button type="button" onClick={() => set({ thumbnailUrl: "" })} style={{ fontSize: "0.75rem", color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}>Remove</button>
-          </div>
-        )}
       </div>
 
       {/* Product type checkboxes */}
@@ -470,7 +465,7 @@ export default function CoursesPage() {
               <button onClick={() => setModalMode(null)} style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", fontSize: "1.125rem", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>×</button>
             </div>
             <div style={{ padding: "1.5rem" }}>
-              <CourseForm form={form} onChange={setForm} error={formError} isEdit={modalMode === "edit"} categories={categories} exams={exams} />
+              <CourseForm form={form} onChange={setForm} error={formError} isEdit={modalMode === "edit"} categories={categories} exams={exams} disabled={saving} />
             </div>
             <div style={{ padding: "1rem 1.5rem", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "flex-end", gap: "0.625rem" }}>
               <button onClick={() => setModalMode(null)} style={{ padding: "0.5rem 1.25rem", borderRadius: "7px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: "0.875rem", color: "#374151", fontWeight: 600 }}>Cancel</button>
