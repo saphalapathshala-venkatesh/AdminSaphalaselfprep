@@ -1,0 +1,272 @@
+You are working on the Saphala Self Prep codebase.
+
+This task is backend / schema / API alignment only for the Flashcards module and shared rich-layout content support.
+Do not redesign frontend in this prompt.
+Do not break existing published decks/cards.
+Do not remove or rename working fields unless absolutely necessary.
+
+Goal
+
+Implement backend support for:
+
+Optional instruction line for these flashcard card types:
+
+REORDER
+
+FILL_IN_BLANK
+
+MATCHING
+
+CATEGORIZATION
+
+A future-safe rich layout model for editor-created content blocks so admin can later:
+
+resize boxes/tables/callouts
+
+drag and position elements
+
+place 2 boxes in one row
+
+support the same concept later for Ebooks / HTML / rich content pages
+
+Preserve backward compatibility with existing flashcard cards and current content.
+
+Requirements
+Part A — Optional instruction line for specific card types
+
+Add support for an optional instruction field for these card types only:
+
+REORDER
+
+FILL_IN_BLANK
+
+MATCHING
+
+CATEGORIZATION
+
+This instruction must:
+
+be nullable / optional
+
+never break older cards that do not have it
+
+be included in admin create/edit payloads
+
+be included in student-facing card payloads
+
+Expected behavior
+
+Examples:
+
+REORDER → “Arrange the following layers from inner to outer.”
+
+MATCHING → “Match each layer with its correct feature.”
+
+CATEGORIZATION → “Drag each item into the correct category.”
+
+FILL_IN_BLANK → “Fill the blank and submit.”
+
+If instruction is absent, everything must still work normally.
+
+Part B — Rich layout metadata for editor-created elements
+
+We need backend support for a structured layout model that allows content blocks inside card/editor content to later be:
+
+resized
+
+positioned
+
+arranged in rows/columns
+
+placed side by side
+
+reused for ebooks/html content too
+
+Do not overengineer with a huge new schema if not needed.
+
+Implement this safely
+
+If flashcard content is already JSON, extend it with an optional layout structure such as:
+
+layout
+
+blocks
+
+rows
+
+cols
+
+width
+
+height
+
+x
+
+y
+
+span
+
+alignment
+
+styleVariant
+
+Use a structure that is:
+
+optional
+
+backward compatible
+
+safe for current renderer
+
+reusable later for ebooks/html content
+
+Important
+
+Do not make layout fields mandatory.
+Existing cards with only:
+
+front
+
+back
+
+body
+
+question
+
+options
+must continue to work unchanged.
+
+Part C — Shared content shape normalization
+
+Audit the current flashcard content model and normalize API response shape so frontend can reliably consume:
+
+Common fields
+
+id
+
+cardType
+
+front
+
+back
+
+content
+
+instruction (optional, only relevant where applicable)
+
+Rich content support
+
+If card content contains HTML or layout JSON, return it in a stable, documented shape.
+
+Quiz-specific
+
+Ensure quiz content shape reliably returns:
+
+question
+
+options
+
+explanation
+
+any optional instruction only if needed later
+
+Reorder / matching / categorization / fill blank
+
+Ensure the response shape clearly returns:
+
+data needed for interaction
+
+optional instruction
+
+optional explanation
+
+Part D — Admin save/edit compatibility
+
+Update backend validation / persistence so admin can save and edit:
+
+optional instruction line
+
+optional layout metadata
+
+But:
+
+do not require instruction
+
+do not require layout metadata
+
+do not cause validation failures for older cards
+
+do not break already published decks
+
+Part E — Future reuse for ebooks/html content
+
+This prompt should also prepare a shared backend pattern for rich positioned blocks so later the same content model can be reused in:
+
+Ebooks
+
+HTML content pages
+
+rich note pages
+
+Do not fully wire ebooks now unless it is trivial.
+But design the backend shape so it is reusable, not flashcard-only and not hacky.
+
+Constraints
+
+Keep Prisma / DB / API aligned
+
+Avoid destructive schema changes
+
+Avoid unnecessary migrations unless truly required
+
+Preserve backward compatibility
+
+Keep validation flexible and optional
+
+Do not change student UI in this prompt
+
+Do not introduce breaking API changes
+
+Expected output
+
+After implementation, provide:
+
+1. Schema / model report
+
+Explain exactly what was added:
+
+instruction support
+
+layout metadata support
+
+where it is stored
+
+2. API report
+
+Explain what new fields are now returned in student/admin payloads.
+
+3. Backward compatibility report
+
+Confirm:
+
+old flashcards still work
+
+instruction is optional
+
+layout metadata is optional
+
+no breaking changes for published decks
+
+4. Future reuse note
+
+Explain how the new layout/content structure can later support ebooks/html rich content.
+
+5. Build / migration report
+
+Confirm:
+
+Prisma/schema status
+
+whether migration was needed
+
+TypeScript/build passes cleanly
