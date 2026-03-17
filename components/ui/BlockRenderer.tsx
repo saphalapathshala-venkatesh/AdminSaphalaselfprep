@@ -147,12 +147,14 @@ function RenderBlock({ block, compact }: { block: Block; compact?: boolean }) {
     }
 
     case "box": {
-      const { preset, title, headerBg, bodyBg, accent, children } = block.props;
+      const { preset, title, headerBg, headerTextColor, bodyBg, bodyTextColor, borderColor, accent, customIcon, children } = block.props;
       const meta = BOX_PRESETS.find((p) => p.key === preset);
       const hBg = headerBg ?? meta?.headerBg ?? "#475569";
+      const hText = headerTextColor ?? "#fff";
       const bBg = bodyBg ?? meta?.bodyBg ?? "#f8fafc";
-      const ac = accent ?? meta?.accent ?? "#cbd5e1";
-      const icon = meta?.icon ?? "📌";
+      const bText = bodyTextColor ?? undefined;
+      const border = borderColor ?? accent ?? meta?.accent ?? "#cbd5e1";
+      const icon = customIcon ?? meta?.icon ?? "📌";
       const displayTitle = title ?? meta?.label ?? "NOTE";
       return (
         <div
@@ -160,7 +162,7 @@ function RenderBlock({ block, compact }: { block: Block; compact?: boolean }) {
             margin: `0 0 ${sp}`,
             borderRadius: 8,
             overflow: "hidden",
-            border: `1.5px solid ${ac}`,
+            border: `1.5px solid ${border}`,
           }}
         >
           <div
@@ -169,7 +171,7 @@ function RenderBlock({ block, compact }: { block: Block; compact?: boolean }) {
               padding: "7px 13px",
               fontWeight: 700,
               fontSize: "0.72rem",
-              color: "#fff",
+              color: hText,
               letterSpacing: "0.07em",
               display: "flex",
               alignItems: "center",
@@ -178,7 +180,7 @@ function RenderBlock({ block, compact }: { block: Block; compact?: boolean }) {
           >
             {icon} {displayTitle}
           </div>
-          <div style={{ background: bBg, padding: compact ? "8px 12px" : "11px 14px" }}>
+          <div style={{ background: bBg, padding: compact ? "8px 12px" : "11px 14px", color: bText }}>
             {children && children.length > 0 ? (
               <BlockList blocks={children} compact={compact} />
             ) : (

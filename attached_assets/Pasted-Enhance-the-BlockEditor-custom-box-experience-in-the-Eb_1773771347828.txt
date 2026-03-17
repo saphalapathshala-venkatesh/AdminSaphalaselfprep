@@ -1,0 +1,48 @@
+Enhance the BlockEditor custom box experience in the Ebook editor (and shared block system) so CUSTOM boxes are truly customizable.
+
+Problem:
+Currently, when a box block is set to CUSTOM, the editor still uses default styling behavior. The header is not fully editable in a flexible way, and the admin cannot choose custom box colors properly.
+
+Goal:
+For CUSTOM box type, allow full visual customization of the box header and body.
+
+Requirements:
+
+1. For box blocks, keep preset variants (info, warning, success, exam-tip, etc.) as they are.
+
+2. When box type/variant = CUSTOM:
+   - Header text must be editable
+   - Header background color must be editable
+   - Header text color must be editable
+   - Body background color must be editable
+   - Border color must be editable
+   - Optional: body text color editable if easy to support cleanly
+
+3. Editor UX:
+   - Add color pickers / color inputs for the above fields
+   - Show live preview immediately inside the block editor
+   - Preserve clean layout and avoid clutter
+   - Keep the controls visible only for CUSTOM boxes, not preset boxes
+
+4. Shared schema:
+   - Extend the box block props in the shared block schema to support custom style properties
+   - Prefer additive JSON prop changes only
+   - Avoid Prisma schema changes unless absolutely required
+
+5. Renderer:
+   - Update the shared BlockRenderer so custom box styles render correctly both:
+     - inside admin preview/editor
+     - inside student Ebook viewer
+     - anywhere else the shared block renderer is used
+
+6. Validation/safety:
+   - Ensure chosen colors render with good readability
+   - If possible, auto-suggest or auto-set safe contrasting text color defaults
+   - Do not allow broken rendering when a color field is empty
+
+7. Backward compatibility:
+   - Existing preset boxes must continue to render unchanged
+   - Existing custom boxes without the new style props should still fall back safely
+
+Expected outcome:
+When admin selects CUSTOM box, they can fully control the header text and the box colors instead of being forced into the default appearance.

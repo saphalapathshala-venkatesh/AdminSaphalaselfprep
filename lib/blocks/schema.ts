@@ -50,9 +50,14 @@ export interface ImageProps {
 export interface BoxProps {
   preset: BoxPreset;
   title?: string;
-  /** Only used when preset === "custom" */
+  /** Only used when preset === "custom" — full visual control */
   headerBg?: string;
+  headerTextColor?: string;
   bodyBg?: string;
+  bodyTextColor?: string;
+  borderColor?: string;
+  customIcon?: string;
+  /** Legacy accent used for border fallback in preset boxes */
   accent?: string;
   children: Block[];
 }

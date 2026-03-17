@@ -152,15 +152,17 @@ export function blocksToHtmlString(doc: BlockDoc): string {
         return `<figure style="margin:0 0 0.75rem;display:flex;justify-content:${justif};flex-direction:column;"><img src="${esc(src)}" alt="${esc(alt)}" style="max-width:${width};border-radius:6px;" />${cap}</figure>`;
       }
       case "box": {
-        const { preset, title, headerBg, bodyBg, accent, children } = b.props;
+        const { preset, title, headerBg, headerTextColor, bodyBg, bodyTextColor, borderColor, accent, customIcon, children } = b.props;
         const meta = BOX_PRESETS.find((m) => m.key === preset) ?? BOX_PRESETS[0];
         const hBg = esc(headerBg ?? meta.headerBg);
+        const hText = esc(headerTextColor ?? "#fff");
         const bBg = esc(bodyBg ?? meta.bodyBg);
-        const ac = esc(accent ?? meta.accent);
-        const icon = meta.icon;
+        const bTextStyle = bodyTextColor ? `color:${esc(bodyTextColor)};` : "";
+        const border = esc(borderColor ?? accent ?? meta.accent);
+        const icon = customIcon ?? meta.icon;
         const displayTitle = esc(title ?? meta.label);
         const inner = (children ?? []).map(blockToHtml).join("");
-        return `<div style="margin:0 0 0.75rem;border-radius:8px;overflow:hidden;border:1.5px solid ${ac};"><div style="background:${hBg};padding:7px 13px;font-weight:700;font-size:0.72rem;color:#fff;letter-spacing:0.07em;">${icon} ${displayTitle}</div><div style="background:${bBg};padding:11px 14px;">${inner}</div></div>`;
+        return `<div style="margin:0 0 0.75rem;border-radius:8px;overflow:hidden;border:1.5px solid ${border};"><div style="background:${hBg};padding:7px 13px;font-weight:700;font-size:0.72rem;color:${hText};letter-spacing:0.07em;">${icon} ${displayTitle}</div><div style="background:${bBg};padding:11px 14px;${bTextStyle}">${inner}</div></div>`;
       }
       case "table": {
         const { headers, rows, caption, width = "full" } = b.props;

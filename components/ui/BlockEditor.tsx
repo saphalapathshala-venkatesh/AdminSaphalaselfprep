@@ -301,16 +301,88 @@ function ImagePanel({ block, onChange, disabled }: BlockPanelProps) {
   );
 }
 
+/** Returns a contrasting text colour (#fff or #111) for a given hex background. */
+function contrastColor(hex: string): string {
+  try {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    return lum > 0.55 ? "#111111" : "#ffffff";
+  } catch {
+    return "#ffffff";
+  }
+}
+
+/** Compact color picker row: native color swatch + hex text input side by side. */
+function ColorField({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div style={{ flex: 1, minWidth: 130 }}>
+      <label style={{ ...labelSt, marginBottom: 2 }}>{label}</label>
+      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          style={{
+            width: 28,
+            height: 28,
+            border: "1px solid #d1d5db",
+            borderRadius: 5,
+            padding: 1,
+            cursor: disabled ? "not-allowed" : "pointer",
+            background: "none",
+          }}
+        />
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (/^#[0-9a-fA-F]{0,6}$/.test(v)) onChange(v);
+          }}
+          disabled={disabled}
+          maxLength={7}
+          style={{ ...inp, width: 76, fontFamily: "monospace", fontSize: "0.78rem" }}
+          placeholder="#000000"
+        />
+      </div>
+    </div>
+  );
+}
+
 function BoxPanel({ block, onChange, disabled, config }: BlockPanelProps) {
   if (block.type !== "box") return null;
   const p = block.props;
   const meta = BOX_PRESETS.find((m) => m.key === p.preset) ?? BOX_PRESETS[0];
+  const isCustom = p.preset === "custom";
 
   const setChildren = (children: Block[]) =>
     onChange({ ...block, props: { ...p, children } });
 
+  const setProp = (patch: Partial<typeof p>) =>
+    onChange({ ...block, props: { ...p, ...patch } });
+
+  const resolvedHeaderBg   = p.headerBg       ?? meta.headerBg;
+  const resolvedHeaderText = p.headerTextColor ?? "#fff";
+  const resolvedBodyBg     = p.bodyBg          ?? meta.bodyBg;
+  const resolvedBorder     = p.borderColor     ?? p.accent ?? meta.accent;
+  const resolvedIcon       = p.customIcon      ?? meta.icon;
+
   return (
     <div>
+      {/* ── Type + Header text row ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
         <div>
           <label style={labelSt}>Box type</label>
@@ -318,14 +390,19 @@ function BoxPanel({ block, onChange, disabled, config }: BlockPanelProps) {
             value={p.preset}
             onChange={(e) => {
               const nm = BOX_PRESETS.find((m) => m.key === e.target.value) ?? BOX_PRESETS[0];
+              const isNewCustom = nm.key === "custom";
               onChange({
                 ...block,
                 props: {
                   ...p,
                   preset: nm.key,
-                  title: nm.label,
-                  headerBg: nm.headerBg,
-                  bodyBg: nm.bodyBg,
+                  title: isNewCustom ? (p.title ?? "CUSTOM") : nm.label,
+                  headerBg:       isNewCustom ? (p.headerBg       ?? nm.headerBg)    : nm.headerBg,
+                  headerTextColor: isNewCustom ? (p.headerTextColor ?? "#ffffff")     : undefined,
+                  bodyBg:         isNewCustom ? (p.bodyBg          ?? nm.bodyBg)     : nm.bodyBg,
+                  bodyTextColor:  isNewCustom ? p.bodyTextColor                      : undefined,
+                  borderColor:    isNewCustom ? (p.borderColor     ?? nm.accent)     : undefined,
+                  customIcon:     isNewCustom ? (p.customIcon      ?? nm.icon)       : undefined,
                   accent: nm.accent,
                 },
               });
@@ -344,33 +421,142 @@ function BoxPanel({ block, onChange, disabled, config }: BlockPanelProps) {
           <label style={labelSt}>Header text</label>
           <input
             value={p.title ?? meta.label}
-            onChange={(e) => onChange({ ...block, props: { ...p, title: e.target.value } })}
+            onChange={(e) => setProp({ title: e.target.value })}
             style={inp}
             disabled={disabled}
           />
         </div>
       </div>
+
+      {/* ── CUSTOM-only colour controls ── */}
+      {isCustom && (
+        <div
+          style={{
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            borderRadius: 8,
+            padding: "10px 12px",
+            marginBottom: 10,
+          }}
+        >
+          <div
+            style={{
+              fontSize: "0.7rem",
+              fontWeight: 700,
+              color: PURPLE,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              marginBottom: 8,
+            }}
+          >
+            Custom Style
+          </div>
+
+          {/* Icon + auto-contrast hint */}
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 8, flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 100 }}>
+              <label style={{ ...labelSt, marginBottom: 2 }}>Icon / emoji</label>
+              <input
+                value={p.customIcon ?? meta.icon}
+                onChange={(e) => setProp({ customIcon: e.target.value })}
+                style={{ ...inp, width: "100%" }}
+                disabled={disabled}
+                placeholder="📌"
+                maxLength={10}
+              />
+            </div>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => {
+                setProp({
+                  headerTextColor: contrastColor(resolvedHeaderBg),
+                });
+              }}
+              style={{
+                padding: "5px 10px",
+                fontSize: "0.72rem",
+                background: "#ede9fe",
+                color: PURPLE,
+                border: `1px solid ${PURPLE}`,
+                borderRadius: 6,
+                cursor: disabled ? "not-allowed" : "pointer",
+                whiteSpace: "nowrap",
+                fontFamily: "inherit",
+                fontWeight: 600,
+                marginBottom: 1,
+              }}
+              title="Auto-pick a contrasting text colour for the header"
+            >
+              Auto contrast
+            </button>
+          </div>
+
+          {/* Colour pickers — two per row */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+            <ColorField
+              label="Header background"
+              value={resolvedHeaderBg}
+              onChange={(v) => setProp({ headerBg: v, headerTextColor: p.headerTextColor ?? contrastColor(v) })}
+              disabled={disabled}
+            />
+            <ColorField
+              label="Header text colour"
+              value={resolvedHeaderText}
+              onChange={(v) => setProp({ headerTextColor: v })}
+              disabled={disabled}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+            <ColorField
+              label="Body background"
+              value={resolvedBodyBg}
+              onChange={(v) => setProp({ bodyBg: v })}
+              disabled={disabled}
+            />
+            <ColorField
+              label="Body text colour"
+              value={p.bodyTextColor ?? "#1f2937"}
+              onChange={(v) => setProp({ bodyTextColor: v })}
+              disabled={disabled}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <ColorField
+              label="Border colour"
+              value={resolvedBorder}
+              onChange={(v) => setProp({ borderColor: v })}
+              disabled={disabled}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── Live preview ── */}
       <div
         style={{
           borderRadius: 8,
           overflow: "hidden",
-          border: `1.5px solid ${p.accent ?? meta.accent}`,
+          border: `1.5px solid ${resolvedBorder}`,
           marginBottom: 6,
         }}
       >
         <div
           style={{
-            background: p.headerBg ?? meta.headerBg,
+            background: resolvedHeaderBg,
             padding: "5px 12px",
-            color: "#fff",
+            color: resolvedHeaderText,
             fontWeight: 700,
             fontSize: "0.72rem",
             letterSpacing: "0.07em",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
           }}
         >
-          {meta.icon} {p.title ?? meta.label}
+          {resolvedIcon} {p.title ?? meta.label}
         </div>
-        <div style={{ padding: 10, background: p.bodyBg ?? meta.bodyBg }}>
+        <div style={{ padding: 10, background: resolvedBodyBg, color: p.bodyTextColor }}>
           <NestedBlockEditor
             blocks={p.children ?? []}
             onChange={setChildren}
