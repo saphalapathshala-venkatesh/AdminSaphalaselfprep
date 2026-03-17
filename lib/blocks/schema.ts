@@ -31,6 +31,7 @@ export type BoxPreset =
 export interface ParagraphProps {
   html: string;
   align?: TextAlign;
+  textColor?: string;
 }
 
 export interface HeadingProps {

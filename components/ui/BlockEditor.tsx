@@ -167,21 +167,51 @@ function ParagraphPanel({ block, onChange, disabled }: BlockPanelProps) {
         placeholder="Paragraph text…"
         disabled={disabled}
       />
-      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-        {(["left", "center", "right"] as const).map((a) => (
+      <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+        {/* Alignment */}
+        <div style={{ display: "flex", gap: 6 }}>
+          {(["left", "center", "right"] as const).map((a) => (
+            <button
+              key={a}
+              type="button"
+              onClick={() => onChange({ ...block, props: { ...p, align: a } })}
+              style={{
+                ...iconBtn(p.align === a ? PURPLE : "#6b7280"),
+                background: p.align === a ? "#ede9fe" : "#f8fafc",
+                borderColor: p.align === a ? PURPLE : "#e2e8f0",
+              }}
+            >
+              {a === "left" ? "⇐" : a === "center" ? "⇔" : "⇒"}
+            </button>
+          ))}
+        </div>
+        {/* Text colour */}
+        <ColorField
+          label="Text colour"
+          value={p.textColor ?? "#1f2937"}
+          onChange={(v) => onChange({ ...block, props: { ...p, textColor: v } })}
+          disabled={disabled}
+        />
+        {p.textColor && p.textColor !== "#1f2937" && (
           <button
-            key={a}
             type="button"
-            onClick={() => onChange({ ...block, props: { ...p, align: a } })}
+            onClick={() => onChange({ ...block, props: { ...p, textColor: undefined } })}
+            disabled={disabled}
             style={{
-              ...iconBtn(p.align === a ? PURPLE : "#6b7280"),
-              background: p.align === a ? "#ede9fe" : "#f8fafc",
-              borderColor: p.align === a ? PURPLE : "#e2e8f0",
+              padding: "3px 8px",
+              fontSize: "0.7rem",
+              background: "#f1f5f9",
+              border: "1px solid #e2e8f0",
+              borderRadius: 5,
+              cursor: "pointer",
+              color: "#64748b",
+              fontFamily: "inherit",
+              marginBottom: 1,
             }}
           >
-            {a === "left" ? "⇐" : a === "center" ? "⇔" : "⇒"}
+            Reset
           </button>
-        ))}
+        )}
       </div>
     </div>
   );
@@ -514,12 +544,6 @@ function BoxPanel({ block, onChange, disabled, config }: BlockPanelProps) {
               onChange={(v) => setProp({ bodyBg: v })}
               disabled={disabled}
             />
-            <ColorField
-              label="Body text colour"
-              value={p.bodyTextColor ?? "#1f2937"}
-              onChange={(v) => setProp({ bodyTextColor: v })}
-              disabled={disabled}
-            />
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <ColorField
@@ -531,6 +555,36 @@ function BoxPanel({ block, onChange, disabled, config }: BlockPanelProps) {
           </div>
         </div>
       )}
+
+      {/* ── Body text colour — visible for all presets ── */}
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 8, flexWrap: "wrap" }}>
+        <ColorField
+          label="Body text colour"
+          value={p.bodyTextColor ?? "#1f2937"}
+          onChange={(v) => setProp({ bodyTextColor: v })}
+          disabled={disabled}
+        />
+        {p.bodyTextColor && p.bodyTextColor !== "#1f2937" && (
+          <button
+            type="button"
+            onClick={() => setProp({ bodyTextColor: undefined })}
+            disabled={disabled}
+            style={{
+              padding: "3px 8px",
+              fontSize: "0.7rem",
+              background: "#f1f5f9",
+              border: "1px solid #e2e8f0",
+              borderRadius: 5,
+              cursor: "pointer",
+              color: "#64748b",
+              fontFamily: "inherit",
+              marginBottom: 1,
+            }}
+          >
+            Reset
+          </button>
+        )}
+      </div>
 
       {/* ── Live preview ── */}
       <div

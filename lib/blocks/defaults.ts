@@ -135,7 +135,8 @@ export function blocksToHtmlString(doc: BlockDoc): string {
     switch (b.type) {
       case "paragraph": {
         const align = b.props.align ?? "left";
-        return `<p style="margin:0 0 0.75rem;line-height:1.7;text-align:${align};">${b.props.html || ""}</p>`;
+        const colorStyle = b.props.textColor ? `color:${esc(b.props.textColor)};` : "";
+        return `<p style="margin:0 0 0.75rem;line-height:1.7;text-align:${align};${colorStyle}">${b.props.html || ""}</p>`;
       }
       case "heading": {
         const lv = b.props.level;

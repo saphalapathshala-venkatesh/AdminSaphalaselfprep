@@ -57,14 +57,14 @@ function RenderBlock({ block, compact }: { block: Block; compact?: boolean }) {
 
   switch (block.type) {
     case "paragraph": {
-      const { html, align = "left" } = block.props;
+      const { html, align = "left", textColor } = block.props;
       return (
         <p
           style={{
             margin: `0 0 ${sp}`,
             lineHeight: 1.7,
             fontSize: compact ? "0.875rem" : "0.9375rem",
-            color: "#1f2937",
+            color: textColor ?? "#1f2937",
             ...ALIGN_MAP[align],
           }}
           dangerouslySetInnerHTML={{ __html: html || "&nbsp;" }}
