@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { isBlockDoc } from "@/lib/blocks/schema";
+import { blocksToHtmlString } from "@/lib/blocks/defaults";
 
 const PURPLE = "#7c3aed";
 
@@ -16,6 +18,8 @@ interface Annotation {
 interface EBookViewerProps {
   contentId: string;
   htmlContent: string;
+  /** Optional block-based content. When present (and valid BlockDoc), takes precedence over htmlContent. */
+  contentBlocks?: unknown;
   title?: string;
   onClose?: () => void;
   subjectColor?: string;
@@ -74,8 +78,16 @@ function applyAnnotationToDOM(root: Element, annotation: Annotation) {
   }
 }
 
-export default function EBookViewer({ contentId, htmlContent, title, onClose, subjectColor }: EBookViewerProps) {
+export default function EBookViewer({ contentId, htmlContent, contentBlocks, title, onClose, subjectColor }: EBookViewerProps) {
   const color = subjectColor || PURPLE;
+
+  // Resolve effective HTML: block-based content takes precedence over raw HTML.
+  const effectiveHtml = useMemo(() => {
+    if (contentBlocks && isBlockDoc(contentBlocks)) {
+      return blocksToHtmlString(contentBlocks);
+    }
+    return htmlContent;
+  }, [contentBlocks, htmlContent]);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [annotating, setAnnotating] = useState(false);
@@ -104,7 +116,7 @@ export default function EBookViewer({ contentId, htmlContent, title, onClose, su
     if (loadingAnnotations) return;
     const root = contentRef.current;
     if (!root) return;
-    root.innerHTML = htmlContent;
+    root.innerHTML = effectiveHtml;
     for (const ann of annotations) {
       applyAnnotationToDOM(root, ann);
     }
@@ -119,7 +131,7 @@ export default function EBookViewer({ contentId, htmlContent, title, onClose, su
     };
     root.addEventListener("click", handleAnnotationClick);
     return () => root.removeEventListener("click", handleAnnotationClick);
-  }, [htmlContent, annotations, loadingAnnotations]);
+  }, [effectiveHtml, annotations, loadingAnnotations]);
 
   function handleCopy(e: ClipboardEvent) {
     e.preventDefault();

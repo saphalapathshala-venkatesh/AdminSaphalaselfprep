@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import RichTextEditor from "@/components/ui/RichTextEditor";
+import BlockEditor from "@/components/ui/BlockEditor";
+import { BlockDoc, isBlockDoc } from "@/lib/blocks/schema";
+import { htmlToBlocks, emptyDocWithParagraph } from "@/lib/blocks/defaults";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -9,6 +11,7 @@ interface EBookPageRecord {
   id: string;
   title: string | null;
   contentHtml: string;
+  contentBlocks?: unknown;
   orderIndex: number;
 }
 
@@ -49,11 +52,13 @@ interface EditorPage {
   id?: string;
   title: string;
   contentHtml: string;
+  /** Block-based content (v1 BlockDoc). When set, takes precedence over contentHtml on save + render. */
+  contentBlocks: BlockDoc;
   orderIndex: number;
 }
 
 function makeEmptyPage(idx: number): EditorPage {
-  return { title: "", contentHtml: "", orderIndex: idx };
+  return { title: "", contentHtml: "", contentBlocks: emptyDocWithParagraph(), orderIndex: idx };
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -209,17 +214,28 @@ export default function ContentLibraryPage() {
       if (subId) setTopics(await loadTax("topic", subId));
       if (topId) setSubtopics(await loadTax("subtopic", topId));
 
-      // Build editor pages from ebookPages, or fall back to legacy body
+      // Build editor pages from ebookPages, or fall back to legacy body.
+      // For each page: if contentBlocks is a valid BlockDoc, use it;
+      // otherwise migrate contentHtml → htmlToBlocks (preserves all legacy content).
       if (fullRecord.ebookPages && fullRecord.ebookPages.length > 0) {
-        setEditorPages(fullRecord.ebookPages.map(ep => ({
-          id: ep.id,
-          title: ep.title ?? "",
-          contentHtml: ep.contentHtml,
-          orderIndex: ep.orderIndex,
-        })));
+        setEditorPages(fullRecord.ebookPages.map(ep => {
+          const blocks = isBlockDoc(ep.contentBlocks) ? ep.contentBlocks : htmlToBlocks(ep.contentHtml);
+          return {
+            id: ep.id,
+            title: ep.title ?? "",
+            contentHtml: ep.contentHtml,
+            contentBlocks: blocks,
+            orderIndex: ep.orderIndex,
+          };
+        }));
       } else {
-        // Legacy E-Book: migrate body into page 1 in-editor (no DB write yet)
-        setEditorPages([{ title: "", contentHtml: fullRecord.body || "", orderIndex: 0 }]);
+        // Legacy E-Book: migrate body into page 1 block editor (no DB write yet)
+        setEditorPages([{
+          title: "",
+          contentHtml: fullRecord.body || "",
+          contentBlocks: htmlToBlocks(fullRecord.body || ""),
+          orderIndex: 0,
+        }]);
       }
     } else {
       setEditingPage(null);
@@ -272,8 +288,8 @@ export default function ContentLibraryPage() {
 
   const handleSavePage = async () => {
     if (!pageForm.title.trim()) { showToast("Title is required", "error"); return; }
-    const hasContent = editorPages.some(p => p.contentHtml.trim().length > 0);
-    if (!hasContent) { showToast("At least one page must have content", "error"); return; }
+    const hasContent = editorPages.some(p => p.contentBlocks.blocks.length > 0);
+    if (!hasContent) { showToast("At least one page must have content blocks", "error"); return; }
     setSaving(true);
     try {
       const payload: any = {
@@ -289,6 +305,7 @@ export default function ContentLibraryPage() {
           ...(p.id ? { id: p.id } : {}),
           title: p.title.trim() || null,
           contentHtml: p.contentHtml,
+          contentBlocks: p.contentBlocks,
           orderIndex: i,
         })),
       };
@@ -704,17 +721,15 @@ export default function ContentLibraryPage() {
                   />
                 </div>
 
-                {/* Rich text editor for this page */}
+                {/* Block editor for this page */}
                 <div>
-                  <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#6b7280", display: "block", marginBottom: "4px" }}>
-                    Page {currentPageIdx + 1} Content *
-                  </label>
-                  <RichTextEditor
+                  <BlockEditor
                     key={`ebook-page-${currentPageIdx}`}
-                    value={currentEditorPage?.contentHtml ?? ""}
-                    onChange={(html) => updateCurrentPage({ contentHtml: html })}
-                    placeholder={`Write content for page ${currentPageIdx + 1}…`}
-                    minHeight="300px"
+                    doc={currentEditorPage?.contentBlocks ?? null}
+                    onChange={(doc) => updateCurrentPage({ contentBlocks: doc })}
+                    config="ebook"
+                    disabled={saving}
+                    label={`Page ${currentPageIdx + 1} Content`}
                   />
                 </div>
 

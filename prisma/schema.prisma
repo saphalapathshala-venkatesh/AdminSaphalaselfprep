@@ -664,14 +664,17 @@ model ContentPage {
 }
 
 model EBookPage {
-  id          String      @id @default(cuid())
-  ebookId     String
-  ebook       ContentPage @relation(fields: [ebookId], references: [id], onDelete: Cascade)
-  title       String?
-  contentHtml String
-  orderIndex  Int
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id             String      @id @default(cuid())
+  ebookId        String
+  ebook          ContentPage @relation(fields: [ebookId], references: [id], onDelete: Cascade)
+  title          String?
+  contentHtml    String
+  // contentBlocks: structured block JSON (v1 BlockDoc). When present, takes precedence over contentHtml.
+  // Null = legacy page (render contentHtml). Non-null = block-based page (render via BlockRenderer).
+  contentBlocks  Json?
+  orderIndex     Int
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
   @@index([ebookId, orderIndex])
 }
 model PdfAsset {

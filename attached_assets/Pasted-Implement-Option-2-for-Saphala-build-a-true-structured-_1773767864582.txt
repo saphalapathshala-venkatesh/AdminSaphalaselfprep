@@ -1,0 +1,106 @@
+Implement Option 2 for Saphala: build a true structured block editor system and use it for BOTH Ebook Editor and Flashcard Editor.
+
+Goal:
+Replace the fragile rich-text/embedded-element approach with a shared block-based editor architecture that supports movement, resizing, nesting, positioning, and clean frontend rendering.
+
+Important product decision:
+Do NOT build two unrelated editors.
+Build one shared editor engine and renderer, then configure it for:
+1. Ebook Editor
+2. Flashcard Editor
+
+Core requirements:
+
+A. Shared block architecture
+1. Create a structured block schema stored as JSON, not raw HTML as the source of truth.
+2. Every block must support:
+   - id
+   - type
+   - props
+   - children (when nestable)
+3. Introduce versioned content structure for future upgrades.
+
+B. Initial block types
+Implement these first:
+- paragraph
+- heading
+- image
+- box
+- table
+- list
+- divider
+
+Design in a way that future block types can be added cleanly.
+
+C. Layout capabilities
+For applicable block types, implement:
+- move up/down
+- drag reorder
+- nesting (e.g. image inside box, table inside box, box inside box where allowed)
+- resize controls
+- width presets (e.g. 50%, 75%, full, custom-safe if needed)
+- alignment controls
+- spacing controls where appropriate
+
+D. Shared renderer
+Build one renderer that reads the same block JSON and is reused for:
+- editor preview
+- frontend display
+- ebook reader rendering
+- flashcard content rendering
+
+Do NOT rely on fragile raw HTML parsing for final rendering.
+
+E. Ebook Editor configuration
+Ebook editor should support:
+- long-form structured content
+- nested blocks
+- images
+- tables
+- info boxes/callouts
+- heading/paragraph/list/divider
+- clean reordering and layout control
+
+F. Flashcard Editor configuration
+Use the same engine, but with flashcard-specific restrictions:
+- separate front-side content blocks
+- separate back-side content blocks
+- controlled layout for card-safe rendering
+- support image, box, table, paragraph, heading, list, divider
+- enforce safe visual limits to prevent overflow-heavy cards
+
+G. Data and migration
+1. Audit current Ebook and Flashcard editor storage formats.
+2. Preserve existing content without breaking old records.
+3. If old data is HTML-based, add a compatibility layer or migration path.
+4. Do not force destructive schema changes unless absolutely required.
+5. If DB schema changes are needed, keep them minimal and clearly justified.
+
+H. Admin UX
+Editor must support:
+- add block menu
+- block toolbar
+- nesting controls
+- drag/reorder controls
+- resize controls
+- preview mode
+- stable save/update behavior
+
+I. Frontend contract
+Ensure frontend rendering uses the same structured JSON contract saved by the editor.
+The goal is to eliminate current parsing inconsistencies and layout breakage.
+
+J. Deliverables
+1. shared block schema
+2. shared editor engine
+3. shared renderer
+4. Ebook editor migrated to new system
+5. Flashcard editor migrated to same system
+6. migration/compatibility handling for existing content
+7. short implementation note explaining:
+   - what schema was used
+   - what was reused
+   - whether DB changes were required
+
+Expected outcome:
+Saphala should have a premium Notion-like structured content system where Ebook and Flashcard content can be moved, resized, nested, and rendered reliably across admin and frontend.

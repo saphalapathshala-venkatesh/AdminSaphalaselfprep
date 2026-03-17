@@ -85,7 +85,15 @@ export async function PUT(
     });
 
     // Upsert pages if provided
-    const incomingPages: { id?: string; title?: string; contentHtml: string; orderIndex: number }[] = body.pages || [];
+    // contentBlocks (Json?) carries the block-based doc (v1 BlockDoc).
+    // contentHtml is preserved for legacy pages; contentBlocks takes rendering precedence when set.
+    const incomingPages: {
+      id?: string;
+      title?: string;
+      contentHtml: string;
+      contentBlocks?: unknown;
+      orderIndex: number;
+    }[] = body.pages || [];
     if (incomingPages.length > 0) {
       const existingPageIds = (await prisma.eBookPage.findMany({
         where: { ebookId: params.id }, select: { id: true },
@@ -96,15 +104,18 @@ export async function PUT(
       if (toDelete.length > 0) await prisma.eBookPage.deleteMany({ where: { id: { in: toDelete } } });
 
       for (const p of incomingPages) {
+        const pageData: any = {
+          title: p.title ?? null,
+          contentHtml: p.contentHtml ?? "",
+          orderIndex: p.orderIndex,
+        };
+        if (p.contentBlocks !== undefined) {
+          pageData.contentBlocks = p.contentBlocks as any;
+        }
         if (p.id) {
-          await prisma.eBookPage.update({
-            where: { id: p.id },
-            data: { title: p.title ?? null, contentHtml: p.contentHtml, orderIndex: p.orderIndex },
-          });
+          await prisma.eBookPage.update({ where: { id: p.id }, data: pageData });
         } else {
-          await prisma.eBookPage.create({
-            data: { ebookId: params.id, title: p.title ?? null, contentHtml: p.contentHtml, orderIndex: p.orderIndex },
-          });
+          await prisma.eBookPage.create({ data: { ebookId: params.id, ...pageData } });
         }
       }
     }

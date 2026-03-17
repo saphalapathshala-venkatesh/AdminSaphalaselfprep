@@ -5,6 +5,9 @@ import { SUBJECT_COLOR_LIST, DEFAULT_SUBJECT_COLOR } from "@/lib/subjectColors";
 import { TITLE_TEMPLATES } from "@/lib/titleTemplates";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import AdminImageUploader from "@/components/admin/AdminImageUploader";
+import BlockEditor from "@/components/ui/BlockEditor";
+import { BlockDoc, isBlockDoc } from "@/lib/blocks/schema";
+import { htmlToBlocks, emptyDocWithParagraph } from "@/lib/blocks/defaults";
 
 const CARD_TYPES = [
   { value: "TITLE",          label: "Title Card",              desc: "Deck cover / opener" },
@@ -42,6 +45,7 @@ type CardTypeForm = {
   front: string; back: string;
   titleTemplate: string; titleTitle: string; titleSubtitle: string; titleImageUrl: string;
   infoTitle: string; infoBody: string; infoExample: string;
+  infoBodyBlocks: BlockDoc; infoExampleBlocks: BlockDoc;
   quizQuestion: string; quizExplanation: string;
   compTitle: string;
   fillSentence: string; fillExplanation: string;
@@ -56,6 +60,7 @@ const emptyCardForm = (): CardTypeForm => ({
   front: "", back: "",
   titleTemplate: "minimal_academic", titleTitle: "", titleSubtitle: "", titleImageUrl: "",
   infoTitle: "", infoBody: "", infoExample: "",
+  infoBodyBlocks: emptyDocWithParagraph(), infoExampleBlocks: emptyDocWithParagraph(),
   quizQuestion: "", quizExplanation: "",
   compTitle: "",
   fillSentence: "", fillExplanation: "",
@@ -306,10 +311,13 @@ export default function FlashcardsPage() {
         return {
           content: {
             title: form.infoTitle, body: form.infoBody,
+            bodyBlocks: form.infoBodyBlocks,
             keyPoints: keyPoints.filter((k) => k.trim()),
-            example: form.infoExample || null, imageUrl: form.imageUrl || null,
+            example: form.infoExample || null,
+            exampleBlocks: form.infoExampleBlocks,
+            imageUrl: form.imageUrl || null,
           },
-          front: form.infoTitle || form.infoBody.slice(0, 60),
+          front: form.infoTitle || form.infoBody.slice(0, 60) || "Info Card",
           back: "",
         };
       case "QUIZ":
@@ -376,6 +384,8 @@ export default function FlashcardsPage() {
     } else if (card.cardType === "INFO") {
       base.infoTitle = c.title || ""; base.infoBody = c.body || "";
       base.infoExample = c.example || "";
+      base.infoBodyBlocks = isBlockDoc(c.bodyBlocks) ? c.bodyBlocks : htmlToBlocks(c.body || "");
+      base.infoExampleBlocks = isBlockDoc(c.exampleBlocks) ? c.exampleBlocks : htmlToBlocks(c.example || "");
       setKeyPoints(c.keyPoints?.length ? c.keyPoints : ["", ""]);
     } else if (card.cardType === "QUIZ") {
       base.quizQuestion = c.question || ""; base.quizExplanation = c.explanation || "";
@@ -448,7 +458,7 @@ export default function FlashcardsPage() {
         if (catItems.filter((i) => i.text.trim()).length < 2) return "At least 2 items required";
         return null;
       case "INFO":
-        if (!form.infoBody.trim() && !form.infoTitle.trim()) return "Title or body is required";
+        if (form.infoBodyBlocks.blocks.length === 0 && !form.infoTitle.trim()) return "Title or body content is required";
         return null;
       default:
         return null;
@@ -769,8 +779,14 @@ export default function FlashcardsPage() {
               <input style={inputStyle} value={cf.infoTitle} onChange={(e) => set({ infoTitle: e.target.value })} />
             </div>
             <div style={{ marginBottom: "10px" }}>
-              <label style={labelStyle}>Body Content *</label>
-              <RichTextEditor value={cf.infoBody} onChange={(html) => set({ infoBody: html })} placeholder="Main content of the card…" minHeight="140px" />
+              <BlockEditor
+                key={`fc-info-body-${editingCard?.id ?? "new"}`}
+                doc={cf.infoBodyBlocks}
+                onChange={(doc) => set({ infoBodyBlocks: doc })}
+                config="flashcard"
+                disabled={saving}
+                label="Body Content *"
+              />
             </div>
             <div style={{ marginBottom: "10px" }}>
               <p style={sectionHead}>Key Points</p>
@@ -783,8 +799,14 @@ export default function FlashcardsPage() {
               <button style={{ ...btnSmall, marginTop: "4px" }} onClick={() => setKeyPoints([...keyPoints, ""])}>+ Add Point</button>
             </div>
             <div style={{ marginBottom: "10px" }}>
-              <label style={labelStyle}>Example Block (optional)</label>
-              <RichTextEditor value={cf.infoExample} onChange={(html) => set({ infoExample: html })} placeholder="Optional example or supporting note…" minHeight="80px" />
+              <BlockEditor
+                key={`fc-info-example-${editingCard?.id ?? "new"}`}
+                doc={cf.infoExampleBlocks}
+                onChange={(doc) => set({ infoExampleBlocks: doc })}
+                config="flashcard"
+                disabled={saving}
+                label="Example Block (optional)"
+              />
             </div>
             <div style={{ marginBottom: "10px" }}>
               <AdminImageUploader
