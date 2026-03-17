@@ -121,6 +121,15 @@ export function updateBlock(blocks: Block[], id: string, patch: Partial<Block["p
  *
  * Produces clean, readable HTML that matches what BlockRenderer renders visually.
  */
+
+function esc(text: string): string {
+  return (text ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 export function blocksToHtmlString(doc: BlockDoc): string {
   function blockToHtml(b: Block): string {
     switch (b.type) {
@@ -139,17 +148,17 @@ export function blocksToHtmlString(doc: BlockDoc): string {
         const { src, alt = "", caption, width = "100%", align = "center" } = b.props;
         if (!src) return "";
         const justif = align === "center" ? "center" : align === "right" ? "flex-end" : "flex-start";
-        const cap = caption ? `<figcaption style="margin-top:0.25rem;font-size:0.78rem;color:#6b7280;text-align:center;font-style:italic;">${caption}</figcaption>` : "";
-        return `<figure style="margin:0 0 0.75rem;display:flex;justify-content:${justif};flex-direction:column;"><img src="${src}" alt="${alt}" style="max-width:${width};border-radius:6px;" />${cap}</figure>`;
+        const cap = caption ? `<figcaption style="margin-top:0.25rem;font-size:0.78rem;color:#6b7280;text-align:center;font-style:italic;">${esc(caption)}</figcaption>` : "";
+        return `<figure style="margin:0 0 0.75rem;display:flex;justify-content:${justif};flex-direction:column;"><img src="${esc(src)}" alt="${esc(alt)}" style="max-width:${width};border-radius:6px;" />${cap}</figure>`;
       }
       case "box": {
         const { preset, title, headerBg, bodyBg, accent, children } = b.props;
         const meta = BOX_PRESETS.find((m) => m.key === preset) ?? BOX_PRESETS[0];
-        const hBg = headerBg ?? meta.headerBg;
-        const bBg = bodyBg ?? meta.bodyBg;
-        const ac = accent ?? meta.accent;
+        const hBg = esc(headerBg ?? meta.headerBg);
+        const bBg = esc(bodyBg ?? meta.bodyBg);
+        const ac = esc(accent ?? meta.accent);
         const icon = meta.icon;
-        const displayTitle = title ?? meta.label;
+        const displayTitle = esc(title ?? meta.label);
         const inner = (children ?? []).map(blockToHtml).join("");
         return `<div style="margin:0 0 0.75rem;border-radius:8px;overflow:hidden;border:1.5px solid ${ac};"><div style="background:${hBg};padding:7px 13px;font-weight:700;font-size:0.72rem;color:#fff;letter-spacing:0.07em;">${icon} ${displayTitle}</div><div style="background:${bBg};padding:11px 14px;">${inner}</div></div>`;
       }
@@ -157,8 +166,8 @@ export function blocksToHtmlString(doc: BlockDoc): string {
         const { headers, rows, caption, width = "full" } = b.props;
         const widthMap: Record<string, string> = { full: "100%", wide: "90%", medium: "70%", compact: "auto" };
         const w = widthMap[width] ?? "100%";
-        const cap = caption ? `<p style="font-size:0.78rem;color:#6b7280;margin-bottom:0.25rem;font-style:italic;">${caption}</p>` : "";
-        const thead = `<thead><tr>${(headers ?? []).map((h) => `<th style="border:1px solid #d1d5db;padding:7px 12px;background:#f3f4f6;font-weight:700;text-align:left;">${h}</th>`).join("")}</tr></thead>`;
+        const cap = caption ? `<p style="font-size:0.78rem;color:#6b7280;margin-bottom:0.25rem;font-style:italic;">${esc(caption)}</p>` : "";
+        const thead = `<thead><tr>${(headers ?? []).map((h) => `<th style="border:1px solid #d1d5db;padding:7px 12px;background:#f3f4f6;font-weight:700;text-align:left;">${esc(h)}</th>`).join("")}</tr></thead>`;
         const tbody = `<tbody>${(rows ?? []).map((row, ri) => `<tr>${row.map((cell) => `<td style="border:1px solid #d1d5db;padding:7px 12px;background:${ri % 2 === 0 ? "#fff" : "#f9fafb"};">${cell}</td>`).join("")}</tr>`).join("")}</tbody>`;
         return `<div style="margin:0 0 0.75rem;overflow-x:auto;">${cap}<table style="width:${w};border-collapse:collapse;font-size:0.875rem;">${thead}${tbody}</table></div>`;
       }

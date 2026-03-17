@@ -29,16 +29,24 @@ export default function SubjectLearningPage() {
   const [flashcardItem, setFlashcardItem] = useState<LessonItem | null>(null);
   const [ebookItem, setEbookItem] = useState<LessonItem | null>(null);
   const [ebookHtml, setEbookHtml] = useState<string>("");
+  const [ebookBlocks, setEbookBlocks] = useState<unknown>(null);
   const [ebookLoading, setEbookLoading] = useState(false);
 
   async function openEbook(item: LessonItem) {
     if (item.isLocked) return;
     setEbookLoading(true);
     setEbookItem(item);
+    setEbookBlocks(null);
     try {
       const res = await fetch(`/api/content-pages/${item.sourceId}`);
       const data = await res.json();
-      setEbookHtml(data.data?.body || "<p><em>No content available.</em></p>");
+      const pages: Array<{ contentBlocks?: unknown; contentHtml?: string }> = data.data?.ebookPages || [];
+      if (pages.length > 0) {
+        setEbookHtml(pages[0].contentHtml || data.data?.body || "");
+        setEbookBlocks(pages[0].contentBlocks ?? null);
+      } else {
+        setEbookHtml(data.data?.body || "<p><em>No content available.</em></p>");
+      }
     } catch {
       setEbookHtml("<p><em>Failed to load content.</em></p>");
     } finally {
@@ -166,9 +174,10 @@ export default function SubjectLearningPage() {
         <EBookViewer
           contentId={ebookItem.sourceId!}
           htmlContent={ebookHtml}
+          contentBlocks={ebookBlocks}
           title={ebookItem.titleSnapshot || "E-Book"}
           subjectColor={color}
-          onClose={() => { setEbookItem(null); setEbookHtml(""); }}
+          onClose={() => { setEbookItem(null); setEbookHtml(""); setEbookBlocks(null); }}
         />
       )}
       {ebookLoading && (

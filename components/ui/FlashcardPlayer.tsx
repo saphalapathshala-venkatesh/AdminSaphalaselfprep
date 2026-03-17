@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import BlockRenderer from "@/components/ui/BlockRenderer";
+import { isBlockDoc } from "@/lib/blocks/schema";
 
 interface FlashcardCard {
   id: string;
@@ -340,15 +342,24 @@ function TitleCard({ card, content, accent, deck }: { card: FlashcardCard; conte
 
 function InfoCard({ card, content, accent, flipped, onFlip }: { card: FlashcardCard; content: Record<string, unknown> | null; accent: string; flipped: boolean; onFlip: () => void }) {
   const title = (content?.infoTitle as string) || "";
+  const bodyBlocks = content?.bodyBlocks;
   const body = (content?.infoBody as string) || card.front || "";
   const keyPoints = (content?.keyPoints as string[]) || [];
+  const exampleBlocks = content?.exampleBlocks;
   const example = (content?.infoExample as string) || "";
   const imageUrl = (content?.imageUrl as string) || card.imageUrl || "";
+
+  const hasExampleBlocks = isBlockDoc(exampleBlocks) && exampleBlocks.blocks.length > 0;
+  const hasExampleHtml = !hasExampleBlocks && !!example;
 
   return (
     <BrandedCardShell accent={accent}>
       {title && <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: accent, margin: "0 0 12px" }}>{title}</h3>}
-      <RichContent html={body} />
+      {isBlockDoc(bodyBlocks) ? (
+        <BlockRenderer doc={bodyBlocks} compact />
+      ) : (
+        <RichContent html={body} />
+      )}
       {keyPoints.filter(Boolean).length > 0 && (
         <div style={{ marginTop: 14, padding: "10px 14px", background: `${accent}08`, borderRadius: 8 }}>
           <div style={{ fontSize: "0.72rem", fontWeight: 700, color: accent, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>Key Points</div>
@@ -357,10 +368,14 @@ function InfoCard({ card, content, accent, flipped, onFlip }: { card: FlashcardC
           </ul>
         </div>
       )}
-      {example && (
+      {(hasExampleBlocks || hasExampleHtml) && (
         <div style={{ marginTop: 10, padding: "8px 12px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 6 }}>
           <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#15803d", marginBottom: 4 }}>Example</div>
-          <RichContent html={example} />
+          {hasExampleBlocks ? (
+            <BlockRenderer doc={exampleBlocks as any} compact />
+          ) : (
+            <RichContent html={example} />
+          )}
         </div>
       )}
       {imageUrl && <img src={imageUrl} alt="Info" style={{ marginTop: 12, maxWidth: "100%", maxHeight: 180, borderRadius: 8, objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />}

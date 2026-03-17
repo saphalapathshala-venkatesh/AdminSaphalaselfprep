@@ -1,0 +1,55 @@
+Do a stabilization and QA audit of the newly implemented shared block editor/block renderer system for Saphala.
+
+Context:
+A shared structured block system has been implemented and integrated into:
+1. EBook pages via EBookPage.contentBlocks with legacy HTML fallback
+2. Flashcard INFO cards for bodyBlocks/exampleBlocks with htmlToBlocks migration from old HTML
+
+Do not redesign the system. Audit and harden it.
+
+Audit areas:
+
+A. Student-side rendering QA
+1. Verify EbookViewer renders all supported block types correctly:
+   - paragraph
+   - heading
+   - image
+   - box
+   - table
+   - list
+   - divider
+2. Verify Flashcard student player renders INFO card body/example blocks correctly.
+3. Check desktop + mobile rendering.
+4. Check nested box rendering and depth-limit behavior.
+5. Verify long content does not break layout or overflow badly.
+
+B. Legacy compatibility
+1. Test old EBook pages that still only have contentHtml.
+2. Test old INFO flashcards with body/example HTML only.
+3. Validate htmlToBlocks migration quality.
+4. Identify any formatting loss or broken migration cases.
+
+C. Save/load integrity
+1. Verify blocks save and reload without data loss.
+2. Verify nested child blocks persist correctly.
+3. Verify block order remains stable after edits.
+4. Verify editing existing migrated content does not corrupt structure.
+
+D. Editor UX hardening
+1. Test add/move/delete/nest flows.
+2. Test table/image/box editing behavior.
+3. Test box-inside-box and table-inside-box cases.
+4. Confirm max nesting rules are enforced cleanly.
+5. Identify any frustrating UX gaps that should be fixed now before scale.
+
+E. Security and rendering safety
+1. Verify the new block-rendered paths are not still relying on dangerouslySetInnerHTML except where legacy fallback is unavoidable.
+2. Ensure legacy fallback is isolated and minimized.
+3. Confirm new block-rendered content is safe and predictable.
+
+Output required:
+- What is working well
+- What is still fragile
+- What should be fixed immediately
+- What can wait
+- Final recommendation on whether the new block system is production-ready

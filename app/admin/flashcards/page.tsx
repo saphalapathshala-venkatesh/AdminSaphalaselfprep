@@ -7,7 +7,7 @@ import RichTextEditor from "@/components/ui/RichTextEditor";
 import AdminImageUploader from "@/components/admin/AdminImageUploader";
 import BlockEditor from "@/components/ui/BlockEditor";
 import { BlockDoc, isBlockDoc } from "@/lib/blocks/schema";
-import { htmlToBlocks, emptyDocWithParagraph } from "@/lib/blocks/defaults";
+import { htmlToBlocks, emptyDocWithParagraph, blocksToHtmlString } from "@/lib/blocks/defaults";
 
 const CARD_TYPES = [
   { value: "TITLE",          label: "Title Card",              desc: "Deck cover / opener" },
@@ -307,19 +307,24 @@ export default function FlashcardsPage() {
           },
           front: form.titleTitle || "(Title Card)", back: "",
         };
-      case "INFO":
+      case "INFO": {
+        const bodyHtml = blocksToHtmlString(form.infoBodyBlocks);
+        const exampleHtml = blocksToHtmlString(form.infoExampleBlocks);
+        const plainBody = bodyHtml.replace(/<[^>]*>/g, "").trim();
         return {
           content: {
-            title: form.infoTitle, body: form.infoBody,
+            title: form.infoTitle,
+            body: bodyHtml,
             bodyBlocks: form.infoBodyBlocks,
             keyPoints: keyPoints.filter((k) => k.trim()),
-            example: form.infoExample || null,
+            example: exampleHtml || null,
             exampleBlocks: form.infoExampleBlocks,
             imageUrl: form.imageUrl || null,
           },
-          front: form.infoTitle || form.infoBody.slice(0, 60) || "Info Card",
+          front: form.infoTitle || plainBody.slice(0, 60) || "Info Card",
           back: "",
         };
+      }
       case "QUIZ":
         return {
           content: {
