@@ -917,41 +917,50 @@ export default function BlockEditor({
         </div>
       )}
 
-      {blocks.length === 0 && (
-        <div
-          style={{
-            padding: "1.5rem",
-            textAlign: "center",
-            color: "#9ca3af",
-            fontSize: "0.875rem",
-            background: "#f9fafb",
-            border: "2px dashed #e2e8f0",
-            borderRadius: 8,
-            marginBottom: 8,
-          }}
-        >
-          No blocks yet — click <strong>+ Add Block</strong> to start.
-        </div>
-      )}
+      <div
+        style={{
+          maxHeight: config === "flashcard" ? 340 : 480,
+          overflowY: "auto",
+          overflowX: "hidden",
+          border: "1px solid #e2e8f0",
+          borderRadius: 8,
+          padding: blocks.length === 0 ? 0 : "8px 8px 2px",
+          background: "#fafafa",
+          marginBottom: 6,
+        }}
+      >
+        {blocks.length === 0 && (
+          <div
+            style={{
+              padding: "1.5rem",
+              textAlign: "center",
+              color: "#9ca3af",
+              fontSize: "0.875rem",
+              background: "#f9fafb",
+              borderRadius: 8,
+            }}
+          >
+            No blocks yet — click <strong>+ Add Block</strong> to start.
+          </div>
+        )}
 
-      {blocks.map((b, i) => (
-        <BlockRow
-          key={b.id}
-          block={b}
-          idx={i}
-          total={blocks.length}
-          onChange={(upd) => updateAt(i, upd)}
-          onMove={moveAt}
-          onDelete={deleteById}
-          disabled={disabled}
-          config={config}
-          depth={0}
-        />
-      ))}
-
-      <div style={{ marginTop: 6 }}>
-        <AddBlockMenu types={allowedTypes} onAdd={addBlock} disabled={disabled} />
+        {blocks.map((b, i) => (
+          <BlockRow
+            key={b.id}
+            block={b}
+            idx={i}
+            total={blocks.length}
+            onChange={(upd) => updateAt(i, upd)}
+            onMove={moveAt}
+            onDelete={deleteById}
+            disabled={disabled}
+            config={config}
+            depth={0}
+          />
+        ))}
       </div>
+
+      <AddBlockMenu types={allowedTypes} onAdd={addBlock} disabled={disabled} />
     </div>
   );
 }
