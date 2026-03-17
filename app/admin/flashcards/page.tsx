@@ -227,7 +227,7 @@ export default function FlashcardsPage() {
           subjectColor: newDeckForm.subjectColor || null,
           xpEnabled: newDeckForm.xpEnabled,
           xpValue: parseInt(newDeckForm.xpValue) || 0,
-          unlockAt: newDeckForm.unlockAt || null,
+          unlockAt: newDeckForm.unlockAt ? newDeckForm.unlockAt + ":00+05:30" : null,
         }),
       });
       const json = await res.json();
@@ -256,7 +256,7 @@ export default function FlashcardsPage() {
           titleImageUrl: deckForm.titleImageUrl || null,
           subjectColor: deckForm.subjectColor || null,
           xpEnabled: deckForm.xpEnabled, xpValue: parseInt(deckForm.xpValue) || 0,
-          unlockAt: deckForm.unlockAt || null,
+          unlockAt: deckForm.unlockAt ? deckForm.unlockAt + ":00+05:30" : null,
         }),
       });
       const json = await res.json();

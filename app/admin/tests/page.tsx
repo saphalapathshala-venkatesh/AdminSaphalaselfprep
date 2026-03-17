@@ -1537,7 +1537,7 @@ export default function TestsPage() {
         seriesId: form.seriesId || null, categoryId: form.categoryId || null, examId: form.examId || null,
         xpEnabled: form.xpEnabled, xpValue: parseInt(form.xpValue) || 0,
         testStartTime: form.testStartTime || null,
-        unlockAt: form.unlockAt || null,
+        unlockAt: form.unlockAt ? form.unlockAt + ":00+05:30" : null,
         isFree: form.isFree,
         sections: sections.map(s => ({ title: s.title, durationSec: s.durationSec ? String(parseInt(s.durationSec) * 60) : null, targetCount: s.targetCount || null, parentIndex: s.parentIndex })),
         questions: testQuestions.map(q => ({ questionId: q.questionId, sectionIndex: q.sectionIndex, marks: q.marks, negativeMarks: q.negativeMarks })),

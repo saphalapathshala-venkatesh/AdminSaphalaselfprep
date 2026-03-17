@@ -277,7 +277,7 @@ export default function CurriculumPage() {
     await fetch(`/api/lessons/${lessonId}/items/${itemId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ unlockAt: unlockAt || null }),
+      body: JSON.stringify({ unlockAt: unlockAt ? unlockAt + ":00+05:30" : null }),
     });
     setUnlockEditItem(null);
     await load();
@@ -315,7 +315,7 @@ export default function CurriculumPage() {
         titleSnapshot: extLinkForm.title.trim(),
         externalUrl: extLinkForm.url.trim(),
         description: extLinkForm.description.trim() || null,
-        unlockAt: extLinkForm.unlockAt || null,
+        unlockAt: extLinkForm.unlockAt ? extLinkForm.unlockAt + ":00+05:30" : null,
       }),
     });
     const d = await res.json();

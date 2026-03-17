@@ -300,7 +300,7 @@ export default function ContentLibraryPage() {
         isPublished: pageForm.isPublished,
         xpEnabled: pageForm.xpEnabled,
         xpValue: parseInt(pageForm.xpValue) || 0,
-        unlockAt: pageForm.unlockAt || null,
+        unlockAt: pageForm.unlockAt ? pageForm.unlockAt + ":00+05:30" : null,
         pages: editorPages.map((p, i) => ({
           ...(p.id ? { id: p.id } : {}),
           title: p.title.trim() || null,
@@ -400,7 +400,7 @@ export default function ContentLibraryPage() {
           topicId: pdfForm.topicId || null,
           subtopicId: pdfForm.subtopicId || null,
           isPublished: pdfForm.isPublished,
-          unlockAt: pdfForm.unlockAt || null,
+          unlockAt: pdfForm.unlockAt ? pdfForm.unlockAt + ":00+05:30" : null,
         }),
       });
       const json = await res.json();
@@ -794,7 +794,7 @@ export default function ContentLibraryPage() {
             <div style={{ marginBottom: "12px" }}>
               <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: "3px", display: "block" }}>Unlock At <span style={{ fontWeight: 400, color: "#94a3b8" }}>(optional — leave blank for immediate access)</span></label>
               <input type="datetime-local" style={{ padding: "0.4rem 0.75rem", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "0.875rem", outline: "none", background: "#fff", width: "100%" }} value={pageForm.unlockAt} onChange={(e) => setPageForm({ ...pageForm, unlockAt: e.target.value })} />
-              {pageForm.unlockAt && <p style={{ margin: "3px 0 0", fontSize: "0.72rem", color: "#7c3aed" }}>Students can access from {new Date(pageForm.unlockAt).toLocaleString()} onwards.</p>}
+              {pageForm.unlockAt && <p style={{ margin: "3px 0 0", fontSize: "0.72rem", color: "#7c3aed" }}>Students can access from {new Date(pageForm.unlockAt + ":00+05:30").toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST onwards.</p>}
             </div>
 
             {/* ── XP Reward ── */}
@@ -862,7 +862,7 @@ export default function ContentLibraryPage() {
             <div style={{ marginBottom: "16px" }}>
               <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: "3px", display: "block" }}>Unlock At <span style={{ fontWeight: 400, color: "#94a3b8" }}>(optional — leave blank for immediate access)</span></label>
               <input type="datetime-local" style={inputStyle} value={pdfForm.unlockAt} onChange={(e) => setPdfForm({ ...pdfForm, unlockAt: e.target.value })} />
-              {pdfForm.unlockAt && <p style={{ margin: "3px 0 0", fontSize: "0.72rem", color: "#7c3aed" }}>Students can access from {new Date(pdfForm.unlockAt).toLocaleString()} onwards.</p>}
+              {pdfForm.unlockAt && <p style={{ margin: "3px 0 0", fontSize: "0.72rem", color: "#7c3aed" }}>Students can access from {new Date(pdfForm.unlockAt + ":00+05:30").toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST onwards.</p>}
             </div>
             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
               <button style={btnSecondary} onClick={() => setShowPdfModal(false)}>Cancel</button>

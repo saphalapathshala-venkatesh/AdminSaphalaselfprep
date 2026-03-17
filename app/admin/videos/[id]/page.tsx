@@ -94,6 +94,7 @@ export default function EditVideoPage() {
       courseId: form.courseId || null,
       categoryId: form.categoryId || null,
       examId: form.examId || null,
+      unlockAt: form.unlockAt ? form.unlockAt + ":00+05:30" : null,
     };
 
     const res = await fetch(`/api/videos/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -265,7 +266,7 @@ export default function EditVideoPage() {
           <div style={{ marginTop: "1rem" }}>
             <label style={labelStyle}>Unlock At <span style={{ fontWeight: 400, color: "#94a3b8" }}>(optional)</span></label>
             <input type="datetime-local" value={form.unlockAt} onChange={e => set("unlockAt", e.target.value)} style={inputStyle} />
-            {form.unlockAt && <p style={{ margin: "4px 0 0", fontSize: "0.75rem", color: "#7c3aed" }}>Students can access from {new Date(form.unlockAt).toLocaleString()} onwards.</p>}
+            {form.unlockAt && <p style={{ margin: "4px 0 0", fontSize: "0.75rem", color: "#7c3aed" }}>Students can access from {new Date(form.unlockAt + ":00+05:30").toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST onwards.</p>}
           </div>
         </div>
 

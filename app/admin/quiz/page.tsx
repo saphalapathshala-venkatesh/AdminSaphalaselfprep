@@ -484,7 +484,7 @@ export default function QuizPage() {
       xpValue: parseInt(form.xpValue) || 0,
       categoryId: form.categoryId || null,
       examId: form.examId || null,
-      unlockAt: form.unlockAt || null,
+      unlockAt: form.unlockAt ? form.unlockAt + ":00+05:30" : null,
       isQuiz: true,
       sections: sections.map((s, i) => ({
         title: s.title || `Section ${i + 1}`,
