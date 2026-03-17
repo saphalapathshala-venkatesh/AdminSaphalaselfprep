@@ -652,6 +652,70 @@ function BoxPanel({ block, onChange, disabled, config }: BlockPanelProps) {
   );
 }
 
+/**
+ * Compact format bar for table cells.
+ * Uses onMouseDown + preventDefault so the contentEditable selection in the
+ * focused cell stays alive, then execCommand applies the format/alignment.
+ */
+function TableFormatBar({ disabled }: { disabled?: boolean }) {
+  const exec = (cmd: string) => {
+    if (disabled) return;
+    try { document.execCommand("styleWithCSS", false, "true"); } catch {}
+    document.execCommand(cmd, false, undefined);
+  };
+
+  const fmtBtns = [
+    { cmd: "bold",      label: <strong>B</strong>, title: "Bold" },
+    { cmd: "italic",    label: <em>I</em>,           title: "Italic" },
+    { cmd: "underline", label: <u>U</u>,             title: "Underline" },
+  ];
+
+  const alignBtns = [
+    { cmd: "justifyLeft",   label: "⇐", title: "Align left" },
+    { cmd: "justifyCenter", label: "⇔", title: "Align center" },
+    { cmd: "justifyRight",  label: "⇒", title: "Align right" },
+  ];
+
+  const btnSt: React.CSSProperties = {
+    padding: "2px 7px", fontSize: "0.78rem", border: "1px solid #e2e8f0",
+    borderRadius: 4, background: "#f8fafc", cursor: disabled ? "not-allowed" : "pointer",
+    fontFamily: "inherit", color: "#374151", flexShrink: 0,
+  };
+
+  return (
+    <div style={{ display: "flex", gap: 3, marginTop: 6, flexWrap: "wrap", alignItems: "center" }}>
+      <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em", marginRight: 2 }}>
+        Format:
+      </span>
+      {fmtBtns.map(({ cmd, label, title }) => (
+        <button
+          key={cmd}
+          type="button"
+          title={title}
+          onMouseDown={(e) => { e.preventDefault(); exec(cmd); }}
+          disabled={disabled}
+          style={btnSt}
+        >
+          {label}
+        </button>
+      ))}
+      <span style={{ width: 1, height: 16, background: "#e2e8f0", margin: "0 3px" }} />
+      {alignBtns.map(({ cmd, label, title }) => (
+        <button
+          key={cmd}
+          type="button"
+          title={title}
+          onMouseDown={(e) => { e.preventDefault(); exec(cmd); }}
+          disabled={disabled}
+          style={btnSt}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function TablePanel({ block, onChange, disabled }: BlockPanelProps) {
   if (block.type !== "table") return null;
   const p = block.props;
@@ -723,7 +787,8 @@ function TablePanel({ block, onChange, disabled }: BlockPanelProps) {
         </div>
       </div>
 
-      {/* ── Inline text-colour palette (works on selected text in any cell) ── */}
+      {/* ── Format bar + text-colour palette (work on selected text in any cell) ── */}
+      <TableFormatBar disabled={disabled} />
       <TextColorPalette disabled={disabled} />
 
       <div style={{ overflowX: "auto", marginTop: 8 }}>
