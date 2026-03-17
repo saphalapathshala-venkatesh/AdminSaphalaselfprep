@@ -68,6 +68,10 @@ export interface TableProps {
   rows: string[][];
   caption?: string;
   width?: "full" | "wide" | "medium" | "compact";
+  /** Background colour for the header row. Defaults to #f3f4f6 (light grey). */
+  headerBg?: string;
+  /** Text colour for the header row. Defaults to #374151 (dark grey). */
+  headerTextColor?: string;
 }
 
 export interface ListProps {

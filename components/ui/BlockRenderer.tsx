@@ -194,8 +194,10 @@ function RenderBlock({ block, compact }: { block: Block; compact?: boolean }) {
     }
 
     case "table": {
-      const { headers, rows, caption, width = "full" } = block.props;
+      const { headers, rows, caption, width = "full", headerBg, headerTextColor } = block.props;
       const tableWidth = TABLE_WIDTH_MAP[width] ?? "100%";
+      const thBg   = headerBg        ?? "#f3f4f6";
+      const thText = headerTextColor ?? "#374151";
       return (
         <div style={{ margin: `0 0 ${sp}`, overflowX: "auto" }}>
           {caption && (
@@ -226,10 +228,10 @@ function RenderBlock({ block, compact }: { block: Block; compact?: boolean }) {
                       style={{
                         border: "1px solid #d1d5db",
                         padding: compact ? "4px 8px" : "7px 12px",
-                        background: "#f3f4f6",
+                        background: thBg,
                         fontWeight: 700,
                         textAlign: "left",
-                        color: "#374151",
+                        color: thText,
                       }}
                     >
                       {h}

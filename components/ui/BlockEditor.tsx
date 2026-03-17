@@ -656,8 +656,9 @@ function TablePanel({ block, onChange, disabled }: BlockPanelProps) {
   if (block.type !== "table") return null;
   const p = block.props;
 
-  const setHeaders = (headers: string[]) => onChange({ ...block, props: { ...p, headers } });
-  const setRows = (rows: string[][]) => onChange({ ...block, props: { ...p, rows } });
+  const setProp = (patch: Partial<typeof p>) => onChange({ ...block, props: { ...p, ...patch } });
+  const setHeaders = (headers: string[]) => setProp({ headers });
+  const setRows = (rows: string[][]) => setProp({ rows });
 
   const addRow = () => setRows([...p.rows, Array(p.headers.length).fill("")]);
   const addCol = () => {
@@ -669,6 +670,9 @@ function TablePanel({ block, onChange, disabled }: BlockPanelProps) {
     setHeaders(p.headers.filter((_, i) => i !== ci));
     setRows(p.rows.map((r) => r.filter((_, i) => i !== ci)));
   };
+
+  const hBg   = p.headerBg        ?? "#f3f4f6";
+  const hText = p.headerTextColor  ?? "#374151";
 
   return (
     <div>
@@ -691,6 +695,33 @@ function TablePanel({ block, onChange, disabled }: BlockPanelProps) {
           </select>
         </label>
       </div>
+
+      {/* ── Header colour controls ─────────────────────────────────────── */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
+        <ColorField
+          label="Header background"
+          value={hBg}
+          onChange={(v) => setProp({ headerBg: v, headerTextColor: p.headerTextColor ?? contrastColor(v) })}
+          disabled={disabled}
+        />
+        <ColorField
+          label="Header text colour"
+          value={hText}
+          onChange={(v) => setProp({ headerTextColor: v })}
+          disabled={disabled}
+        />
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end", paddingBottom: 2 }}>
+          <button
+            type="button"
+            title="Reset header colours to default"
+            onClick={() => setProp({ headerBg: undefined, headerTextColor: undefined })}
+            style={{ ...iconBtn(), fontSize: "0.72rem", whiteSpace: "nowrap" }}
+            disabled={disabled}
+          >
+            ↺ Reset
+          </button>
+        </div>
+      </div>
       <div style={{ overflowX: "auto" }}>
         <table style={{ borderCollapse: "collapse", width: "100%" }}>
           <thead>
@@ -698,7 +729,7 @@ function TablePanel({ block, onChange, disabled }: BlockPanelProps) {
               {p.headers.map((h, ci) => (
                 <th
                   key={ci}
-                  style={{ border: "1px solid #d1d5db", padding: 2, background: "#f3f4f6", minWidth: 80 }}
+                  style={{ border: "1px solid #d1d5db", padding: 2, background: hBg, minWidth: 80 }}
                 >
                   <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
                     <input
@@ -708,7 +739,7 @@ function TablePanel({ block, onChange, disabled }: BlockPanelProps) {
                         nh[ci] = e.target.value;
                         setHeaders(nh);
                       }}
-                      style={{ ...inp, fontWeight: 700, fontSize: "0.8rem", padding: "3px 6px" }}
+                      style={{ ...inp, fontWeight: 700, fontSize: "0.8rem", padding: "3px 6px", color: hText, background: "transparent" }}
                       disabled={disabled}
                     />
                     {p.headers.length > 1 && (
