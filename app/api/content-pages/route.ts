@@ -67,10 +67,10 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { title, body: pageBody, categoryId, examId, subjectId, topicId, subtopicId, isPublished, xpEnabled, xpValue, unlockAt } = body;
-    const incomingPages: { title?: string; contentHtml: string; orderIndex: number }[] = body.pages || [];
+    const incomingPages: { title?: string; contentHtml: string; contentBlocks?: unknown; orderIndex: number }[] = body.pages || [];
 
     if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
-    // Accept either multi-page pages array OR legacy body field
+    // Accept multi-page block-editor pages OR legacy body field
     if (incomingPages.length === 0 && !pageBody?.trim()) {
       return NextResponse.json({ error: "At least one page with content is required" }, { status: 400 });
     }
@@ -93,7 +93,8 @@ export async function POST(req: NextRequest) {
         ebookPages: incomingPages.length > 0 ? {
           create: incomingPages.map((p, i) => ({
             title: p.title ?? null,
-            contentHtml: p.contentHtml,
+            contentHtml: p.contentHtml ?? "",
+            ...(p.contentBlocks !== undefined ? { contentBlocks: p.contentBlocks as any } : {}),
             orderIndex: p.orderIndex ?? i,
           })),
         } : undefined,
