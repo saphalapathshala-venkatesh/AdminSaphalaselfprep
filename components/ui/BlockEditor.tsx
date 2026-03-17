@@ -126,6 +126,21 @@ const BLOCK_LABELS: Record<BlockType, string> = {
   divider:   "─ Divider",
 };
 
+// ─── Text colour palette (fixed list — no free-form RGB picker) ──────────────
+
+const TEXT_PALETTE: { name: string; hex: string }[] = [
+  { name: "Red",       hex: "#dc2626" },
+  { name: "Crimson",   hex: "#991b1b" },
+  { name: "Orange",    hex: "#ea580c" },
+  { name: "Amber",     hex: "#b45309" },
+  { name: "Green",     hex: "#16a34a" },
+  { name: "Deep Teal", hex: "#0f766e" },
+  { name: "Deep Blue", hex: "#1d4ed8" },
+  { name: "Navy",      hex: "#1e3a5f" },
+  { name: "Purple",    hex: "#7c3aed" },
+  { name: "Pink",      hex: "#db2777" },
+];
+
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
 const PURPLE = "#7c3aed";
@@ -156,6 +171,69 @@ interface BlockPanelProps {
   config: EditorConfig;
 }
 
+/** Compact palette swatch row for picking a text colour from the fixed set. */
+function TextColorPalette({
+  value,
+  onChange,
+  disabled,
+}: {
+  value?: string;
+  onChange: (hex: string | undefined) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", marginTop: 8 }}>
+      <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em", marginRight: 2 }}>
+        Text colour:
+      </span>
+      {/* Default swatch */}
+      <button
+        type="button"
+        title="Default (no colour)"
+        onClick={() => !disabled && onChange(undefined)}
+        style={{
+          width: 20,
+          height: 20,
+          borderRadius: "50%",
+          border: !value ? "2.5px solid #7c3aed" : "1.5px solid #d1d5db",
+          background: "#fff",
+          cursor: disabled ? "not-allowed" : "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 10,
+          color: "#9ca3af",
+          padding: 0,
+          flexShrink: 0,
+        }}
+      >
+        ✕
+      </button>
+      {TEXT_PALETTE.map(({ name, hex }) => (
+        <button
+          key={hex}
+          type="button"
+          title={name}
+          onClick={() => !disabled && onChange(hex)}
+          style={{
+            width: 20,
+            height: 20,
+            borderRadius: "50%",
+            background: hex,
+            border: value === hex ? "2.5px solid #111" : "2px solid transparent",
+            outline: value === hex ? `2px solid ${hex}` : "none",
+            outlineOffset: 1,
+            cursor: disabled ? "not-allowed" : "pointer",
+            padding: 0,
+            flexShrink: 0,
+            opacity: disabled ? 0.5 : 1,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 function ParagraphPanel({ block, onChange, disabled }: BlockPanelProps) {
   if (block.type !== "paragraph") return null;
   const p = block.props;
@@ -167,52 +245,27 @@ function ParagraphPanel({ block, onChange, disabled }: BlockPanelProps) {
         placeholder="Paragraph text…"
         disabled={disabled}
       />
-      <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
-        {/* Alignment */}
-        <div style={{ display: "flex", gap: 6 }}>
-          {(["left", "center", "right"] as const).map((a) => (
-            <button
-              key={a}
-              type="button"
-              onClick={() => onChange({ ...block, props: { ...p, align: a } })}
-              style={{
-                ...iconBtn(p.align === a ? PURPLE : "#6b7280"),
-                background: p.align === a ? "#ede9fe" : "#f8fafc",
-                borderColor: p.align === a ? PURPLE : "#e2e8f0",
-              }}
-            >
-              {a === "left" ? "⇐" : a === "center" ? "⇔" : "⇒"}
-            </button>
-          ))}
-        </div>
-        {/* Text colour */}
-        <ColorField
-          label="Text colour"
-          value={p.textColor ?? "#1f2937"}
-          onChange={(v) => onChange({ ...block, props: { ...p, textColor: v } })}
-          disabled={disabled}
-        />
-        {p.textColor && p.textColor !== "#1f2937" && (
+      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+        {(["left", "center", "right"] as const).map((a) => (
           <button
+            key={a}
             type="button"
-            onClick={() => onChange({ ...block, props: { ...p, textColor: undefined } })}
-            disabled={disabled}
+            onClick={() => onChange({ ...block, props: { ...p, align: a } })}
             style={{
-              padding: "3px 8px",
-              fontSize: "0.7rem",
-              background: "#f1f5f9",
-              border: "1px solid #e2e8f0",
-              borderRadius: 5,
-              cursor: "pointer",
-              color: "#64748b",
-              fontFamily: "inherit",
-              marginBottom: 1,
+              ...iconBtn(p.align === a ? PURPLE : "#6b7280"),
+              background: p.align === a ? "#ede9fe" : "#f8fafc",
+              borderColor: p.align === a ? PURPLE : "#e2e8f0",
             }}
           >
-            Reset
+            {a === "left" ? "⇐" : a === "center" ? "⇔" : "⇒"}
           </button>
-        )}
+        ))}
       </div>
+      <TextColorPalette
+        value={p.textColor}
+        onChange={(hex) => onChange({ ...block, props: { ...p, textColor: hex } })}
+        disabled={disabled}
+      />
     </div>
   );
 }
@@ -430,7 +483,6 @@ function BoxPanel({ block, onChange, disabled, config }: BlockPanelProps) {
                   headerBg:       isNewCustom ? (p.headerBg       ?? nm.headerBg)    : nm.headerBg,
                   headerTextColor: isNewCustom ? (p.headerTextColor ?? "#ffffff")     : undefined,
                   bodyBg:         isNewCustom ? (p.bodyBg          ?? nm.bodyBg)     : nm.bodyBg,
-                  bodyTextColor:  isNewCustom ? p.bodyTextColor                      : undefined,
                   borderColor:    isNewCustom ? (p.borderColor     ?? nm.accent)     : undefined,
                   customIcon:     isNewCustom ? (p.customIcon      ?? nm.icon)       : undefined,
                   accent: nm.accent,
@@ -556,36 +608,6 @@ function BoxPanel({ block, onChange, disabled, config }: BlockPanelProps) {
         </div>
       )}
 
-      {/* ── Body text colour — visible for all presets ── */}
-      <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 8, flexWrap: "wrap" }}>
-        <ColorField
-          label="Body text colour"
-          value={p.bodyTextColor ?? "#1f2937"}
-          onChange={(v) => setProp({ bodyTextColor: v })}
-          disabled={disabled}
-        />
-        {p.bodyTextColor && p.bodyTextColor !== "#1f2937" && (
-          <button
-            type="button"
-            onClick={() => setProp({ bodyTextColor: undefined })}
-            disabled={disabled}
-            style={{
-              padding: "3px 8px",
-              fontSize: "0.7rem",
-              background: "#f1f5f9",
-              border: "1px solid #e2e8f0",
-              borderRadius: 5,
-              cursor: "pointer",
-              color: "#64748b",
-              fontFamily: "inherit",
-              marginBottom: 1,
-            }}
-          >
-            Reset
-          </button>
-        )}
-      </div>
-
       {/* ── Live preview ── */}
       <div
         style={{
@@ -610,7 +632,7 @@ function BoxPanel({ block, onChange, disabled, config }: BlockPanelProps) {
         >
           {resolvedIcon} {p.title ?? meta.label}
         </div>
-        <div style={{ padding: 10, background: resolvedBodyBg, color: p.bodyTextColor }}>
+        <div style={{ padding: 10, background: resolvedBodyBg }}>
           <NestedBlockEditor
             blocks={p.children ?? []}
             onChange={setChildren}
