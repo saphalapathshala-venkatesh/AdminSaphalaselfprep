@@ -654,7 +654,7 @@ export default function ContentLibraryPage() {
       {/* ── E-BOOK EDITOR MODAL ───────────────────────────────────────────────── */}
       {showPageModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 1000, padding: "24px 16px", overflowY: "auto" }}>
-          <div style={{ background: "#fff", borderRadius: "12px", padding: "28px", width: "820px", maxWidth: "100%" }}>
+          <div style={{ background: "#fff", borderRadius: "12px", padding: "28px", width: "820px", maxWidth: "100%", maxHeight: "calc(100vh - 48px)", overflowY: "auto" }}>
 
             {/* ── Header ── */}
             <h3 style={{ fontSize: "1.1rem", fontWeight: 700, margin: "0 0 20px", color: "#111" }}>

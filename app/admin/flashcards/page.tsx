@@ -1178,8 +1178,8 @@ export default function FlashcardsPage() {
 
       {/* CARD EDITOR MODAL */}
       {showCardModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div style={{ background: "#fff", borderRadius: "12px", padding: "24px", width: "620px", maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 1000, padding: "24px 16px", overflowY: "auto" }}>
+          <div style={{ background: "#fff", borderRadius: "12px", padding: "24px", width: "620px", maxWidth: "100%", maxHeight: "calc(100vh - 48px)", overflowY: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <h3 style={{ fontSize: "1.1rem", fontWeight: 600, margin: 0 }}>{editingCard ? "Edit Card" : "Add Card"}</h3>
               <button style={{ background: "none", border: "none", fontSize: "1.2rem", cursor: "pointer", color: "#9ca3af" }} onClick={() => setShowCardModal(false)}>✕</button>
