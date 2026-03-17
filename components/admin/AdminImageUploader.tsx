@@ -16,6 +16,12 @@ export interface AdminImageUploaderProps {
   disabled?: boolean;
   /** Preview container height in px. Default 140. */
   previewHeight?: number;
+  /**
+   * When true, skips the GCS presigned-URL flow entirely and converts the
+   * selected file to a base64 data URL on the client. Use this for block-editor
+   * images so the feature works on any deployment (no Replit sidecar required).
+   */
+  base64?: boolean;
 }
 
 /**
@@ -33,6 +39,7 @@ export default function AdminImageUploader({
   label,
   disabled = false,
   previewHeight = 140,
+  base64 = false,
 }: AdminImageUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -59,33 +66,48 @@ export default function AdminImageUploader({
     setProgress(10);
 
     try {
-      // Step 1: Request presigned URL from our API
-      const metaRes = await fetch("/api/admin/upload/request-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: file.name, contentType: file.type, size: file.size }),
-      });
-      const metaJson = await metaRes.json();
-      if (!metaRes.ok) {
-        setError(metaJson.error || "Failed to get upload URL");
-        return;
+      if (base64) {
+        // ── Base64 mode: convert to data URL entirely on the client.
+        // No server call needed — works on any deployment.
+        setProgress(40);
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error("Failed to read file"));
+          reader.readAsDataURL(file);
+        });
+        setProgress(100);
+        onChange(dataUrl);
+      } else {
+        // ── GCS presigned-URL mode (requires Replit sidecar).
+        // Step 1: Request presigned URL from our API
+        const metaRes = await fetch("/api/admin/upload/request-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: file.name, contentType: file.type, size: file.size }),
+        });
+        const metaJson = await metaRes.json();
+        if (!metaRes.ok) {
+          setError(metaJson.error || "Failed to get upload URL");
+          return;
+        }
+
+        setProgress(30);
+
+        // Step 2: PUT file bytes directly to GCS presigned URL (bypasses our server)
+        const uploadRes = await fetch(metaJson.uploadUrl, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type },
+        });
+        if (!uploadRes.ok) {
+          setError("Upload failed. Please try again.");
+          return;
+        }
+
+        setProgress(100);
+        onChange(metaJson.publicUrl);
       }
-
-      setProgress(30);
-
-      // Step 2: PUT file bytes directly to GCS presigned URL (bypasses our server)
-      const uploadRes = await fetch(metaJson.uploadUrl, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type },
-      });
-      if (!uploadRes.ok) {
-        setError("Upload failed. Please try again.");
-        return;
-      }
-
-      setProgress(100);
-      onChange(metaJson.publicUrl);
     } catch (err) {
       setError("Upload failed. Check your connection and try again.");
       console.error("[AdminImageUploader]", err);
@@ -93,7 +115,7 @@ export default function AdminImageUploader({
       setUploading(false);
       setProgress(0);
     }
-  }, [onChange]);
+  }, [onChange, base64]);
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

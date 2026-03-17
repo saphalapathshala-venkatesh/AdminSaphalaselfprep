@@ -335,6 +335,7 @@ function ImagePanel({ block, onChange, disabled }: BlockPanelProps) {
         onChange={(url) => onChange({ ...block, props: { ...p, src: url || "" } })}
         disabled={disabled}
         previewHeight={100}
+        base64
       />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         <div>
