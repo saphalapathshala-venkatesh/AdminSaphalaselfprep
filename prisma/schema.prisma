@@ -681,6 +681,7 @@ model PdfAsset {
   id             String @id @default(cuid())
   title          String
   fileUrl        String
+  fileData       Bytes?
   fileSize       Int?
   mimeType       String? @default("application/pdf")
   categoryId     String?

@@ -4,8 +4,27 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
-import { unlink } from "fs/promises";
-import path from "path";
+
+const PDF_SELECT = {
+  id: true,
+  title: true,
+  fileUrl: true,
+  fileSize: true,
+  mimeType: true,
+  categoryId: true,
+  examId: true,
+  subjectId: true,
+  topicId: true,
+  subtopicId: true,
+  isDownloadable: true,
+  isPublished: true,
+  publishedAt: true,
+  unlockAt: true,
+  createdById: true,
+  createdAt: true,
+  updatedAt: true,
+  createdBy: { select: { id: true, name: true, email: true } },
+} as const;
 
 export async function PUT(
   req: NextRequest,
@@ -15,7 +34,10 @@ export async function PUT(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const existing = await prisma.pdfAsset.findUnique({ where: { id: params.id } });
+    const existing = await prisma.pdfAsset.findUnique({
+      where: { id: params.id },
+      select: { id: true, title: true, isPublished: true },
+    });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const body = await req.json();
@@ -43,9 +65,7 @@ export async function PUT(
     const updated = await prisma.pdfAsset.update({
       where: { id: params.id },
       data,
-      include: {
-        createdBy: { select: { id: true, name: true, email: true } },
-      },
+      select: PDF_SELECT,
     });
 
     await writeAuditLog({
@@ -83,7 +103,10 @@ export async function DELETE(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const asset = await prisma.pdfAsset.findUnique({ where: { id: params.id } });
+    const asset = await prisma.pdfAsset.findUnique({
+      where: { id: params.id },
+      select: { id: true, title: true, fileUrl: true, isPublished: true },
+    });
     if (!asset) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     if (asset.isPublished && user.role !== "SUPER_ADMIN") {
@@ -94,12 +117,6 @@ export async function DELETE(
     }
 
     await prisma.pdfAsset.delete({ where: { id: params.id } });
-
-    try {
-      const relativePath = asset.fileUrl.startsWith("/") ? asset.fileUrl.slice(1) : asset.fileUrl;
-      const filePath = path.join(process.cwd(), "public", relativePath);
-      await unlink(filePath);
-    } catch {}
 
     await writeAuditLog({
       actorId: user.id,

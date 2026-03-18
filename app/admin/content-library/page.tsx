@@ -348,46 +348,20 @@ export default function ContentLibraryPage() {
     if (uploadFile.size > 20 * 1024 * 1024) { showToast("File exceeds 20MB limit", "error"); return; }
 
     setSaving(true);
+    setUploadProgress("Uploading PDF...");
     try {
-      // Step 1: Get a presigned GCS upload URL from our server
-      setUploadProgress("Preparing upload...");
-      const urlRes = await fetch("/api/pdf-assets/request-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ size: uploadFile.size }),
-      });
-      const urlJson = await urlRes.json();
-      if (!urlRes.ok) { showToast(urlJson.error || "Failed to prepare upload", "error"); return; }
-      const { uploadUrl, publicUrl } = urlJson;
+      const fd = new FormData();
+      fd.append("file", uploadFile);
+      fd.append("title", uploadForm.title);
+      if (uploadForm.categoryId) fd.append("categoryId", uploadForm.categoryId);
+      if (uploadForm.examId) fd.append("examId", uploadForm.examId);
+      if (uploadForm.subjectId) fd.append("subjectId", uploadForm.subjectId);
+      if (uploadForm.topicId) fd.append("topicId", uploadForm.topicId);
+      if (uploadForm.subtopicId) fd.append("subtopicId", uploadForm.subtopicId);
 
-      // Step 2: Upload the PDF directly to GCS via the presigned URL
-      setUploadProgress("Uploading PDF...");
-      const gcsRes = await fetch(uploadUrl, {
-        method: "PUT",
-        body: uploadFile,
-        headers: { "Content-Type": "application/pdf" },
-      });
-      if (!gcsRes.ok) { showToast("File upload to storage failed", "error"); return; }
-
-      // Step 3: Save metadata to DB
-      setUploadProgress("Saving...");
-      const saveRes = await fetch("/api/pdf-assets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: uploadForm.title,
-          fileUrl: publicUrl,
-          fileSize: uploadFile.size,
-          mimeType: uploadFile.type,
-          categoryId: uploadForm.categoryId || null,
-          examId: uploadForm.examId || null,
-          subjectId: uploadForm.subjectId || null,
-          topicId: uploadForm.topicId || null,
-          subtopicId: uploadForm.subtopicId || null,
-        }),
-      });
-      const saveJson = await saveRes.json();
-      if (!saveRes.ok) { showToast(saveJson.error || "Failed to save PDF", "error"); return; }
+      const res = await fetch("/api/pdf-assets", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok) { showToast(json.error || "Upload failed", "error"); return; }
 
       showToast("PDF uploaded", "success");
       setShowUploadForm(false);
