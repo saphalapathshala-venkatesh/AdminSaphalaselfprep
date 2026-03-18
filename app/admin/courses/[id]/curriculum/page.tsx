@@ -88,8 +88,9 @@ export default function CurriculumPage() {
       const res = await fetch(`/api/taxonomy?level=subject&parentId=${course.categoryId}`);
       if (!res.ok) return;
       const data = await res.json();
+      const subjects: Subject[] = Array.isArray(data) ? data : (data.data || data.items || []);
       const existing = new Set(sections.map((s) => s.subjectId));
-      setAvailableSubjects((data.items || data).filter((s: Subject) => !existing.has(s.id)));
+      setAvailableSubjects(subjects.filter((s: Subject) => !existing.has(s.id)));
     } catch { /* ignore */ }
     finally { setSubjectsLoading(false); }
   }, [course?.categoryId, sections]);
