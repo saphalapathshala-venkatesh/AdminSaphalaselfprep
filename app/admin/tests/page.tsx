@@ -1302,8 +1302,26 @@ type SingleEditProps = {
   onSave: (patch: Partial<ReviewItem>) => void;
   onClose: () => void;
 };
-function SingleEditModal({ item, taxoCategories, taxoSubjects, taxoTopics, taxoSubtopics, qTypes, difficulties, onSave, onClose }: SingleEditProps) {
+function SingleEditModal({ item, taxoCategories, qTypes, difficulties, onSave, onClose }: Omit<SingleEditProps, "taxoSubjects" | "taxoTopics" | "taxoSubtopics"> & { taxoSubjects?: TaxoNode[]; taxoTopics?: TaxoNode[]; taxoSubtopics?: TaxoNode[] }) {
   const [f, setF] = useState({ ...item });
+  const [localSubjects, setLocalSubjects] = useState<TaxoNode[]>([]);
+  const [localTopics, setLocalTopics] = useState<TaxoNode[]>([]);
+  const [localSubtopics, setLocalSubtopics] = useState<TaxoNode[]>([]);
+
+  useEffect(() => {
+    if (!f.categoryId) { setLocalSubjects([]); setLocalTopics([]); setLocalSubtopics([]); return; }
+    fetch(`/api/taxonomy?level=subject&parentId=${f.categoryId}`).then(r => r.json()).then(d => setLocalSubjects(d.data || []));
+  }, [f.categoryId]);
+
+  useEffect(() => {
+    if (!f.subjectId) { setLocalTopics([]); setLocalSubtopics([]); return; }
+    fetch(`/api/taxonomy?level=topic&parentId=${f.subjectId}`).then(r => r.json()).then(d => setLocalTopics(d.data || []));
+  }, [f.subjectId]);
+
+  useEffect(() => {
+    if (!f.topicId) { setLocalSubtopics([]); return; }
+    fetch(`/api/taxonomy?level=subtopic&parentId=${f.topicId}`).then(r => r.json()).then(d => setLocalSubtopics(d.data || []));
+  }, [f.topicId]);
 
   function setOpt(idx: number, field: "text" | "isCorrect", value: string | boolean) {
     const opts = [...f.options];
@@ -1382,23 +1400,23 @@ function SingleEditModal({ item, taxoCategories, taxoSubjects, taxoTopics, taxoS
             </div>
             <div>
               <label style={lbl}>Subject</label>
-              <select value={f.subjectId} onChange={e => setF(p => ({ ...p, subjectId: e.target.value, topicId: "", subtopicId: "" }))} style={inp}>
+              <select value={f.subjectId} onChange={e => setF(p => ({ ...p, subjectId: e.target.value, topicId: "", subtopicId: "" }))} style={inp} disabled={!f.categoryId}>
                 <option value="">-- None --</option>
-                {taxoSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {localSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div>
               <label style={lbl}>Topic</label>
-              <select value={f.topicId} onChange={e => setF(p => ({ ...p, topicId: e.target.value, subtopicId: "" }))} style={inp}>
+              <select value={f.topicId} onChange={e => setF(p => ({ ...p, topicId: e.target.value, subtopicId: "" }))} style={inp} disabled={!f.subjectId}>
                 <option value="">-- None --</option>
-                {taxoTopics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {localTopics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
             <div>
               <label style={lbl}>Subtopic</label>
-              <select value={f.subtopicId} onChange={e => setF(p => ({ ...p, subtopicId: e.target.value }))} style={inp}>
+              <select value={f.subtopicId} onChange={e => setF(p => ({ ...p, subtopicId: e.target.value }))} style={inp} disabled={!f.topicId}>
                 <option value="">-- None --</option>
-                {taxoSubtopics.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {localSubtopics.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
           </div>
