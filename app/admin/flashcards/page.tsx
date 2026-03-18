@@ -694,6 +694,7 @@ export default function FlashcardsPage() {
               value={form.titleImageUrl || null}
               onChange={(url) => setForm({ ...form, titleImageUrl: url || "" })}
               disabled={saving}
+              base64
             />
           </div>
           <div style={{ marginBottom: "10px" }}>
@@ -767,6 +768,7 @@ export default function FlashcardsPage() {
                 value={cf.titleImageUrl || null}
                 onChange={(url) => set({ titleImageUrl: url || "" })}
                 disabled={saving}
+                base64
               />
             </div>
             <div style={{ padding: "12px", background: "#faf5ff", border: "1px solid #ede9fe", borderRadius: "8px", borderLeft: `4px solid ${accentColor}` }}>
@@ -819,6 +821,7 @@ export default function FlashcardsPage() {
                 value={cf.imageUrl || null}
                 onChange={(url) => set({ imageUrl: url || "" })}
                 disabled={saving}
+                base64
               />
             </div>
           </div>

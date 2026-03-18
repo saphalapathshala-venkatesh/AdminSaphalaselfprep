@@ -175,6 +175,7 @@ export default function NewVideoPage() {
                 value={form.thumbnailUrl || null}
                 onChange={(url) => set("thumbnailUrl", url || "")}
                 disabled={saving}
+                base64
               />
             </div>
           </div>

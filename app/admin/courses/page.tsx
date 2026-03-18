@@ -233,6 +233,7 @@ function CourseForm({ form, onChange, error, isEdit, categories, exams, disabled
           value={form.thumbnailUrl || null}
           onChange={(url) => set({ thumbnailUrl: url || "" })}
           disabled={disabled}
+          base64
         />
       </div>
 

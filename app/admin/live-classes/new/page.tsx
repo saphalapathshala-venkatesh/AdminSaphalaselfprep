@@ -189,6 +189,7 @@ export default function NewLiveClassPage() {
               value={form.thumbnailUrl || null}
               onChange={(url) => set("thumbnailUrl", url || "")}
               disabled={saving}
+              base64
             />
           </div>
         </div>

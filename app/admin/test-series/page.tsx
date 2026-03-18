@@ -339,6 +339,7 @@ export default function TestSeriesPage() {
                   value={form.thumbnailUrl || null}
                   onChange={(url) => setForm({ ...form, thumbnailUrl: url || "" })}
                   disabled={saving}
+                  base64
                 />
               </div>
               <div>
