@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
     const expiresAt = new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
 
     await prisma.session.create({
-      data: { userId: user.id, type: "ADMIN", token, expiresAt },
+      data: { userId: user.id, type: "STUDENT", token, expiresAt },
     });
 
     writeUserActivity({ userId: user.id, activityType: "LOGIN_SUCCESS", deviceKey, ipAddress: ip });

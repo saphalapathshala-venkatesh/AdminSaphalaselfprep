@@ -43,7 +43,7 @@ export default function CurriculumPage() {
   const [editSectionSubtitle, setEditSectionSubtitle] = useState("");
 
   // Add item panel
-  const [addItemPanel, setAddItemPanel] = useState<{ lessonId: string; categoryId: string | null; subjectId: string | null } | null>(null);
+  const [addItemPanel, setAddItemPanel] = useState<{ lessonId: string; lessonTitle: string; subjectName: string; categoryId: string | null; subjectId: string | null } | null>(null);
   const [addItemType, setAddItemType] = useState<string>("");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [candidateSearch, setCandidateSearch] = useState("");
@@ -497,7 +497,7 @@ export default function CurriculumPage() {
                                     <button onClick={() => { setLessonModal({ chapterId: chapter.id, lesson }); setLessonForm({ title: lesson.title, description: lesson.description || "", status: lesson.status }); }} style={{ padding: "0 0.4rem", height: 24, borderRadius: 4, border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", fontSize: "0.72rem", color: "#374151" }}>Edit</button>
                                     <button
                                       onClick={() => {
-                                        setAddItemPanel({ lessonId: lesson.id, categoryId: course.categoryId, subjectId: section.subjectId });
+                                        setAddItemPanel({ lessonId: lesson.id, lessonTitle: lesson.title, subjectName: section.subject?.name || "", categoryId: course.categoryId, subjectId: section.subjectId });
                                         setAddItemType(itemTypes[0] || "");
                                         setCandidateSearch("");
                                         setCandidates([]);
@@ -685,8 +685,18 @@ export default function CurriculumPage() {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 9000, display: "flex", alignItems: "flex-start", justifyContent: "flex-end" }}>
           <div style={{ background: "#fff", width: 400, height: "100vh", display: "flex", flexDirection: "column", boxShadow: "-4px 0 24px rgba(0,0,0,0.12)" }}>
             <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontWeight: 800, fontSize: "1.05rem", color: "#0f172a" }}>Add Content Item</div>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: "1.05rem", color: "#0f172a" }}>Add Content Item</div>
+                <div style={{ fontSize: "0.72rem", color: "#7c3aed", marginTop: 2 }}>
+                  Lesson: <strong>{addItemPanel.lessonTitle}</strong>
+                </div>
+              </div>
               <button onClick={() => setAddItemPanel(null)} style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", fontSize: "1.125rem", color: "#64748b" }}>×</button>
+            </div>
+            {/* Active filter context banner */}
+            <div style={{ padding: "0.5rem 1rem", background: "#f5f3ff", borderBottom: "1px solid #ede9fe", display: "flex", alignItems: "center", gap: 6, fontSize: "0.75rem", color: "#5b21b6" }}>
+              <span>🔍</span>
+              <span>Showing content tagged to subject: <strong>{addItemPanel.subjectName || "All"}</strong></span>
             </div>
 
             {/* Type selector */}
@@ -763,7 +773,17 @@ export default function CurriculumPage() {
                 {!addItemType && <div style={{ color: "#94a3b8", fontSize: "0.875rem", padding: "0.75rem" }}>Select a content type above.</div>}
                 {addItemType && candidatesLoading && <div style={{ color: "#94a3b8", fontSize: "0.875rem", padding: "0.75rem" }}>Loading…</div>}
                 {addItemType && !candidatesLoading && candidates.length === 0 && (
-                  <div style={{ color: "#94a3b8", fontSize: "0.875rem", padding: "0.75rem" }}>No available {contentTypeLabel(addItemType as "VIDEO")} items found.</div>
+                  <div style={{ padding: "1rem", background: "#fafafa", borderRadius: 8, border: "1px solid #f1f5f9", margin: "0.5rem" }}>
+                    <div style={{ color: "#374151", fontWeight: 600, fontSize: "0.82rem", marginBottom: 4 }}>
+                      No {contentTypeLabel(addItemType as "VIDEO")} found
+                    </div>
+                    <div style={{ color: "#94a3b8", fontSize: "0.76rem", lineHeight: 1.5 }}>
+                      {candidateSearch
+                        ? <>No results for "{candidateSearch}".</>
+                        : <>No published {contentTypeLabel(addItemType as "VIDEO")} are tagged to the subject <strong style={{ color: "#5b21b6" }}>{addItemPanel?.subjectName}</strong>. Go to the {contentTypeLabel(addItemType as "VIDEO")} section, create or edit content, and assign it to this subject.</>
+                      }
+                    </div>
+                  </div>
                 )}
                 {addItemType && !candidatesLoading && candidates.map((c) => (
                   <div key={c.id} style={{ display: "flex", alignItems: "center", gap: "0.625rem", padding: "0.625rem", borderRadius: 10, border: "1px solid #f1f5f9", background: "#fff", marginBottom: "0.375rem" }}>

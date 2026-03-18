@@ -4,9 +4,9 @@ import type { User } from "@prisma/client";
 
 /**
  * Validates the student-facing `session` cookie.
- * Accepts both STUDENT sessions (from student-signup) and ADMIN sessions
- * (from user-login, which uses the same `session` cookie). This allows admin
- * preview of student-facing APIs without a separate login.
+ * Accepts STUDENT sessions (from student-signup and user-login) and, for
+ * backward compatibility, ADMIN-typed sessions created before the July 2025
+ * fix that corrected user-login to emit STUDENT-type sessions.
  *
  * Admin-console sessions use the `admin_session` cookie (see lib/auth.ts) and
  * are completely separate from this flow.
