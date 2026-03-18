@@ -294,9 +294,11 @@ export default function ContentLibraryPage() {
     try {
       const payload: any = {
         title: pageForm.title,
-        subtopicId: pageForm.subtopicId || null,
         categoryId: pageForm.categoryId || null,
         examId: pageForm.examId || null,
+        subjectId: pageForm.subjectId || null,
+        topicId: pageForm.topicId || null,
+        subtopicId: pageForm.subtopicId || null,
         isPublished: pageForm.isPublished,
         xpEnabled: pageForm.xpEnabled,
         xpValue: parseInt(pageForm.xpValue) || 0,
