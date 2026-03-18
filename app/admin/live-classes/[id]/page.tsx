@@ -30,10 +30,13 @@ export default function EditLiveClassPage() {
   const [courses, setCourses] = useState<SelectOption[]>([]);
   const [categories, setCategories] = useState<TaxOption[]>([]);
   const [exams, setExams] = useState<ExamOption[]>([]);
+  const [subjects, setSubjects] = useState<TaxOption[]>([]);
+  const [topics, setTopics] = useState<TaxOption[]>([]);
+  const [subtopics, setSubtopics] = useState<TaxOption[]>([]);
 
   const [form, setForm] = useState({
     title: "", description: "", facultyId: "", courseId: "",
-    categoryId: "", examId: "",
+    categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "",
     sessionDate: "", startTime: "", endTime: "",
     accessType: "FREE", status: "DRAFT",
     platform: "ZOOM", joinUrl: "", sessionCode: "",
@@ -62,6 +65,7 @@ export default function EditLiveClassPage() {
           title: lc.title || "", description: lc.description || "",
           facultyId: lc.facultyId || "", courseId: lc.courseId || "",
           categoryId: lc.categoryId || "", examId: lc.examId || "",
+          subjectId: lc.subjectId || "", topicId: lc.topicId || "", subtopicId: lc.subtopicId || "",
           sessionDate, startTime: lc.startTime || "", endTime: lc.endTime || "",
           accessType: lc.accessType || "FREE", status: lc.status || "DRAFT",
           platform: lc.platform || "ZOOM",
@@ -71,6 +75,9 @@ export default function EditLiveClassPage() {
           recordingPolicy: lc.recordingPolicy || "NO_RECORD",
           replayVideoId: lc.replayVideoId || "",
         });
+        if (lc.categoryId) fetch(`/api/taxonomy?level=subject&parentId=${lc.categoryId}`).then(r => r.json()).then(j => setSubjects(j.data || []));
+        if (lc.subjectId) fetch(`/api/taxonomy?level=topic&parentId=${lc.subjectId}`).then(r => r.json()).then(j => setTopics(j.data || []));
+        if (lc.topicId) fetch(`/api/taxonomy?level=subtopic&parentId=${lc.topicId}`).then(r => r.json()).then(j => setSubtopics(j.data || []));
       }
       setFaculties(fj.data || []);
       setCourses(cj.data || []);
@@ -81,6 +88,22 @@ export default function EditLiveClassPage() {
   }, [id]);
 
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
+
+  async function handleCategoryChange(val: string) {
+    setForm(f => ({ ...f, categoryId: val, examId: "", subjectId: "", topicId: "", subtopicId: "" }));
+    setSubjects([]); setTopics([]); setSubtopics([]);
+    if (val) fetch(`/api/taxonomy?level=subject&parentId=${val}`).then(r => r.json()).then(j => setSubjects(j.data || []));
+  }
+  async function handleSubjectChange(val: string) {
+    setForm(f => ({ ...f, subjectId: val, topicId: "", subtopicId: "" }));
+    setTopics([]); setSubtopics([]);
+    if (val) fetch(`/api/taxonomy?level=topic&parentId=${val}`).then(r => r.json()).then(j => setTopics(j.data || []));
+  }
+  async function handleTopicChange(val: string) {
+    setForm(f => ({ ...f, topicId: val, subtopicId: "" }));
+    setSubtopics([]);
+    if (val) fetch(`/api/taxonomy?level=subtopic&parentId=${val}`).then(r => r.json()).then(j => setSubtopics(j.data || []));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -179,7 +202,7 @@ export default function EditLiveClassPage() {
           <div style={rowStyle}>
             <div>
               <label style={labelStyle}>Category</label>
-              <select value={form.categoryId} onChange={e => setForm(f => ({ ...f, categoryId: e.target.value, examId: "" }))} style={inputStyle}>
+              <select value={form.categoryId} onChange={e => handleCategoryChange(e.target.value)} style={inputStyle}>
                 <option value="">— No Category —</option>
                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -191,6 +214,29 @@ export default function EditLiveClassPage() {
                 {exams.filter(ex => !form.categoryId || ex.categoryId === form.categoryId).map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
               </select>
             </div>
+          </div>
+          <div style={rowStyle}>
+            <div>
+              <label style={labelStyle}>Subject</label>
+              <select value={form.subjectId} onChange={e => handleSubjectChange(e.target.value)} style={inputStyle} disabled={!form.categoryId}>
+                <option value="">— No Subject —</option>
+                {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Topic</label>
+              <select value={form.topicId} onChange={e => handleTopicChange(e.target.value)} style={inputStyle} disabled={!form.subjectId}>
+                <option value="">— No Topic —</option>
+                {topics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{ marginBottom: "1rem" }}>
+            <label style={labelStyle}>Subtopic</label>
+            <select value={form.subtopicId} onChange={e => set("subtopicId", e.target.value)} style={inputStyle} disabled={!form.topicId}>
+              <option value="">— No Subtopic —</option>
+              {subtopics.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
           </div>
         </div>
 
