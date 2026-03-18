@@ -388,11 +388,11 @@ export default function QuizPage() {
 
   // Taxonomy
   const [categories, setCategories] = useState<TaxoNode[]>([]);
-  const [exams, setExams] = useState<TaxoNode[]>([]);
+  const [exams, setExams] = useState<{ id: string; name: string; categoryId: string }[]>([]);
 
   useEffect(() => {
     fetch("/api/taxonomy?level=category").then(r => r.json()).then(d => setCategories(d.data || []));
-    fetch("/api/exams?limit=100").then(r => r.json()).then(d => setExams((d.data || []).map((e: any) => ({ id: e.id, name: e.name }))));
+    fetch("/api/exams?limit=100").then(r => r.json()).then(d => setExams((d.data || []).map((e: any) => ({ id: e.id, name: e.name, categoryId: e.categoryId || "" }))));
   }, []);
 
   const showToast = useCallback((msg: string, type: "ok" | "err") => {
@@ -766,7 +766,7 @@ export default function QuizPage() {
                   )}
                   <div>
                     {field("Category",
-                      <select value={form.categoryId} onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))} style={inp()}>
+                      <select value={form.categoryId} onChange={e => setForm(f => ({ ...f, categoryId: e.target.value, examId: "" }))} style={inp()}>
                         <option value="">— None —</option>
                         {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
@@ -774,9 +774,9 @@ export default function QuizPage() {
                   </div>
                   <div>
                     {field("Exam",
-                      <select value={form.examId} onChange={e => setForm(f => ({ ...f, examId: e.target.value }))} style={inp()}>
+                      <select value={form.examId} onChange={e => setForm(f => ({ ...f, examId: e.target.value }))} style={inp()} disabled={!form.categoryId}>
                         <option value="">— None —</option>
-                        {exams.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                        {exams.filter(ex => !form.categoryId || ex.categoryId === form.categoryId).map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
                       </select>
                     )}
                   </div>
