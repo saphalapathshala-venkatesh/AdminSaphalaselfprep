@@ -4,12 +4,6 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
-import { randomBytes } from "crypto";
-
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "pdfs");
-const MAX_SIZE = 20 * 1024 * 1024;
 
 export async function GET(req: NextRequest) {
   const user = await getSessionUserFromRequest(req);
@@ -61,46 +55,31 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const formData = await req.formData();
-    const title = formData.get("title") as string;
-    const file = formData.get("file") as File | null;
-    const categoryId = (formData.get("categoryId") as string) || null;
-    const examId = (formData.get("examId") as string) || null;
-    const subjectId = (formData.get("subjectId") as string) || null;
-    const topicId = (formData.get("topicId") as string) || null;
-    const subtopicId = (formData.get("subtopicId") as string) || null;
-    const isDownloadable = formData.get("isDownloadable") !== "false";
-    const isPublished = formData.get("isPublished") === "true";
-    const unlockAtStr = (formData.get("unlockAt") as string) || null;
+    const body = await req.json();
+    const {
+      title, fileUrl, fileSize, mimeType,
+      categoryId, examId, subjectId, topicId, subtopicId,
+      isDownloadable, isPublished, unlockAt,
+    } = body;
 
     if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
-    if (!file) return NextResponse.json({ error: "PDF file is required" }, { status: 400 });
-    if (file.type !== "application/pdf") return NextResponse.json({ error: "Only PDF files are allowed" }, { status: 400 });
-    if (file.size > MAX_SIZE) return NextResponse.json({ error: "File size exceeds 20MB limit" }, { status: 400 });
-
-    await mkdir(UPLOAD_DIR, { recursive: true });
-    const uniqueName = `${Date.now()}_${randomBytes(8).toString("hex")}.pdf`;
-    const filePath = path.join(UPLOAD_DIR, uniqueName);
-    const buffer = Buffer.from(await file.arrayBuffer());
-    await writeFile(filePath, buffer);
-
-    const fileUrl = `/uploads/pdfs/${uniqueName}`;
+    if (!fileUrl?.trim()) return NextResponse.json({ error: "File URL is required" }, { status: 400 });
 
     const asset = await prisma.pdfAsset.create({
       data: {
         title: title.trim(),
         fileUrl,
-        fileSize: file.size,
-        mimeType: file.type,
-        categoryId,
-        examId,
-        subjectId,
-        topicId,
-        subtopicId,
-        isDownloadable,
-        isPublished,
+        fileSize: fileSize || 0,
+        mimeType: mimeType || "application/pdf",
+        categoryId: categoryId || null,
+        examId: examId || null,
+        subjectId: subjectId || null,
+        topicId: topicId || null,
+        subtopicId: subtopicId || null,
+        isDownloadable: isDownloadable !== false,
+        isPublished: isPublished === true,
         publishedAt: isPublished ? new Date() : null,
-        unlockAt: unlockAtStr ? new Date(unlockAtStr) : null,
+        unlockAt: unlockAt ? new Date(unlockAt) : null,
         createdById: user.id,
       },
       include: { createdBy: { select: { id: true, name: true, email: true } } },
@@ -117,6 +96,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ data: asset }, { status: 201 });
   } catch (err) {
     console.error("PDF assets POST error:", err);
-    return NextResponse.json({ error: "Failed to upload PDF" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to save PDF" }, { status: 500 });
   }
 }

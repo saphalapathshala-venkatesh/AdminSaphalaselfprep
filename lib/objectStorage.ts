@@ -1,23 +1,25 @@
 /**
- * Replit App Storage — thin wrapper for image uploads.
+ * Replit App Storage — thin wrapper for image and PDF uploads.
  *
  * Uses the Replit sidecar at 127.0.0.1:1106 to generate GCS presigned PUT URLs.
- * Images are stored in the public prefix so they are world-readable via the
+ * Files are stored in the public prefix so they are world-readable via the
  * standard GCS public URL (no auth required to view).
  *
  * Public URL pattern:
  *   https://storage.googleapis.com/<bucket>/public/images/admin/<uuid>.<ext>
+ *   https://storage.googleapis.com/<bucket>/public/pdfs/admin/<uuid>.pdf
  *
  * Two-step upload flow (all file bytes bypass our server):
- *   1. API route calls generateImageUploadUrl → presigned PUT URL + final public URL
+ *   1. API route calls generate*UploadUrl → presigned PUT URL + final public URL
  *   2. Client PUT the file bytes directly to the presigned URL
- *   3. Client saves the publicUrl into the DB image field
+ *   3. Client saves the publicUrl into the DB field
  */
 
 import { randomUUID } from "crypto";
 
 const SIDECAR = "http://127.0.0.1:1106";
 const PUBLIC_IMAGE_PREFIX = "public/images/admin";
+const PUBLIC_PDF_PREFIX = "public/pdfs/admin";
 
 export const ALLOWED_IMAGE_TYPES: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -59,6 +61,39 @@ export async function generateImageUploadUrl(
   }
 
   const objectName = `${PUBLIC_IMAGE_PREFIX}/${randomUUID()}.${ext}`;
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 min
+
+  const res = await fetch(`${SIDECAR}/object-storage/signed-object-url`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      bucket_name: bucket,
+      object_name: objectName,
+      method: "PUT",
+      expires_at: expiresAt,
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Sidecar presign failed (${res.status}): ${body}`);
+  }
+
+  const { signed_url } = await res.json();
+  const publicUrl = `https://storage.googleapis.com/${bucket}/${objectName}`;
+
+  return { uploadUrl: signed_url, publicUrl };
+}
+
+export const MAX_PDF_BYTES = 20 * 1024 * 1024; // 20 MB
+
+/**
+ * Generates a presigned PUT URL for an admin PDF upload.
+ * Server-side only — requires the Replit sidecar to be available.
+ */
+export async function generatePdfUploadUrl(): Promise<ImageUploadUrls> {
+  const bucket = getBucket();
+  const objectName = `${PUBLIC_PDF_PREFIX}/${randomUUID()}.pdf`;
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 min
 
   const res = await fetch(`${SIDECAR}/object-storage/signed-object-url`, {
