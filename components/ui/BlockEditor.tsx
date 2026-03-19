@@ -18,7 +18,7 @@
 
 import React, { useRef, useCallback, useState } from "react";
 import { Block, BlockDoc, BlockType, BOX_PRESETS, emptyDoc } from "@/lib/blocks/schema";
-import { createBlock, moveBlock, removeBlock } from "@/lib/blocks/defaults";
+import { createBlock, createTableBlock, moveBlock, removeBlock } from "@/lib/blocks/defaults";
 import AdminImageUploader from "@/components/admin/AdminImageUploader";
 
 // ─── Inline text editor (contentEditable with minimal toolbar) ───────────────
@@ -792,7 +792,7 @@ function TablePanel({ block, onChange, disabled }: BlockPanelProps) {
       <TextColorPalette disabled={disabled} />
 
       <div style={{ overflowX: "auto", marginTop: 8 }}>
-        <table style={{ borderCollapse: "collapse", width: "100%" }}>
+        <table style={{ borderCollapse: "collapse", minWidth: "100%" }}>
           <thead>
             <tr>
               {p.headers.map((h, ci) => (
@@ -1119,10 +1119,13 @@ function BlockRow({ block, idx, total, onChange, onMove, onDelete, disabled, con
 interface AddBlockMenuProps {
   types: BlockType[];
   onAdd: (type: BlockType) => void;
+  onAddTable?: (rows: number, cols: number) => void;
   disabled?: boolean;
 }
 
-function AddBlockMenu({ types, onAdd, disabled }: AddBlockMenuProps) {
+function AddBlockMenu({ types, onAdd, onAddTable, disabled }: AddBlockMenuProps) {
+  const [tablePick, setTablePick] = useState<{ rows: number; cols: number } | null>(null);
+
   return (
     <div
       style={{
@@ -1153,36 +1156,148 @@ function AddBlockMenu({ types, onAdd, disabled }: AddBlockMenuProps) {
         <button
           key={t}
           type="button"
-          onClick={() => onAdd(t)}
+          onClick={() => {
+            if (t === "table" && onAddTable) {
+              setTablePick(tablePick ? null : { rows: 3, cols: 2 });
+            } else {
+              onAdd(t);
+            }
+          }}
           disabled={disabled}
           style={{
             padding: "3px 9px",
-            background: "#fff",
-            border: "1px solid #e2e8f0",
+            background: t === "table" && tablePick ? "#ede9fe" : "#fff",
+            border: `1px solid ${t === "table" && tablePick ? PURPLE : "#e2e8f0"}`,
             borderRadius: 5,
             cursor: disabled ? "not-allowed" : "pointer",
             fontSize: "0.75rem",
-            color: "#374151",
+            color: t === "table" && tablePick ? PURPLE : "#374151",
             fontFamily: "inherit",
             opacity: disabled ? 0.5 : 1,
             whiteSpace: "nowrap",
           }}
           onMouseEnter={(e) => {
-            if (!disabled) {
+            if (!disabled && !(t === "table" && tablePick)) {
               (e.currentTarget as HTMLButtonElement).style.background = "#ede9fe";
               (e.currentTarget as HTMLButtonElement).style.borderColor = PURPLE;
               (e.currentTarget as HTMLButtonElement).style.color = PURPLE;
             }
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = "#fff";
-            (e.currentTarget as HTMLButtonElement).style.borderColor = "#e2e8f0";
-            (e.currentTarget as HTMLButtonElement).style.color = "#374151";
+            if (!(t === "table" && tablePick)) {
+              (e.currentTarget as HTMLButtonElement).style.background = "#fff";
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "#e2e8f0";
+              (e.currentTarget as HTMLButtonElement).style.color = "#374151";
+            }
           }}
         >
           {BLOCK_LABELS[t]}
         </button>
       ))}
+
+      {/* ── Table size picker — shown when ⊞ Table is clicked ── */}
+      {tablePick && (
+        <div
+          style={{
+            width: "100%",
+            marginTop: 4,
+            padding: "10px 12px",
+            background: "#fff",
+            border: `1px solid ${PURPLE}`,
+            borderRadius: 8,
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          <span style={{ fontSize: "0.72rem", fontWeight: 700, color: PURPLE, whiteSpace: "nowrap" }}>
+            Table size:
+          </span>
+          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "0.78rem", color: "#374151" }}>
+            Rows
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={tablePick.rows}
+              onChange={(e) =>
+                setTablePick((p) =>
+                  p ? { ...p, rows: Math.max(1, Math.min(20, parseInt(e.target.value) || 1)) } : p
+                )
+              }
+              style={{
+                width: 54,
+                padding: "3px 6px",
+                border: "1px solid #d1d5db",
+                borderRadius: 5,
+                fontSize: "0.82rem",
+                textAlign: "center",
+                fontFamily: "inherit",
+              }}
+            />
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "0.78rem", color: "#374151" }}>
+            Columns
+            <input
+              type="number"
+              min={1}
+              max={10}
+              value={tablePick.cols}
+              onChange={(e) =>
+                setTablePick((p) =>
+                  p ? { ...p, cols: Math.max(1, Math.min(10, parseInt(e.target.value) || 1)) } : p
+                )
+              }
+              style={{
+                width: 54,
+                padding: "3px 6px",
+                border: "1px solid #d1d5db",
+                borderRadius: 5,
+                fontSize: "0.82rem",
+                textAlign: "center",
+                fontFamily: "inherit",
+              }}
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              onAddTable!(tablePick.rows, tablePick.cols);
+              setTablePick(null);
+            }}
+            style={{
+              padding: "4px 14px",
+              fontSize: "0.78rem",
+              background: PURPLE,
+              color: "#fff",
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              fontWeight: 600,
+            }}
+          >
+            Insert Table
+          </button>
+          <button
+            type="button"
+            onClick={() => setTablePick(null)}
+            style={{
+              padding: "4px 10px",
+              fontSize: "0.78rem",
+              background: "#f1f5f9",
+              color: "#6b7280",
+              border: "1px solid #e2e8f0",
+              borderRadius: 6,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1202,6 +1317,7 @@ function NestedBlockEditor({ blocks, onChange, disabled, config, depth }: Nested
   const nested = depth >= 2 ? allowedTypes.filter((t) => t !== "box") : allowedTypes;
 
   const addBlock = (type: BlockType) => onChange([...blocks, createBlock(type)]);
+  const addTableBlock = (rows: number, cols: number) => onChange([...blocks, createTableBlock(rows, cols)]);
   const updateAt = (idx: number, updated: Block) =>
     onChange(blocks.map((b, i) => (i === idx ? updated : b)));
   const moveAt = (idx: number, dir: "up" | "down") => onChange(moveBlock(blocks, idx, dir));
@@ -1223,7 +1339,7 @@ function NestedBlockEditor({ blocks, onChange, disabled, config, depth }: Nested
           depth={depth}
         />
       ))}
-      <AddBlockMenu types={nested} onAdd={addBlock} disabled={disabled} />
+      <AddBlockMenu types={nested} onAdd={addBlock} onAddTable={addTableBlock} disabled={disabled} />
     </div>
   );
 }
@@ -1256,6 +1372,9 @@ export default function BlockEditor({
   );
 
   const addBlock = (type: BlockType) => emit([...blocks, createBlock(type)]);
+  const addTableBlock = useCallback((rows: number, cols: number) => {
+    emit([...blocks, createTableBlock(rows, cols)]);
+  }, [blocks, emit]);
   const updateAt = (idx: number, updated: Block) =>
     emit(blocks.map((b, i) => (i === idx ? updated : b)));
   const moveAt = (idx: number, dir: "up" | "down") => emit(moveBlock(blocks, idx, dir));
@@ -1339,7 +1458,7 @@ export default function BlockEditor({
         ))}
       </div>
 
-      <AddBlockMenu types={allowedTypes} onAdd={addBlock} disabled={disabled} />
+      <AddBlockMenu types={allowedTypes} onAdd={addBlock} onAddTable={addTableBlock} disabled={disabled} />
     </div>
   );
 }

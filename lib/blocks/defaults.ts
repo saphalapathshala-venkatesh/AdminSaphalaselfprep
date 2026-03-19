@@ -52,6 +52,25 @@ export function createBlock(type: BlockType): Block {
   }
 }
 
+// ─── createTableBlock ─────────────────────────────────────────────────────────
+/**
+ * Creates a table block with a specific number of rows and columns.
+ * Headers are pre-populated as "Column 1", "Column 2", etc.
+ * All cells start empty.
+ */
+export function createTableBlock(rows: number, cols: number): Block {
+  const id = uid();
+  const headers = Array.from({ length: cols }, (_, i) => `Column ${i + 1}`);
+  const rowsData: string[][] = Array.from({ length: rows }, () =>
+    Array.from({ length: cols }, () => "")
+  );
+  return {
+    id,
+    type: "table",
+    props: { headers, rows: rowsData, caption: "", width: "full" },
+  };
+}
+
 // ─── emptyDocWithParagraph ────────────────────────────────────────────────────
 
 export function emptyDocWithParagraph(): BlockDoc {
