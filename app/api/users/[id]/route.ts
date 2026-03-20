@@ -16,6 +16,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       id: true, name: true, email: true, mobile: true, role: true,
       isActive: true, isBlocked: true, blockedReason: true,
       maxWebDevices: true, deletedAt: true, createdAt: true, updatedAt: true,
+      tenantId: true, tenant: { select: { id: true, name: true } },
       _count: { select: { devices: true, sessions: true, activities: true } },
     },
   });
@@ -74,6 +75,16 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
     if (body.isActive !== undefined) data.isActive = Boolean(body.isActive);
 
+    // tenantId: null clears the link (B2C); a string links to a tenant (B2B)
+    if ("tenantId" in body) {
+      const tid = body.tenantId || null;
+      if (tid) {
+        const tenant = await prisma.tenant.findUnique({ where: { id: tid } });
+        if (!tenant) return NextResponse.json({ error: "Selected school/tenant not found" }, { status: 400 });
+      }
+      data.tenantId = tid;
+    }
+
     const updated = await prisma.user.update({
       where: { id: params.id },
       data,
@@ -81,6 +92,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         id: true, name: true, email: true, mobile: true, role: true,
         isActive: true, isBlocked: true, blockedReason: true,
         maxWebDevices: true, deletedAt: true, createdAt: true, updatedAt: true,
+        tenantId: true, tenant: { select: { id: true, name: true } },
       },
     });
 

@@ -171,6 +171,18 @@ enum RecordingPolicy {
   NO_RECORD
   RECORD_AND_SHARE
 }
+// TENANT / SCHOOL — minimal placeholder for B2B SchoolVerse support
+// tenantId on User is optional: null = B2C direct user, set = B2B school-linked user
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+}
+
 // CORE IDENTITY + SESSIONS (LOCKED)
 model User {
   id           String    @id @default(cuid())
@@ -188,6 +200,9 @@ model User {
   deletedAt        DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+  // B2B/B2C: null = direct B2C user; set = linked to a school/tenant
+  tenantId       String?
+  tenant         Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   sessions       Session[]
   entitlements   UserEntitlement[]
   attempts       Attempt[]
@@ -227,6 +242,7 @@ model User {
   @@index([role])
   @@index([isBlocked])
   @@index([deletedAt])
+  @@index([tenantId])
 }
 // FROZEN — shared with student frontend; do not add/drop/rename columns
 model Session {

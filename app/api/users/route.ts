@@ -1,8 +1,10 @@
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
+import { validateNewPassword } from "@/lib/safetyChecks";
 
 export async function GET(req: NextRequest) {
   const admin = await getSessionUserFromRequest(req);
@@ -57,6 +59,8 @@ export async function GET(req: NextRequest) {
           deletedAt:    true,
           createdAt:    true,
           updatedAt:    true,
+          tenantId:     true,
+          tenant:       { select: { id: true, name: true } },
           _count: {
             select: {
               devices:    true,
@@ -99,6 +103,56 @@ export async function GET(req: NextRequest) {
     });
   } catch (err) {
     console.error("Users GET error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  const admin = await getSessionUserFromRequest(req);
+  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  try {
+    const body = await req.json();
+    const name     = (body.name     || "").trim();
+    const email    = (body.email    || "").trim().toLowerCase() || null;
+    const mobile   = (body.mobile   || "").trim() || null;
+    const password = (body.password || "").trim();
+    const role     = body.role || "STUDENT";
+    const tenantId = body.tenantId || null;
+
+    if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    const pwError = validateNewPassword(password);
+    if (pwError) return NextResponse.json({ error: pwError }, { status: 400 });
+    if (!email && !mobile) return NextResponse.json({ error: "Email or mobile is required" }, { status: 400 });
+
+    const validRoles = ["STUDENT", "ADMIN", "SUPER_ADMIN"];
+    if (!validRoles.includes(role)) return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+
+    if (email) {
+      const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRe.test(email)) return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
+      const conflict = await prisma.user.findUnique({ where: { email } });
+      if (conflict) return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 });
+    }
+    if (mobile) {
+      const conflict = await prisma.user.findUnique({ where: { mobile } });
+      if (conflict) return NextResponse.json({ error: "An account with this mobile already exists" }, { status: 409 });
+    }
+
+    if (tenantId) {
+      const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+      if (!tenant) return NextResponse.json({ error: "Selected school/tenant not found" }, { status: 400 });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await prisma.user.create({
+      data: { name, email, mobile, passwordHash, role, isActive: true, tenantId },
+      select: { id: true, name: true, email: true, mobile: true, role: true, tenantId: true },
+    });
+
+    return NextResponse.json({ data: user }, { status: 201 });
+  } catch (err) {
+    console.error("Users POST error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -1,0 +1,154 @@
+We want to make a controlled architecture update in the existing Next.js + Prisma codebase.
+
+IMPORTANT:
+- Do NOT rebuild anything from scratch
+- Do NOT delete any existing Saphala modules
+- Do NOT break current auth, sessions, roles, middleware, admin shell, or existing working flows
+- Make only the requested change cleanly and minimally
+- Preserve backward compatibility as much as possible
+
+GOAL:
+Support both B2C and B2B user models in the same system.
+
+BUSINESS RULE TO IMPLEMENT:
+1. B2C users should be able to exist without any school/tenant mapping
+2. B2B SchoolVerse users must belong to a school/tenant
+3. Therefore, tenant/school mapping should be OPTIONAL at the base user/account level
+4. Tenant mapping should be enforced only in school-managed workflows, not globally
+
+--------------------------------------------------
+STEP 1 — AUDIT FIRST
+--------------------------------------------------
+First inspect the current Prisma schema, auth flow, user model, registration flow, admin user create/edit flow, and any existing tenant/school-related structures if present.
+
+Identify:
+- current User model fields
+- whether tenantId already exists
+- where registration validation currently happens
+- where admin user creation/edit validation happens
+- where role-based logic currently exists
+
+Do not assume. Read first, then implement.
+
+--------------------------------------------------
+STEP 2 — PRISMA / DATA MODEL CHANGE
+--------------------------------------------------
+Update the schema so that tenant mapping is optional at the base user level.
+
+Desired logic:
+- A user may have tenantId = null  → valid B2C user
+- A user may have tenantId set     → B2B / school-linked user
+
+If tenant/school model already exists:
+- reuse it
+- add optional relation cleanly
+
+If tenant/school model does not exist yet:
+- do NOT overbuild full SchoolVerse schema now
+- create only the minimum clean placeholder structure needed for optional mapping
+
+Example expectation (adapt to existing schema naming):
+- User.tenantId should be nullable/optional
+- relation to Tenant/School should also be optional
+
+IMPORTANT:
+- preserve existing unique constraints unless they truly need change
+- do not damage existing production-safe schema patterns
+- do not add unnecessary new models/fields
+
+--------------------------------------------------
+STEP 3 — REGISTRATION FLOW UPDATE
+--------------------------------------------------
+Update registration logic so that B2C registration does NOT require school/tenant mapping.
+
+Rules:
+- existing B2C/self-registered users should be able to sign up without tenant
+- validation should not fail if tenantId/schoolId is missing
+- no school field should be required in default public signup
+- if there is already a unified registration form, keep it simple and backward compatible
+
+If role/type selection exists:
+- allow normal student/user registration without tenant
+- only require tenant mapping in explicit school-managed flows, if such flow already exists
+
+If public signup currently forces school/tenant:
+- remove that requirement
+
+IMPORTANT:
+- keep login unchanged unless absolutely necessary
+- do not redesign the whole auth UI
+
+--------------------------------------------------
+STEP 4 — ADMIN CREATE / EDIT USER FORM UPDATE
+--------------------------------------------------
+Update admin-side create/edit user forms and APIs so tenant mapping is optional by default.
+
+Desired behavior:
+- Admin can create a user without tenant → valid B2C user
+- Admin can create a user with tenant    → valid B2B/school-linked user
+
+If tenant dropdown/selector exists:
+- make it optional, not mandatory
+- show clear helper text such as:
+  "Leave empty for direct B2C users"
+  "Select a school only for SchoolVerse-managed users"
+
+If no tenant selector exists yet:
+- do not overbuild a full tenant management UI now
+- only wire the backend/data model correctly so future tenant linking is easy
+
+--------------------------------------------------
+STEP 5 — VALIDATION RULES
+--------------------------------------------------
+Implement conditional validation cleanly:
+
+Global rule:
+- tenantId is NOT globally required
+
+Conditional rule:
+- tenantId should only be required in school-managed/B2B-specific workflows
+- do NOT enforce this globally unless that specific flow explicitly needs it
+
+If there is existing zod/schema validation:
+- update it carefully
+- avoid breaking other forms
+
+--------------------------------------------------
+STEP 6 — BACKWARD COMPATIBILITY
+--------------------------------------------------
+Ensure:
+- existing users without tenant continue to work
+- existing users with tenant also work
+- login/session/middleware do not fail when tenantId is null
+- role checks do not assume tenant always exists
+- dashboard/pages do not crash on nullable tenant relation
+
+Wherever tenant data is displayed:
+- handle null safely
+- show fallback like "Direct User" or "Not linked to school" where appropriate
+
+--------------------------------------------------
+STEP 7 — SAFETY CHECKS
+--------------------------------------------------
+After implementation, verify:
+- prisma schema is valid
+- migrations are safe/minimal
+- signup works without tenant
+- admin create/edit user works without tenant
+- app compiles without type errors
+- no existing Saphala modules are deleted or broken
+- nullable tenant handling is safe across API/UI
+
+--------------------------------------------------
+STEP 8 — OUTPUT FORMAT
+--------------------------------------------------
+Provide:
+1. what files were changed
+2. what exact schema changes were made
+3. what validation rules changed
+4. any migration notes
+5. any areas that may need future follow-up
+
+IMPORTANT:
+This is a minimal architecture correction, not a big feature build.
+Keep the implementation clean, safe, and focused.
