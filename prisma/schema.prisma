@@ -171,6 +171,33 @@ enum RecordingPolicy {
   NO_RECORD
   RECORD_AND_SHARE
 }
+// BOARD & GRADE — admin-managed master data for learner registration
+model Board {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  grades    Grade[]
+  users     User[]
+}
+
+model Grade {
+  id        String   @id @default(cuid())
+  boardId   String
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+
+  @@unique([boardId, name])
+  @@index([boardId, sortOrder])
+}
+
 // TENANT / SCHOOL — minimal placeholder for B2B SchoolVerse support
 // tenantId on User is optional: null = B2C direct user, set = B2B school-linked user
 model Tenant {
@@ -203,6 +230,11 @@ model User {
   // B2B/B2C: null = direct B2C user; set = linked to a school/tenant
   tenantId       String?
   tenant         Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  // Board & Grade — required for new registrations, null for legacy users
+  boardId        String?
+  board          Board?    @relation(fields: [boardId], references: [id], onDelete: SetNull)
+  gradeId        String?
+  grade          Grade?    @relation(fields: [gradeId], references: [id], onDelete: SetNull)
   sessions       Session[]
   entitlements   UserEntitlement[]
   attempts       Attempt[]
@@ -243,6 +275,8 @@ model User {
   @@index([isBlocked])
   @@index([deletedAt])
   @@index([tenantId])
+  @@index([boardId])
+  @@index([gradeId])
 }
 // FROZEN — shared with student frontend; do not add/drop/rename columns
 model Session {

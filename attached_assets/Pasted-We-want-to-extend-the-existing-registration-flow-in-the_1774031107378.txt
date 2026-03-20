@@ -1,0 +1,124 @@
+We want to extend the existing registration flow in the current Next.js + Prisma codebase.
+
+IMPORTANT:
+- Do NOT rebuild anything from scratch
+- Do NOT delete any existing Saphala modules
+- Do NOT break current auth, sessions, middleware, admin shell, or working flows
+- Make only the requested change cleanly and minimally
+- Audit first before modifying
+
+GOAL:
+Add Board and Grade as required fields in registration.
+
+BUSINESS RULE:
+- Board and Grade must be mandatory for new learner/student registrations
+- These must come from admin-managed master data, not free-text fields
+- Grade dropdown should depend on selected Board
+- Existing users must not break
+
+STEP 1 — AUDIT FIRST
+Inspect:
+- current Prisma schema
+- current User model
+- current registration form UI
+- current registration API / validation
+- any existing taxonomy models for category/subject/topic/subtopic
+- any existing admin taxonomy CRUD pages that can be reused as a pattern
+
+Do not assume. Read first, then implement.
+
+STEP 2 — DATA MODEL
+Add a new Board model if it does not already exist.
+Add a new Grade model linked to Board.
+
+Minimum expected fields:
+Board:
+- id
+- name
+- slug/code if needed
+- isActive
+
+Grade:
+- id
+- boardId
+- name
+- orderNo or sortOrder if useful
+- isActive
+
+Update User model to include:
+- boardId (nullable at DB level for backward compatibility)
+- gradeId (nullable at DB level for backward compatibility)
+
+Add optional relations from User to Board and Grade.
+
+IMPORTANT:
+- Keep DB migration additive and safe
+- Do not force existing users to immediately have values
+- New registrations must still require these at validation level
+
+STEP 3 — ADMIN MASTER DATA
+Add minimal admin management support for Board and Grade so these can be created before registration uses them.
+
+Admin should be able to:
+- create board
+- edit board
+- activate/deactivate board
+- create grade under a board
+- edit grade
+- activate/deactivate grade
+
+Keep UI simple and reuse existing admin CRUD/table/form patterns.
+
+STEP 4 — REGISTRATION FORM
+Update the public registration form so:
+- Board dropdown is required
+- Grade dropdown is required
+- Grade options are filtered by selected Board
+- Submit is blocked until both are selected
+
+Do NOT use free text.
+Use dropdowns populated from active Boards and Grades.
+
+Suggested UX:
+- Select Board first
+- Then Grade dropdown enables and shows only grades for that board
+
+STEP 5 — BACKEND VALIDATION
+Update registration API validation so:
+- boardId is required for new learner registrations
+- gradeId is required for new learner registrations
+- selected boardId must exist and be active
+- selected gradeId must exist, be active, and belong to the selected board
+
+Do not allow invalid board-grade combinations.
+
+STEP 6 — SAFE FALLBACKS
+Ensure:
+- existing users with null boardId/gradeId still continue to log in
+- sessions and middleware do not fail on null values
+- any user profile display handles missing board/grade safely for old users
+
+STEP 7 — OPTIONAL USER DISPLAY
+Where user information is shown in admin user tables or edit forms, add:
+- Board column / field
+- Grade column / field
+
+Use safe fallbacks like “Not set” for legacy users.
+
+STEP 8 — SAFETY CHECKS
+Verify:
+- schema is valid
+- app compiles without errors
+- registration works with required Board + Grade
+- invalid combinations are blocked
+- legacy users still work
+- no existing Saphala modules are broken
+
+STEP 9 — OUTPUT
+Provide:
+1. files changed
+2. schema changes
+3. registration validation changes
+4. admin pages added/updated
+5. migration notes
+6. any future follow-up needed
