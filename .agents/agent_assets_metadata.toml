@@ -66,3 +66,9 @@ id = "bnfulBHHx_zilDR2pgNF2"
 uri = "file://public/downloads/saphala_image_equation_guide_UPDATED.docx"
 type = "word_document"
 title = "Image & Equation Reference Guide (UPDATED)"
+
+[[outputs]]
+id = "fe0VT53KPrxEOQGt1XR78"
+uri = "file://saphala-selfprep-admin.zip"
+type = "unspecified"
+title = "Saphala Self Prep Admin Console — Full Codebase (691 KB)"
