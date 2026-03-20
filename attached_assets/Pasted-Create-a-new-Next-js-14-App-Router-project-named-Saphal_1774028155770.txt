@@ -1,0 +1,220 @@
+Create a new Next.js 14 (App Router) project named:
+
+"Saphala SchoolVerse Admin"
+
+This project is NOT a fresh build from scratch.
+
+We have already imported an existing codebase (Saphala Admin) into this project using Replit Agent.
+
+Your task is to carefully transform this existing codebase into a clean SchoolVerse Admin system WITHOUT breaking the core architecture.
+
+--------------------------------------------------
+
+🎯 CORE OBJECTIVE
+
+Convert the existing Saphala Admin (exam/content system) into:
+
+👉 SchoolVerse Admin (School Management + Student Growth Platform)
+
+--------------------------------------------------
+
+⚠️ IMPORTANT RULES (VERY STRICT)
+
+1. DO NOT rebuild the app from scratch.
+2. DO NOT change working infrastructure unnecessarily.
+3. DO NOT touch:
+   - auth/session system
+   - middleware protection
+   - role-based access control (RBAC)
+   - base layout (sidebar, header, dashboard shell)
+   - shared UI components (buttons, tables, forms, modals)
+
+4. DO NOT break Prisma setup or DB connectivity.
+5. DO NOT remove utility functions unless clearly unused.
+6. DO NOT create duplicate patterns if already present.
+
+--------------------------------------------------
+
+🧹 STEP 1 — CLEANUP (REMOVE Saphala-specific modules)
+
+Carefully identify and REMOVE or DISABLE these modules:
+
+- Question Bank
+- Tests
+- Test Series
+- Flashcards
+- Coupons
+- Products
+- Purchases / Entitlements
+- XP Rules
+- Course product configuration
+- Exam-specific analytics
+
+IMPORTANT:
+- Remove routes, UI pages, API routes, and menu items
+- Keep shared components used inside them
+- Do NOT delete generic table/form components
+
+--------------------------------------------------
+
+🧠 STEP 2 — RETAIN CORE FRAMEWORK
+
+Keep and reuse:
+
+- Admin layout (sidebar + header)
+- Dashboard structure
+- Role system (ADMIN / USER or existing roles)
+- Auth/session handling
+- API route structure (app/api/*)
+- Prisma client setup
+- Form handling patterns
+- Table + filters + pagination components
+- Toast/loading/error states
+- File/image upload utilities
+
+--------------------------------------------------
+
+🏫 STEP 3 — INTRODUCE SCHOOLVERSE DOMAIN (SCHEMA DESIGN)
+
+Refactor Prisma schema to support SchoolVerse.
+
+Create (or plan for) the following core models:
+
+1. Tenant / School
+   - id, name, code, logo, address, contact
+
+2. AcademicYear
+   - id, name (e.g., 2025–26), isActive
+
+3. Class (Grade)
+   - id, name (e.g., Grade 6)
+
+4. Section (Batch)
+   - id, name (A/B/C), classId
+
+5. Subject
+   - id, name, optional color
+
+6. Student
+   - id, name, rollNumber, classId, sectionId
+
+7. Teacher
+   - id, name, assignedSubjects
+
+8. Parent
+   - id, name, linkedStudentId
+
+9. Attendance
+   - studentId, date, status
+
+10. Timetable
+   - classId, sectionId, subjectId, timeSlot
+
+11. Announcement
+   - title, description, targetAudience
+
+12. Skill Arena (shell only for now)
+   - categories placeholder
+
+13. Competition (shell)
+14. Talent Passport (shell)
+
+IMPORTANT:
+- Keep schema clean and normalized
+- Avoid unnecessary relations initially
+- Do NOT over-engineer
+
+--------------------------------------------------
+
+🧱 STEP 4 — SIDEBAR NAVIGATION RESTRUCTURE
+
+Update sidebar menu to:
+
+- Dashboard
+- Schools / Tenants
+- Academic Years
+- Classes
+- Sections
+- Subjects
+- Students
+- Teachers
+- Parents
+- Attendance
+- Timetable
+- Announcements
+- Skill Arena (placeholder)
+- Competitions (placeholder)
+- Reports (placeholder)
+- Settings
+
+--------------------------------------------------
+
+📄 STEP 5 — BUILD BASIC CRUD PAGES (MINIMAL VERSION)
+
+For each core entity, create:
+
+- List page (table with search + filters)
+- Create page
+- Edit page
+
+Use EXISTING patterns from Saphala Admin.
+
+DO NOT create new UI styles.
+
+--------------------------------------------------
+
+📊 STEP 6 — DASHBOARD UPDATE
+
+Replace exam dashboard with:
+
+- Total Students
+- Total Teachers
+- Total Classes
+- Attendance Today %
+- Recent Announcements
+
+Reuse existing dashboard card components.
+
+--------------------------------------------------
+
+🎨 STEP 7 — BRAND UPDATE
+
+Update branding:
+
+- Title: "Saphala SchoolVerse Admin"
+- Colors: Keep Saphala theme (Purple + Blue + Green)
+- Replace any exam-related text
+
+--------------------------------------------------
+
+🧪 STEP 8 — SAFETY CHECKS
+
+Ensure:
+
+- App builds without errors
+- No broken routes
+- Sidebar navigation works
+- Auth is intact
+- No references to removed modules
+- Prisma queries match new schema
+
+--------------------------------------------------
+
+🚀 FINAL OUTPUT EXPECTATION
+
+A CLEAN SchoolVerse Admin base system with:
+
+- working admin panel
+- school management core
+- reusable UI foundation
+- ready for further modules (Skill Arena, Competitions, etc.)
+
+--------------------------------------------------
+
+DO NOT:
+- Add unnecessary features
+- Overcomplicate logic
+- Mix old exam logic with new school logic
+
+FOCUS:
+Clean transformation + strong foundation + scalability
