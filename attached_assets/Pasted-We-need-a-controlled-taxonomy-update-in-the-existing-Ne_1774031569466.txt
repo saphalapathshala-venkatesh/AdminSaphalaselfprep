@@ -1,0 +1,176 @@
+We need a controlled taxonomy update in the existing Next.js + Prisma codebase.
+
+IMPORTANT:
+- Do NOT rebuild anything from scratch
+- Do NOT create separate new management modules/pages for Board and Grade
+- Do NOT delete existing Saphala modules
+- Do NOT break current auth, sessions, middleware, admin shell, or working flows
+- Reuse the existing dedicated Taxonomy page and taxonomy APIs/patterns
+- Audit first before modifying anything
+
+GOAL:
+Adapt the existing taxonomy structure so that:
+
+Board → Grade → Subject → Topic → Subtopic
+
+BUT with an important compatibility rule:
+
+- Board is a NEW top taxonomy level
+- existing Category should now function as Grade
+- do NOT create a separate Grade module/page if Category already exists in taxonomy
+- manage Board + Grade(Category) from the existing Taxonomy system/page
+
+==================================================
+STEP 1 — AUDIT FIRST
+==================================================
+Inspect and understand the current:
+- Prisma taxonomy models
+- Category / Subject / Topic / Subtopic schema
+- taxonomy admin page
+- taxonomy API routes
+- registration form + registration API
+- any places where Category is used in dropdown chains or filters
+
+Do not assume. Read first, then implement cleanly.
+
+==================================================
+STEP 2 — TAXONOMY ARCHITECTURE CHANGE
+==================================================
+We want the taxonomy hierarchy to become:
+
+Board → Category(as Grade) → Subject → Topic → Subtopic
+
+IMPORTANT:
+- Keep the existing Category model/table for backward compatibility
+- Do NOT create a separate new Grade model unless absolutely necessary
+- Instead, treat Category as Grade in UI/business usage
+- Add a new Board model at the top
+- Each Category must belong to a Board
+- Subject remains below Category
+- Topic remains below Subject
+- Subtopic remains below Topic
+
+Expected result:
+- Board = new top-level taxonomy entity
+- Category = existing entity, but used and displayed as Grade
+- dedicated taxonomy page remains the management place
+
+==================================================
+STEP 3 — SCHEMA CHANGE
+==================================================
+Add a new Board model with only minimal required fields, e.g.:
+- id
+- name
+- slug/code if useful
+- isActive
+- createdAt / updatedAt if consistent with current schema
+
+Update existing Category model:
+- add boardId as required or safely staged nullable first if needed for migration
+- add relation from Category to Board
+
+IMPORTANT:
+- keep migration safe and additive
+- preserve existing Category IDs/data
+- if existing categories already exist, do a safe migration strategy so old rows are not lost
+- avoid unnecessary schema churn
+
+==================================================
+STEP 4 — TAXONOMY PAGE UPDATE (REUSE EXISTING PAGE)
+==================================================
+Do NOT create a separate Board management page.
+Do NOT create a separate Grade management page.
+
+Instead, update the existing Taxonomy page so it supports Board at the top and treats Category as Grade.
+
+Required UI behavior:
+- Add Board management inside the taxonomy page
+- Category UI labels should display as “Grade” wherever this taxonomy is being used for SchoolVerse-facing workflows
+- When creating/editing a Category, admin must select a Board
+- Subject creation/editing should continue below Grade(Category)
+- Existing page structure should be reused as much as possible
+
+Goal:
+One taxonomy management area, not scattered modules.
+
+==================================================
+STEP 5 — LABEL / UI TERMINOLOGY UPDATE
+==================================================
+In relevant SchoolVerse-facing and registration-facing areas:
+- display Category as “Grade”
+- show taxonomy order as:
+  Board → Grade → Subject → Topic → Subtopic
+
+IMPORTANT:
+- Do not blindly rename Category everywhere in the whole app if that may break existing Saphala exam/product flows
+- make changes carefully and contextually
+- preserve compatibility where old Category references are still needed internally
+
+==================================================
+STEP 6 — REGISTRATION FORM UPDATE
+==================================================
+Update the existing registration flow so that:
+
+- Board is required
+- Grade is required
+- Grade should come from existing Category records filtered by selected Board
+- no separate Grade table/page should be introduced for this flow
+
+UX:
+- Board dropdown first
+- Grade dropdown second
+- Grade options filtered by selected Board
+- both required for new registrations
+
+IMPORTANT:
+- existing users must not break
+- old users can continue with null values if needed for backward compatibility
+- only new registrations should be forced through the required validation
+
+==================================================
+STEP 7 — USER MODEL UPDATE
+==================================================
+Update User model to support:
+- boardId (nullable in DB for legacy safety)
+- categoryId or grade reference using the existing Category model (nullable in DB for legacy safety)
+
+If user already has categoryId, audit first and reuse it if appropriate.
+Do not duplicate data unnecessarily.
+
+Goal:
+- new users must register with Board + Grade(Category)
+- existing users remain compatible
+
+==================================================
+STEP 8 — BACKEND VALIDATION
+==================================================
+Update registration API validation so:
+- boardId is required for new registrations
+- grade/categoryId is required for new registrations
+- selected Board must exist and be active
+- selected Category must exist, be active, and belong to the selected Board
+
+Do not allow invalid Board–Grade combinations.
+
+==================================================
+STEP 9 — SAFE MIGRATION + COMPATIBILITY
+==================================================
+Ensure:
+- existing taxonomy data is preserved
+- existing users continue to log in
+- pages do not crash if legacy users have no board/grade yet
+- null values are handled safely where needed
+- existing Saphala modules are not deleted
+
+==================================================
+STEP 10 — OUTPUT
+==================================================
+Provide:
+1. files changed
+2. schema changes
+3. taxonomy page changes
+4. registration changes
+5. migration/backfill notes
+6. any places where Category is still internal but shown as Grade in UI
+
+This is a taxonomy extension and adaptation task, not a rebuild and not a separate Board/Grade module build.

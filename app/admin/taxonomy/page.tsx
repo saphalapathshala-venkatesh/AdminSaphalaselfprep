@@ -2,19 +2,53 @@
 
 import { useState, useEffect, useCallback } from "react";
 
-type TaxonomyLevel = "category" | "subject" | "topic" | "subtopic";
+// Hierarchy: Board → Grade (Category) → Subject → Topic → Subtopic
+// "grade" is the UI label for what is stored as Category internally.
+type TaxonomyLevel = "board" | "grade" | "subject" | "topic" | "subtopic";
+
+const LEVEL_LABELS: Record<TaxonomyLevel, string> = {
+  board: "Board",
+  grade: "Grade",
+  subject: "Subject",
+  topic: "Topic",
+  subtopic: "Subtopic",
+};
+
+const CHILD_LEVELS: Record<TaxonomyLevel, TaxonomyLevel | null> = {
+  board: "grade",
+  grade: "subject",
+  subject: "topic",
+  topic: "subtopic",
+  subtopic: null,
+};
+
+const LEVEL_COLORS: Record<TaxonomyLevel, string> = {
+  board: "#0ea5e9",
+  grade: "#3b82f6",
+  subject: "#8b5cf6",
+  topic: "#059669",
+  subtopic: "#d97706",
+};
 
 interface TaxNode {
   id: string;
   name: string;
   level: TaxonomyLevel;
   parentId?: string;
-  children?: TaxNode[];
 }
 
+// Tree shape returned by API (Board → categories → subjects → topics → subtopics)
+interface TreeBoard {
+  id: string;
+  name: string;
+  code: string;
+  isActive: boolean;
+  categories: TreeCategory[];
+}
 interface TreeCategory {
   id: string;
   name: string;
+  boardId: string;
   subjects: TreeSubject[];
 }
 interface TreeSubject {
@@ -35,37 +69,23 @@ interface TreeSubtopic {
   topicId: string;
 }
 
-const LEVEL_LABELS: Record<TaxonomyLevel, string> = {
-  category: "Category",
-  subject: "Subject",
-  topic: "Topic",
-  subtopic: "Subtopic",
-};
-
-const CHILD_LEVELS: Record<string, TaxonomyLevel | null> = {
-  category: "subject",
-  subject: "topic",
-  topic: "subtopic",
-  subtopic: null,
-};
-
 export default function TaxonomyPage() {
-  const [tree, setTree] = useState<TreeCategory[]>([]);
+  const [boards, setBoards] = useState<TreeBoard[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const [selected, setSelected] = useState<{ level: TaxonomyLevel; id: string; name: string; parentId?: string } | null>(null);
+  const [selected, setSelected] = useState<TaxNode | null>(null);
   const [formMode, setFormMode] = useState<"idle" | "create" | "edit">("idle");
-  const [formLevel, setFormLevel] = useState<TaxonomyLevel>("category");
+  const [formLevel, setFormLevel] = useState<TaxonomyLevel>("board");
   const [formName, setFormName] = useState("");
+  const [formCode, setFormCode] = useState(""); // only for Board
   const [formParentId, setFormParentId] = useState("");
   const [formError, setFormError] = useState("");
   const [formSaving, setFormSaving] = useState(false);
 
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ level: TaxonomyLevel; id: string; name: string } | null>(null);
-
+  const [deleteConfirm, setDeleteConfirm] = useState<TaxNode | null>(null);
   const [userRole, setUserRole] = useState<string>("");
 
   useEffect(() => {
@@ -79,7 +99,7 @@ export default function TaxonomyPage() {
     try {
       const res = await fetch("/api/taxonomy?tree=true");
       const data = await res.json();
-      setTree(data.data || []);
+      setBoards(data.data || []);
     } catch {
       showToast("Failed to load taxonomy", "error");
     } finally {
@@ -112,8 +132,10 @@ export default function TaxonomyPage() {
     setFormMode("create");
     setFormLevel(level);
     setFormName("");
+    setFormCode("");
     setFormParentId(parentId || "");
     setFormError("");
+    setSelected(null);
   }
 
   function startEdit() {
@@ -121,35 +143,39 @@ export default function TaxonomyPage() {
     setFormMode("edit");
     setFormLevel(selected.level);
     setFormName(selected.name);
+    setFormCode("");
     setFormError("");
   }
 
   async function handleSave() {
-    if (!formName.trim()) {
-      setFormError("Name is required");
-      return;
+    if (!formName.trim()) { setFormError("Name is required"); return; }
+    if (formLevel === "board" && !formCode.trim() && formMode === "create") {
+      // code will be auto-derived from name on server — don't block
     }
     setFormSaving(true);
     setFormError("");
-
     try {
       if (formMode === "create") {
+        const body: any = { level: formLevel, name: formName.trim(), parentId: formParentId || undefined };
+        if (formLevel === "board" && formCode.trim()) body.code = formCode.trim();
         const res = await fetch("/api/taxonomy", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ level: formLevel, name: formName.trim(), parentId: formParentId || undefined }),
+          body: JSON.stringify(body),
         });
         const data = await res.json();
-        if (!res.ok) { setFormError(data.error); return; }
+        if (!res.ok) { setFormError(data.error || "Failed to create"); return; }
         showToast(`${LEVEL_LABELS[formLevel]} created`, "success");
       } else if (formMode === "edit" && selected) {
+        const body: any = { level: selected.level, id: selected.id, name: formName.trim() };
+        if (selected.level === "board" && formCode.trim()) body.code = formCode.trim();
         const res = await fetch("/api/taxonomy", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ level: selected.level, id: selected.id, name: formName.trim() }),
+          body: JSON.stringify(body),
         });
         const data = await res.json();
-        if (!res.ok) { setFormError(data.error); return; }
+        if (!res.ok) { setFormError(data.error || "Failed to update"); return; }
         showToast(`${LEVEL_LABELS[selected.level]} updated`, "success");
         setSelected({ ...selected, name: formName.trim() });
       }
@@ -168,10 +194,7 @@ export default function TaxonomyPage() {
     try {
       const res = await fetch(`/api/taxonomy?level=${level}&id=${id}&force=${force}`, { method: "DELETE" });
       const data = await res.json();
-      if (!res.ok) {
-        showToast(data.error, "error");
-        return;
-      }
+      if (!res.ok) { showToast(data.error, "error"); return; }
       showToast(`${LEVEL_LABELS[level]} "${name}" deleted`, "success");
       if (selected?.id === id) setSelected(null);
       fetchTree();
@@ -182,55 +205,70 @@ export default function TaxonomyPage() {
     }
   }
 
-  function filterTree(categories: TreeCategory[], q: string): TreeCategory[] {
-    if (!q) return categories;
+  // ── Search filter ────────────────────────────────────────────────────────
+  function filterBoards(bds: TreeBoard[], q: string): TreeBoard[] {
+    if (!q) return bds;
     const lq = q.toLowerCase();
-    return categories
-      .map(cat => {
-        const catMatch = cat.name.toLowerCase().includes(lq);
-        const filteredSubjects = cat.subjects
-          .map(sub => {
-            const subMatch = sub.name.toLowerCase().includes(lq);
-            const filteredTopics = sub.topics
-              .map(top => {
-                const topMatch = top.name.toLowerCase().includes(lq);
-                const filteredSubtopics = top.subtopics.filter(st => st.name.toLowerCase().includes(lq));
-                if (topMatch || filteredSubtopics.length > 0) return { ...top, subtopics: topMatch ? top.subtopics : filteredSubtopics };
-                return null;
-              })
-              .filter(Boolean) as TreeTopic[];
-            if (subMatch || filteredTopics.length > 0) return { ...sub, topics: subMatch ? sub.topics : filteredTopics };
+    return bds.map(board => {
+      const bMatch = board.name.toLowerCase().includes(lq);
+      const filteredCats = board.categories.map(cat => {
+        const cMatch = cat.name.toLowerCase().includes(lq);
+        const filteredSubs = cat.subjects.map(sub => {
+          const sMatch = sub.name.toLowerCase().includes(lq);
+          const filteredTopics = sub.topics.map(top => {
+            const tMatch = top.name.toLowerCase().includes(lq);
+            const filteredSts = top.subtopics.filter(st => st.name.toLowerCase().includes(lq));
+            if (tMatch || filteredSts.length) return { ...top, subtopics: tMatch ? top.subtopics : filteredSts };
             return null;
-          })
-          .filter(Boolean) as TreeSubject[];
-        if (catMatch || filteredSubjects.length > 0) return { ...cat, subjects: catMatch ? cat.subjects : filteredSubjects };
+          }).filter(Boolean) as TreeTopic[];
+          if (sMatch || filteredTopics.length) return { ...sub, topics: sMatch ? sub.topics : filteredTopics };
+          return null;
+        }).filter(Boolean) as TreeSubject[];
+        if (cMatch || filteredSubs.length) return { ...cat, subjects: cMatch ? cat.subjects : filteredSubs };
         return null;
-      })
-      .filter(Boolean) as TreeCategory[];
+      }).filter(Boolean) as TreeCategory[];
+      if (bMatch || filteredCats.length) return { ...board, categories: bMatch ? board.categories : filteredCats };
+      return null;
+    }).filter(Boolean) as TreeBoard[];
   }
 
-  const filtered = filterTree(tree, search);
+  const filtered = filterBoards(boards, search);
+
+  const canAddGrade = selected?.level === "board";
+  const canAddSubject = selected?.level === "grade";
+  const canAddTopic = selected?.level === "subject";
+  const canAddSubtopic = selected?.level === "topic";
 
   return (
     <div style={{ fontFamily: "system-ui, sans-serif" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 600, color: "#111", margin: 0 }}>Taxonomy</h1>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          <button onClick={() => startCreate("category")} style={btnStyle}>+ Category</button>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1rem" }}>
+        <div>
+          <h1 style={{ fontSize: "1.5rem", fontWeight: 600, color: "#111", margin: 0 }}>Taxonomy</h1>
+          <p style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem", color: "#64748b" }}>
+            Board → Grade → Subject → Topic → Subtopic
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <button onClick={() => startCreate("board")} style={btnStyle}>+ Board</button>
           <button
-            onClick={() => selected && (selected.level === "category") && startCreate("subject", selected.id)}
-            disabled={!selected || selected.level !== "category"}
-            style={{ ...btnStyle, ...((!selected || selected.level !== "category") ? btnDisabled : {}) }}
+            onClick={() => canAddGrade && startCreate("grade", selected!.id)}
+            disabled={!canAddGrade}
+            style={{ ...btnStyle, ...(!canAddGrade ? btnDisabled : {}) }}
+          >+ Grade</button>
+          <button
+            onClick={() => canAddSubject && startCreate("subject", selected!.id)}
+            disabled={!canAddSubject}
+            style={{ ...btnStyle, ...(!canAddSubject ? btnDisabled : {}) }}
           >+ Subject</button>
           <button
-            onClick={() => selected && (selected.level === "subject") && startCreate("topic", selected.id)}
-            disabled={!selected || selected.level !== "subject"}
-            style={{ ...btnStyle, ...((!selected || selected.level !== "subject") ? btnDisabled : {}) }}
+            onClick={() => canAddTopic && startCreate("topic", selected!.id)}
+            disabled={!canAddTopic}
+            style={{ ...btnStyle, ...(!canAddTopic ? btnDisabled : {}) }}
           >+ Topic</button>
           <button
-            onClick={() => selected && (selected.level === "topic") && startCreate("subtopic", selected.id)}
-            disabled={!selected || selected.level !== "topic"}
-            style={{ ...btnStyle, ...((!selected || selected.level !== "topic") ? btnDisabled : {}) }}
+            onClick={() => canAddSubtopic && startCreate("subtopic", selected!.id)}
+            disabled={!canAddSubtopic}
+            style={{ ...btnStyle, ...(!canAddSubtopic ? btnDisabled : {}) }}
           >+ Subtopic</button>
         </div>
       </div>
@@ -258,44 +296,61 @@ export default function TaxonomyPage() {
       )}
 
       <div style={{ display: "flex", gap: "1.5rem", minHeight: "60vh" }}>
-        <div style={{ flex: "1 1 50%", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "1rem", overflowY: "auto", backgroundColor: "#fff" }}>
+        {/* Tree panel */}
+        <div style={{ flex: "1 1 55%", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "1rem", overflowY: "auto", backgroundColor: "#fff" }}>
           {loading ? (
             <p style={{ color: "#666" }}>Loading...</p>
           ) : filtered.length === 0 ? (
-            <p style={{ color: "#666" }}>No taxonomy items found. Add a category to get started.</p>
+            <p style={{ color: "#666" }}>No boards yet. Add a Board to get started.</p>
           ) : (
-            filtered.map(cat => (
-              <TreeItem key={cat.id} level="category" item={cat} expanded={expanded} selected={selected}
-                toggleExpand={toggleExpand} handleSelect={handleSelect}>
-                {expanded.has(cat.id) && cat.subjects.map(sub => (
-                  <TreeItem key={sub.id} level="subject" item={sub} expanded={expanded} selected={selected}
-                    toggleExpand={toggleExpand} handleSelect={handleSelect} parentId={cat.id} indent={1}>
-                    {expanded.has(sub.id) && sub.topics.map(top => (
-                      <TreeItem key={top.id} level="topic" item={top} expanded={expanded} selected={selected}
-                        toggleExpand={toggleExpand} handleSelect={handleSelect} parentId={sub.id} indent={2}>
-                        {expanded.has(top.id) && top.subtopics.map(st => (
-                          <TreeItem key={st.id} level="subtopic" item={st} expanded={expanded} selected={selected}
-                            toggleExpand={toggleExpand} handleSelect={handleSelect} parentId={top.id} indent={3} />
+            filtered.map(board => (
+              <TreeNode key={board.id} level="board" id={board.id} name={board.name}
+                badge={board.isActive ? undefined : "inactive"}
+                expanded={expanded} selected={selected}
+                toggleExpand={toggleExpand} handleSelect={handleSelect} indent={0}>
+                {expanded.has(board.id) && board.categories.map(cat => (
+                  <TreeNode key={cat.id} level="grade" id={cat.id} name={cat.name}
+                    expanded={expanded} selected={selected}
+                    toggleExpand={toggleExpand} handleSelect={handleSelect}
+                    parentId={board.id} indent={1}>
+                    {expanded.has(cat.id) && cat.subjects.map(sub => (
+                      <TreeNode key={sub.id} level="subject" id={sub.id} name={sub.name}
+                        expanded={expanded} selected={selected}
+                        toggleExpand={toggleExpand} handleSelect={handleSelect}
+                        parentId={cat.id} indent={2}>
+                        {expanded.has(sub.id) && sub.topics.map(top => (
+                          <TreeNode key={top.id} level="topic" id={top.id} name={top.name}
+                            expanded={expanded} selected={selected}
+                            toggleExpand={toggleExpand} handleSelect={handleSelect}
+                            parentId={sub.id} indent={3}>
+                            {expanded.has(top.id) && top.subtopics.map(st => (
+                              <TreeNode key={st.id} level="subtopic" id={st.id} name={st.name}
+                                expanded={expanded} selected={selected}
+                                toggleExpand={toggleExpand} handleSelect={handleSelect}
+                                parentId={top.id} indent={4} />
+                            ))}
+                          </TreeNode>
                         ))}
-                      </TreeItem>
+                      </TreeNode>
                     ))}
-                  </TreeItem>
+                  </TreeNode>
                 ))}
-              </TreeItem>
+              </TreeNode>
             ))
           )}
         </div>
 
+        {/* Detail / Form panel */}
         <div style={{ flex: "1 1 40%", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "1.25rem", backgroundColor: "#fff" }}>
           {formMode === "idle" && !selected && (
-            <p style={{ color: "#888", fontSize: "0.875rem" }}>Select an item from the tree or add a new one.</p>
+            <p style={{ color: "#888", fontSize: "0.875rem" }}>Select an item from the tree or use the buttons above to add new items.</p>
           )}
 
           {formMode === "idle" && selected && (
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
-                  <span style={{ fontSize: "0.75rem", color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  <span style={{ fontSize: "0.75rem", color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
                     {LEVEL_LABELS[selected.level]}
                   </span>
                   <h2 style={{ fontSize: "1.25rem", fontWeight: 600, margin: "0.25rem 0" }}>{selected.name}</h2>
@@ -303,15 +358,16 @@ export default function TaxonomyPage() {
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem" }}>
                   <button onClick={startEdit} style={{ ...btnStyle, backgroundColor: "#7c3aed" }}>Edit</button>
-                  <button onClick={() => setDeleteConfirm({ level: selected.level, id: selected.id, name: selected.name })}
-                    style={{ ...btnStyle, backgroundColor: "#dc2626" }}>Delete</button>
+                  <button onClick={() => setDeleteConfirm(selected)} style={{ ...btnStyle, backgroundColor: "#dc2626" }}>Delete</button>
                 </div>
               </div>
               {CHILD_LEVELS[selected.level] && (
                 <button
                   onClick={() => startCreate(CHILD_LEVELS[selected.level]!, selected.id)}
                   style={{ ...btnStyle, marginTop: "1rem" }}
-                >+ Add {LEVEL_LABELS[CHILD_LEVELS[selected.level]!]}</button>
+                >
+                  + Add {LEVEL_LABELS[CHILD_LEVELS[selected.level]!]}
+                </button>
               )}
             </div>
           )}
@@ -326,7 +382,8 @@ export default function TaxonomyPage() {
                   {formError}
                 </div>
               )}
-              <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.25rem", color: "#333" }}>Name</label>
+
+              <label style={labelStyle}>Name</label>
               <input
                 type="text"
                 value={formName}
@@ -334,18 +391,39 @@ export default function TaxonomyPage() {
                 onKeyDown={e => e.key === "Enter" && handleSave()}
                 style={inputStyle}
                 autoFocus
+                placeholder={formLevel === "board" ? "e.g. CBSE, ICSE, State Board" : formLevel === "grade" ? "e.g. Grade 10, Class 11" : ""}
               />
+
+              {formLevel === "board" && (
+                <>
+                  <label style={{ ...labelStyle, marginTop: "0.75rem" }}>Code (optional — auto-derived from name if blank)</label>
+                  <input
+                    type="text"
+                    value={formCode}
+                    onChange={e => setFormCode(e.target.value.toUpperCase())}
+                    style={inputStyle}
+                    placeholder="e.g. CBSE"
+                  />
+                  <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: "0.3rem 0 0" }}>
+                    Short unique identifier. Uppercase letters and numbers only.
+                  </p>
+                </>
+              )}
+
               <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
                 <button onClick={handleSave} disabled={formSaving} style={{ ...btnStyle, backgroundColor: "#059669" }}>
                   {formSaving ? "Saving..." : "Save"}
                 </button>
-                <button onClick={() => { setFormMode("idle"); setFormError(""); }} style={{ ...btnStyle, backgroundColor: "#6b7280" }}>Cancel</button>
+                <button onClick={() => { setFormMode("idle"); setFormError(""); }} style={{ ...btnStyle, backgroundColor: "#6b7280" }}>
+                  Cancel
+                </button>
               </div>
             </div>
           )}
         </div>
       </div>
 
+      {/* Delete confirm modal */}
       {deleteConfirm && (
         <div style={modalOverlay}>
           <div style={modalBox}>
@@ -367,50 +445,43 @@ export default function TaxonomyPage() {
   );
 }
 
-function TreeItem({
-  level, item, expanded, selected, toggleExpand, handleSelect, parentId, indent = 0, children,
+function TreeNode({
+  level, id, name, badge, expanded, selected, toggleExpand, handleSelect, parentId, indent = 0, children,
 }: {
   level: TaxonomyLevel;
-  item: { id: string; name: string; subjects?: any[]; topics?: any[]; subtopics?: any[] };
+  id: string;
+  name: string;
+  badge?: string;
   expanded: Set<string>;
-  selected: { level: TaxonomyLevel; id: string } | null;
+  selected: TaxNode | null;
   toggleExpand: (id: string) => void;
   handleSelect: (level: TaxonomyLevel, id: string, name: string, parentId?: string) => void;
   parentId?: string;
   indent?: number;
   children?: React.ReactNode;
 }) {
-  const hasChildren = level !== "subtopic" && (
-    (level === "category" && (item as any).subjects?.length > 0) ||
-    (level === "subject" && (item as any).topics?.length > 0) ||
-    (level === "topic" && (item as any).subtopics?.length > 0)
-  );
-
-  const isExpanded = expanded.has(item.id);
-  const isSelected = selected?.id === item.id;
-
-  const levelColors: Record<TaxonomyLevel, string> = {
-    category: "#3b82f6",
-    subject: "#8b5cf6",
-    topic: "#059669",
-    subtopic: "#d97706",
-  };
+  const hasChildren = React.Children.count(children) > 0 ||
+    (level !== "subtopic" && expanded.has(id));
+  const isExpandable = level !== "subtopic";
+  const isExpanded = expanded.has(id);
+  const isSelected = selected?.id === id;
 
   return (
     <div>
       <div
-        onClick={() => handleSelect(level, item.id, item.name, parentId)}
+        onClick={() => handleSelect(level, id, name, parentId)}
         style={{
           display: "flex", alignItems: "center", gap: "0.375rem",
-          padding: "0.375rem 0.5rem", paddingLeft: `${indent * 1.25 + 0.5}rem`,
+          padding: "0.375rem 0.5rem",
+          paddingLeft: `${indent * 1.25 + 0.5}rem`,
           cursor: "pointer", borderRadius: "4px", fontSize: "0.875rem",
           backgroundColor: isSelected ? "#eff6ff" : "transparent",
           borderLeft: isSelected ? "3px solid #3b82f6" : "3px solid transparent",
         }}
       >
-        {hasChildren ? (
+        {isExpandable ? (
           <span
-            onClick={e => { e.stopPropagation(); toggleExpand(item.id); }}
+            onClick={e => { e.stopPropagation(); toggleExpand(id); }}
             style={{ cursor: "pointer", fontSize: "0.75rem", width: "1rem", textAlign: "center", color: "#666", userSelect: "none" }}
           >
             {isExpanded ? "▼" : "▶"}
@@ -420,35 +491,41 @@ function TreeItem({
         )}
         <span style={{
           display: "inline-block", width: "0.5rem", height: "0.5rem", borderRadius: "50%",
-          backgroundColor: levelColors[level], flexShrink: 0,
+          backgroundColor: LEVEL_COLORS[level], flexShrink: 0,
         }} />
-        <span style={{ fontWeight: isSelected ? 600 : 400, color: "#1e293b" }}>{item.name}</span>
+        <span style={{ fontWeight: isSelected ? 600 : 400, color: "#1e293b" }}>{name}</span>
         <span style={{ fontSize: "0.6875rem", color: "#94a3b8", marginLeft: "auto" }}>{LEVEL_LABELS[level]}</span>
+        {badge && (
+          <span style={{ fontSize: "0.6rem", color: "#dc2626", background: "#fee2e2", borderRadius: "3px", padding: "1px 4px", fontWeight: 700 }}>
+            {badge}
+          </span>
+        )}
       </div>
       {children}
     </div>
   );
 }
 
+import React from "react";
+
 const btnStyle: React.CSSProperties = {
   padding: "0.375rem 0.75rem", backgroundColor: "#7c3aed", color: "#fff", border: "none",
   borderRadius: "4px", fontSize: "0.8125rem", fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap",
 };
-
 const btnDisabled: React.CSSProperties = {
   backgroundColor: "#cbd5e1", color: "#94a3b8", cursor: "not-allowed",
 };
-
+const labelStyle: React.CSSProperties = {
+  display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.25rem", color: "#333",
+};
 const inputStyle: React.CSSProperties = {
   width: "100%", padding: "0.5rem 0.625rem", border: "1px solid #d1d5db", borderRadius: "4px",
   fontSize: "0.875rem", outline: "none", boxSizing: "border-box",
 };
-
 const modalOverlay: React.CSSProperties = {
   position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.4)", display: "flex",
   alignItems: "center", justifyContent: "center", zIndex: 1000,
 };
-
 const modalBox: React.CSSProperties = {
   backgroundColor: "#fff", borderRadius: "8px", padding: "1.5rem", width: "100%",
   maxWidth: "420px", boxShadow: "0 4px 24px rgba(0,0,0,0.15)",

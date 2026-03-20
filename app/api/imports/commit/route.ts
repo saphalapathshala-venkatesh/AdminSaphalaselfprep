@@ -90,11 +90,10 @@ export async function POST(req: NextRequest) {
         let subtopicId: string | null = null;
 
         if (nr.category) {
-          const cat = await prisma.category.upsert({
-            where: { name: nr.category },
-            update: {},
-            create: { name: nr.category },
-          });
+          // Category unique constraint is now (boardId, name). For bulk imports,
+          // find any matching category by name, or create a legacy (boardId=null) one.
+          let cat = await prisma.category.findFirst({ where: { name: nr.category } });
+          if (!cat) cat = await prisma.category.create({ data: { name: nr.category } });
           categoryId = cat.id;
 
           if (nr.subject) {

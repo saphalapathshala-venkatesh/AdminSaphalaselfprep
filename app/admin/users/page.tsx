@@ -27,6 +27,10 @@ interface UserRow {
   lastActiveAt: string | null;
   tenantId: string | null;
   tenant: { id: string; name: string } | null;
+  boardId: string | null;
+  board: { id: string; name: string } | null;
+  categoryId: string | null;
+  gradeCategory: { id: string; name: string } | null;
   _count: { devices: number; sessions: number; activities: number };
 }
 
@@ -286,16 +290,16 @@ export default function UsersPage() {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#f8fafc" }}>
-              {["Name / Contact", "Role", "School / Tenant", "Status", "Devices", "Max Devices", "Last Active", "Actions"].map(h => (
+              {["Name / Contact", "Role", "Board / Grade", "School / Tenant", "Status", "Devices", "Max Devices", "Last Active", "Actions"].map(h => (
                 <th key={h} style={{ padding: "0.625rem 1rem", textAlign: "left", fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "2px solid #e2e8f0", whiteSpace: "nowrap" }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              Array.from({ length: 8 }).map((_, i) => (
+              Array.from({ length: 9 }).map((_, i) => (
                 <tr key={i}>
-                  {Array.from({ length: 8 }).map((_, j) => (
+                  {Array.from({ length: 9 }).map((_, j) => (
                     <td key={j} style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
                       <div style={{ height: 14, background: "#f1f5f9", borderRadius: 4, width: `${50 + (j * 15) % 50}%`, animation: "pulse 1.5s ease-in-out infinite" }} />
                     </td>
@@ -303,7 +307,7 @@ export default function UsersPage() {
                 </tr>
               ))
             ) : users.length === 0 ? (
-              <tr><td colSpan={8} style={{ padding: "4rem", textAlign: "center", color: "#94a3b8" }}>No users found.</td></tr>
+              <tr><td colSpan={9} style={{ padding: "4rem", textAlign: "center", color: "#94a3b8" }}>No users found.</td></tr>
             ) : users.map(u => (
               <tr key={u.id} style={{ transition: "background 0.1s" }}
                 onMouseEnter={e => (e.currentTarget.style.background = "#f8fafc")}
@@ -314,6 +318,15 @@ export default function UsersPage() {
                   {u.deletedAt && <span style={{ fontSize: "0.65rem", background: "#fee2e2", color: "#dc2626", padding: "1px 6px", borderRadius: 6, fontWeight: 700 }}>ARCHIVED</span>}
                 </td>
                 <td style={{ padding: "0.75rem 1rem", borderBottom: "1px solid #f1f5f9" }}>{roleBadge(u.role)}</td>
+                <td style={{ padding: "0.75rem 1rem", borderBottom: "1px solid #f1f5f9", fontSize: "0.8rem" }}>
+                  {u.board
+                    ? (<>
+                        <div style={{ fontWeight: 600, fontSize: "0.75rem", color: "#0f172a" }}>{u.board.name}</div>
+                        <div style={{ fontSize: "0.7rem", color: "#64748b" }}>{u.gradeCategory?.name || <span style={{ color: "#94a3b8" }}>No grade</span>}</div>
+                      </>)
+                    : <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>—</span>
+                  }
+                </td>
                 <td style={{ padding: "0.75rem 1rem", borderBottom: "1px solid #f1f5f9", fontSize: "0.8rem" }}>
                   {u.tenant
                     ? <span style={{ padding: "2px 8px", borderRadius: "9px", fontSize: "0.7rem", fontWeight: 600, background: "#eff6ff", color: "#1d4ed8" }}>{u.tenant.name}</span>

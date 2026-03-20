@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   try {
     const boards = await prisma.board.findMany({
       orderBy: { name: "asc" },
-      include: { _count: { select: { grades: true, users: true } } },
+      include: { _count: { select: { categories: true, users: true } } },
     });
     return NextResponse.json({ data: boards });
   } catch (err) {
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const name = (body.name || "").trim();
-    const code = (body.code || "").trim().toUpperCase().replace(/\s+/g, "_");
+    const code = (body.code || name).trim().toUpperCase().replace(/[^A-Z0-9]/g, "_");
 
     if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
     if (!code) return NextResponse.json({ error: "Code is required" }, { status: 400 });
@@ -35,9 +35,7 @@ export async function POST(req: NextRequest) {
     const conflict = await prisma.board.findUnique({ where: { code } });
     if (conflict) return NextResponse.json({ error: "A board with this code already exists" }, { status: 409 });
 
-    const board = await prisma.board.create({
-      data: { name, code, isActive: true },
-    });
+    const board = await prisma.board.create({ data: { name, code, isActive: true } });
     return NextResponse.json({ data: board }, { status: 201 });
   } catch (err) {
     console.error("Boards POST error:", err);

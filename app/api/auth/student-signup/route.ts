@@ -10,7 +10,7 @@ import { validateNewPassword } from "@/lib/safetyChecks";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, email, mobile, password, legalAccepted } = body;
+    const { name, email, mobile, password, legalAccepted, boardId, categoryId } = body;
 
     if (!legalAccepted) {
       return NextResponse.json(
@@ -23,12 +23,30 @@ export async function POST(req: NextRequest) {
     const trimmedMobile = (mobile || "").trim() || null;
     const trimmedName   = (name   || "").trim();
     const trimmedPw     = (password || "").trim();
+    const trimmedBoard  = (boardId    || "").trim() || null;
+    const trimmedGrade  = (categoryId || "").trim() || null;
 
     if (!trimmedName)  return NextResponse.json({ error: "Name is required" }, { status: 400 });
     const pwError = validateNewPassword(trimmedPw);
     if (pwError) return NextResponse.json({ error: pwError }, { status: 400 });
     if (!trimmedEmail && !trimmedMobile)
       return NextResponse.json({ error: "Email or mobile is required" }, { status: 400 });
+
+    // Board + Grade are required for new registrations
+    if (!trimmedBoard) return NextResponse.json({ error: "Board is required" }, { status: 400 });
+    if (!trimmedGrade) return NextResponse.json({ error: "Grade is required" }, { status: 400 });
+
+    // Validate board exists and is active
+    const board = await prisma.board.findUnique({ where: { id: trimmedBoard } });
+    if (!board || !board.isActive)
+      return NextResponse.json({ error: "Selected board is not available" }, { status: 400 });
+
+    // Validate grade (Category) belongs to the selected board
+    const grade = await prisma.category.findUnique({ where: { id: trimmedGrade } });
+    if (!grade)
+      return NextResponse.json({ error: "Selected grade is not available" }, { status: 400 });
+    if (grade.boardId !== trimmedBoard)
+      return NextResponse.json({ error: "Selected grade does not belong to the selected board" }, { status: 400 });
 
     if (trimmedEmail) {
       const existing = await prisma.user.findUnique({ where: { email: trimmedEmail } });
@@ -52,6 +70,8 @@ export async function POST(req: NextRequest) {
         isActive: true,
         legalAcceptedAt: now,
         legalVersion: CURRENT_LEGAL_VERSION,
+        boardId: trimmedBoard,
+        categoryId: trimmedGrade,
       },
       select: { id: true, name: true, email: true, mobile: true, role: true },
     });

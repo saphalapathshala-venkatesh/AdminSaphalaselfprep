@@ -171,31 +171,16 @@ enum RecordingPolicy {
   NO_RECORD
   RECORD_AND_SHARE
 }
-// BOARD & GRADE — admin-managed master data for learner registration
+// BOARD — top-level taxonomy entity; Category (grade) belongs to a Board
 model Board {
-  id        String   @id @default(cuid())
-  name      String
-  code      String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  grades    Grade[]
-  users     User[]
-}
-
-model Grade {
-  id        String   @id @default(cuid())
-  boardId   String
-  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  name      String
-  sortOrder Int      @default(0)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  users     User[]
-
-  @@unique([boardId, name])
-  @@index([boardId, sortOrder])
+  id         String     @id @default(cuid())
+  name       String
+  code       String     @unique
+  isActive   Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  categories Category[] // Grades (Category records) under this Board
+  users      User[]     // Learners registered to this Board
 }
 
 // TENANT / SCHOOL — minimal placeholder for B2B SchoolVerse support
@@ -231,10 +216,11 @@ model User {
   tenantId       String?
   tenant         Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   // Board & Grade — required for new registrations, null for legacy users
+  // grade is stored as a Category record (Category = Grade in taxonomy hierarchy)
   boardId        String?
-  board          Board?    @relation(fields: [boardId], references: [id], onDelete: SetNull)
-  gradeId        String?
-  grade          Grade?    @relation(fields: [gradeId], references: [id], onDelete: SetNull)
+  board          Board?     @relation(fields: [boardId], references: [id], onDelete: SetNull)
+  categoryId     String?    // grade reference (Category.id); null for legacy users
+  gradeCategory  Category?  @relation("UserGrade", fields: [categoryId], references: [id], onDelete: SetNull)
   sessions       Session[]
   entitlements   UserEntitlement[]
   attempts       Attempt[]
@@ -276,7 +262,7 @@ model User {
   @@index([deletedAt])
   @@index([tenantId])
   @@index([boardId])
-  @@index([gradeId])
+  @@index([categoryId])
 }
 // FROZEN — shared with student frontend; do not add/drop/rename columns
 model Session {
@@ -308,14 +294,22 @@ model UserEntitlement {
   @@unique([userId, productCode, tenantId])
   @@index([productCode, status])
 }
-// TAXONOMY (Category → Subject → Topic → Subtopic)
+// TAXONOMY (Board → Category[as Grade] → Subject → Topic → Subtopic)
+// Category is used as "Grade" in learner-facing and registration flows.
+// boardId is nullable for backward-compatible legacy categories with no board.
 model Category {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String    @id @default(cuid())
+  name      String
+  boardId   String?   // null = legacy/uncategorised; set = belongs to a Board
+  board     Board?    @relation(fields: [boardId], references: [id], onDelete: SetNull)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   subjects  Subject[]
   exams     Exam[]
+  learners  User[]    @relation("UserGrade") // students enrolled in this grade
+
+  @@unique([boardId, name]) // unique grade name per board (NULLs allowed to repeat)
+  @@index([boardId])
 }
 
 // EXAM MASTER

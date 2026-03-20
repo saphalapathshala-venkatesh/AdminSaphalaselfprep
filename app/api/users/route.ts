@@ -61,6 +61,10 @@ export async function GET(req: NextRequest) {
           updatedAt:    true,
           tenantId:     true,
           tenant:       { select: { id: true, name: true } },
+          boardId:      true,
+          board:        { select: { id: true, name: true } },
+          categoryId:   true,
+          gradeCategory:{ select: { id: true, name: true } },
           _count: {
             select: {
               devices:    true,
