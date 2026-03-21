@@ -59,12 +59,6 @@ export async function GET(req: NextRequest) {
           deletedAt:    true,
           createdAt:    true,
           updatedAt:    true,
-          tenantId:     true,
-          tenant:       { select: { id: true, name: true } },
-          boardId:      true,
-          board:        { select: { id: true, name: true } },
-          categoryId:   true,
-          gradeCategory:{ select: { id: true, name: true } },
           _count: {
             select: {
               devices:    true,
@@ -122,7 +116,6 @@ export async function POST(req: NextRequest) {
     const mobile   = (body.mobile   || "").trim() || null;
     const password = (body.password || "").trim();
     const role     = body.role || "STUDENT";
-    const tenantId = body.tenantId || null;
 
     if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
     const pwError = validateNewPassword(password);
@@ -143,15 +136,10 @@ export async function POST(req: NextRequest) {
       if (conflict) return NextResponse.json({ error: "An account with this mobile already exists" }, { status: 409 });
     }
 
-    if (tenantId) {
-      const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-      if (!tenant) return NextResponse.json({ error: "Selected school/tenant not found" }, { status: 400 });
-    }
-
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
-      data: { name, email, mobile, passwordHash, role, isActive: true, tenantId },
-      select: { id: true, name: true, email: true, mobile: true, role: true, tenantId: true },
+      data: { name, email, mobile, passwordHash, role, isActive: true },
+      select: { id: true, name: true, email: true, mobile: true, role: true },
     });
 
     return NextResponse.json({ data: user }, { status: 201 });

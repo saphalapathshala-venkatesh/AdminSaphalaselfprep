@@ -5,12 +5,11 @@ import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 
-// Extended taxonomy hierarchy: board → grade (category) → subject → topic → subtopic
-// "board" and "grade" levels are new; "category" is an alias for "grade" internally.
-type TaxonomyLevel = "board" | "grade" | "subject" | "topic" | "subtopic";
+// Taxonomy hierarchy: Category → Subject → Topic → Subtopic
+type TaxonomyLevel = "category" | "subject" | "topic" | "subtopic";
 
 function isValidLevel(level: string): level is TaxonomyLevel {
-  return ["board", "grade", "subject", "topic", "subtopic"].includes(level);
+  return ["category", "subject", "topic", "subtopic"].includes(level);
 }
 
 export async function GET(req: NextRequest) {
@@ -18,39 +17,34 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const level = searchParams.get("level");
+  const level    = searchParams.get("level");
   const parentId = searchParams.get("parentId");
-  const search = searchParams.get("search");
-  const tree = searchParams.get("tree");
+  const search   = searchParams.get("search");
+  const tree     = searchParams.get("tree");
 
   if (tree === "true") {
-    const boards = await prisma.board.findMany({
+    const categories = await prisma.category.findMany({
       orderBy: { name: "asc" },
       include: {
-        categories: {
-          orderBy: { name: "asc" },
+        subjects: {
           include: {
-            subjects: {
+            topics: {
               include: {
-                topics: {
-                  include: {
-                    subtopics: { orderBy: { name: "asc" } },
-                  },
-                  orderBy: { name: "asc" },
-                },
+                subtopics: { orderBy: { name: "asc" } },
               },
               orderBy: { name: "asc" },
             },
           },
+          orderBy: { name: "asc" },
         },
       },
     });
-    return NextResponse.json({ data: boards });
+    return NextResponse.json({ data: categories });
   }
 
   if (!level || !isValidLevel(level)) {
     return NextResponse.json(
-      { error: "Invalid or missing 'level' parameter. Must be: board, grade, subject, topic, or subtopic" },
+      { error: "Invalid or missing 'level' parameter. Must be: category, subject, topic, or subtopic" },
       { status: 400 }
     );
   }
@@ -58,19 +52,9 @@ export async function GET(req: NextRequest) {
   try {
     let data: any;
     switch (level) {
-      case "board":
-        data = await prisma.board.findMany({
-          where: search ? { name: { contains: search, mode: "insensitive" } } : undefined,
-          orderBy: { name: "asc" },
-        });
-        break;
-      case "grade":
+      case "category":
         data = await prisma.category.findMany({
-          where: {
-            ...(parentId ? { boardId: parentId } : {}),
-            ...(search ? { name: { contains: search, mode: "insensitive" } } : {}),
-          },
-          include: { board: { select: { id: true, name: true } } },
+          where: search ? { name: { contains: search, mode: "insensitive" } } : undefined,
           orderBy: { name: "asc" },
         });
         break;
@@ -118,7 +102,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { level, name, parentId, code } = body;
+    const { level, name, parentId } = body;
 
     if (!level || !isValidLevel(level)) return NextResponse.json({ error: "Invalid level" }, { status: 400 });
     if (!name || typeof name !== "string" || !name.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -126,21 +110,12 @@ export async function POST(req: NextRequest) {
     let created: any;
 
     switch (level) {
-      case "board": {
-        const boardCode = (code || name).trim().toUpperCase().replace(/[^A-Z0-9]/g, "_");
-        if (!boardCode) return NextResponse.json({ error: "Board code is required" }, { status: 400 });
-        created = await prisma.board.create({ data: { name: name.trim(), code: boardCode, isActive: true } });
-        break;
-      }
-      case "grade": {
-        if (!parentId) return NextResponse.json({ error: "boardId (parentId) is required for a grade" }, { status: 400 });
-        const board = await prisma.board.findUnique({ where: { id: parentId } });
-        if (!board) return NextResponse.json({ error: "Board not found" }, { status: 404 });
-        created = await prisma.category.create({ data: { name: name.trim(), boardId: parentId } });
+      case "category": {
+        created = await prisma.category.create({ data: { name: name.trim() } });
         break;
       }
       case "subject": {
-        if (!parentId) return NextResponse.json({ error: "gradeId / categoryId (parentId) is required" }, { status: 400 });
+        if (!parentId) return NextResponse.json({ error: "categoryId (parentId) is required" }, { status: 400 });
         created = await prisma.subject.create({ data: { name: name.trim(), categoryId: parentId } });
         break;
       }
@@ -179,7 +154,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { level, id, name, isActive, code } = body;
+    const { level, id, name } = body;
 
     if (!level || !isValidLevel(level)) return NextResponse.json({ error: "Invalid level" }, { status: 400 });
     if (!id) return NextResponse.json({ error: "ID is required" }, { status: 400 });
@@ -189,17 +164,7 @@ export async function PUT(req: NextRequest) {
     let updated: any;
 
     switch (level) {
-      case "board": {
-        before = await prisma.board.findUnique({ where: { id } });
-        if (!before) return NextResponse.json({ error: "Not found" }, { status: 404 });
-        const data: any = {};
-        if (name) data.name = name.trim();
-        if (code) data.code = code.trim().toUpperCase().replace(/[^A-Z0-9]/g, "_");
-        if (isActive !== undefined) data.isActive = Boolean(isActive);
-        updated = await prisma.board.update({ where: { id }, data });
-        break;
-      }
-      case "grade": {
+      case "category": {
         before = await prisma.category.findUnique({ where: { id } });
         if (!before) return NextResponse.json({ error: "Not found" }, { status: 404 });
         updated = await prisma.category.update({ where: { id }, data: { ...(name ? { name: name.trim() } : {}) } });
@@ -248,7 +213,7 @@ export async function DELETE(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const level = searchParams.get("level");
-  const id = searchParams.get("id");
+  const id    = searchParams.get("id");
   const force = searchParams.get("force") === "true";
 
   if (!level || !isValidLevel(level)) return NextResponse.json({ error: "Invalid level" }, { status: 400 });
@@ -256,33 +221,14 @@ export async function DELETE(req: NextRequest) {
   if (force && user.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Only SUPER_ADMIN can force delete" }, { status: 403 });
 
   const LEVEL_LABELS: Record<TaxonomyLevel, string> = {
-    board: "Board", grade: "Grade", subject: "Subject", topic: "Topic", subtopic: "Subtopic",
+    category: "Category", subject: "Subject", topic: "Topic", subtopic: "Subtopic",
   };
 
   try {
     let deleted: any;
 
     switch (level) {
-      case "board": {
-        const record = await prisma.board.findUnique({ where: { id } });
-        if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 });
-        if (force) {
-          const catIds = (await prisma.category.findMany({ where: { boardId: id }, select: { id: true } })).map(c => c.id);
-          if (catIds.length > 0) {
-            const subIds = (await prisma.subject.findMany({ where: { categoryId: { in: catIds } }, select: { id: true } })).map(s => s.id);
-            if (subIds.length > 0) {
-              const topIds = (await prisma.topic.findMany({ where: { subjectId: { in: subIds } }, select: { id: true } })).map(t => t.id);
-              if (topIds.length > 0) await prisma.subtopic.deleteMany({ where: { topicId: { in: topIds } } });
-              await prisma.topic.deleteMany({ where: { subjectId: { in: subIds } } });
-            }
-            await prisma.subject.deleteMany({ where: { categoryId: { in: catIds } } });
-          }
-          await prisma.category.deleteMany({ where: { boardId: id } });
-        }
-        deleted = await prisma.board.delete({ where: { id } });
-        break;
-      }
-      case "grade": {
+      case "category": {
         const record = await prisma.category.findUnique({ where: { id } });
         if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 });
         if (force) {

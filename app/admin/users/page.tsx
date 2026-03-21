@@ -5,12 +5,6 @@ import Link from "next/link";
 
 const PURPLE = "#7c3aed";
 
-interface TenantOption {
-  id: string;
-  name: string;
-  slug: string;
-}
-
 interface UserRow {
   id: string;
   name: string | null;
@@ -25,12 +19,6 @@ interface UserRow {
   createdAt: string;
   activeDeviceCount: number;
   lastActiveAt: string | null;
-  tenantId: string | null;
-  tenant: { id: string; name: string } | null;
-  boardId: string | null;
-  board: { id: string; name: string } | null;
-  categoryId: string | null;
-  gradeCategory: { id: string; name: string } | null;
   _count: { devices: number; sessions: number; activities: number };
 }
 
@@ -41,7 +29,6 @@ interface EditForm {
   role: string;
   maxWebDevices: number;
   isActive: boolean;
-  tenantId: string;
 }
 
 interface CreateForm {
@@ -50,7 +37,6 @@ interface CreateForm {
   mobile: string;
   password: string;
   role: string;
-  tenantId: string;
 }
 
 const ROLE_OPTS = ["STUDENT", "ADMIN", "SUPER_ADMIN"];
@@ -80,16 +66,14 @@ export default function UsersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
-  const [tenants, setTenants] = useState<TenantOption[]>([]);
-
   // Modals
   const [createOpen, setCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState<CreateForm>({ name: "", email: "", mobile: "", password: "", role: "STUDENT", tenantId: "" });
+  const [createForm, setCreateForm] = useState<CreateForm>({ name: "", email: "", mobile: "", password: "", role: "STUDENT" });
   const [createSaving, setCreateSaving] = useState(false);
   const [createError, setCreateError] = useState("");
 
   const [editUser, setEditUser] = useState<UserRow | null>(null);
-  const [editForm, setEditForm] = useState<EditForm>({ name: "", email: "", mobile: "", role: "STUDENT", maxWebDevices: 1, isActive: true, tenantId: "" });
+  const [editForm, setEditForm] = useState<EditForm>({ name: "", email: "", mobile: "", role: "STUDENT", maxWebDevices: 1, isActive: true });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
 
@@ -132,13 +116,9 @@ export default function UsersPage() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { setPage(1); }, [search, roleFilter, blockedFilter, showDeleted]);
 
-  useEffect(() => {
-    fetch("/api/tenants").then(r => r.json()).then(j => setTenants(j.data || [])).catch(() => {});
-  }, []);
-
   // ── Create User ───────────────────────────────────────────────────────────
   const openCreate = () => {
-    setCreateForm({ name: "", email: "", mobile: "", password: "", role: "STUDENT", tenantId: "" });
+    setCreateForm({ name: "", email: "", mobile: "", password: "", role: "STUDENT" });
     setCreateError("");
     setCreateOpen(true);
   };
@@ -146,7 +126,7 @@ export default function UsersPage() {
     setCreateSaving(true); setCreateError("");
     const res = await fetch("/api/users", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...createForm, tenantId: createForm.tenantId || null }),
+      body: JSON.stringify(createForm),
     });
     const json = await res.json();
     setCreateSaving(false);
@@ -159,7 +139,7 @@ export default function UsersPage() {
   // ── Edit ──────────────────────────────────────────────────────────────────
   const openEdit = (u: UserRow) => {
     setEditUser(u);
-    setEditForm({ name: u.name || "", email: u.email || "", mobile: u.mobile || "", role: u.role, maxWebDevices: u.maxWebDevices, isActive: u.isActive, tenantId: u.tenantId || "" });
+    setEditForm({ name: u.name || "", email: u.email || "", mobile: u.mobile || "", role: u.role, maxWebDevices: u.maxWebDevices, isActive: u.isActive });
     setEditError("");
   };
   const saveEdit = async () => {
@@ -167,7 +147,7 @@ export default function UsersPage() {
     setEditSaving(true); setEditError("");
     const res = await fetch(`/api/users/${editUser.id}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...editForm, tenantId: editForm.tenantId || null }),
+      body: JSON.stringify(editForm),
     });
     const json = await res.json();
     setEditSaving(false);
@@ -290,16 +270,16 @@ export default function UsersPage() {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#f8fafc" }}>
-              {["Name / Contact", "Role", "Board / Grade", "School / Tenant", "Status", "Devices", "Max Devices", "Last Active", "Actions"].map(h => (
+              {["Name / Contact", "Role", "Status", "Devices", "Max Devices", "Last Active", "Actions"].map(h => (
                 <th key={h} style={{ padding: "0.625rem 1rem", textAlign: "left", fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "2px solid #e2e8f0", whiteSpace: "nowrap" }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              Array.from({ length: 9 }).map((_, i) => (
+              Array.from({ length: 7 }).map((_, i) => (
                 <tr key={i}>
-                  {Array.from({ length: 9 }).map((_, j) => (
+                  {Array.from({ length: 7 }).map((_, j) => (
                     <td key={j} style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
                       <div style={{ height: 14, background: "#f1f5f9", borderRadius: 4, width: `${50 + (j * 15) % 50}%`, animation: "pulse 1.5s ease-in-out infinite" }} />
                     </td>
@@ -307,7 +287,7 @@ export default function UsersPage() {
                 </tr>
               ))
             ) : users.length === 0 ? (
-              <tr><td colSpan={9} style={{ padding: "4rem", textAlign: "center", color: "#94a3b8" }}>No users found.</td></tr>
+              <tr><td colSpan={7} style={{ padding: "4rem", textAlign: "center", color: "#94a3b8" }}>No users found.</td></tr>
             ) : users.map(u => (
               <tr key={u.id} style={{ transition: "background 0.1s" }}
                 onMouseEnter={e => (e.currentTarget.style.background = "#f8fafc")}
@@ -318,21 +298,6 @@ export default function UsersPage() {
                   {u.deletedAt && <span style={{ fontSize: "0.65rem", background: "#fee2e2", color: "#dc2626", padding: "1px 6px", borderRadius: 6, fontWeight: 700 }}>ARCHIVED</span>}
                 </td>
                 <td style={{ padding: "0.75rem 1rem", borderBottom: "1px solid #f1f5f9" }}>{roleBadge(u.role)}</td>
-                <td style={{ padding: "0.75rem 1rem", borderBottom: "1px solid #f1f5f9", fontSize: "0.8rem" }}>
-                  {u.board
-                    ? (<>
-                        <div style={{ fontWeight: 600, fontSize: "0.75rem", color: "#0f172a" }}>{u.board.name}</div>
-                        <div style={{ fontSize: "0.7rem", color: "#64748b" }}>{u.gradeCategory?.name || <span style={{ color: "#94a3b8" }}>No grade</span>}</div>
-                      </>)
-                    : <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>—</span>
-                  }
-                </td>
-                <td style={{ padding: "0.75rem 1rem", borderBottom: "1px solid #f1f5f9", fontSize: "0.8rem" }}>
-                  {u.tenant
-                    ? <span style={{ padding: "2px 8px", borderRadius: "9px", fontSize: "0.7rem", fontWeight: 600, background: "#eff6ff", color: "#1d4ed8" }}>{u.tenant.name}</span>
-                    : <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>Direct User</span>
-                  }
-                </td>
                 <td style={{ padding: "0.75rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
                   {u.isBlocked ? (
                     <span style={{ padding: "2px 8px", borderRadius: "9px", fontSize: "0.7rem", fontWeight: 700, background: "#fee2e2", color: "#dc2626" }} title={u.blockedReason || ""}>🚫 Blocked</span>
@@ -390,12 +355,6 @@ export default function UsersPage() {
             <select value={createForm.role} onChange={e => setCreateForm(f => ({ ...f, role: e.target.value }))} style={input}>
               {ROLE_OPTS.map(r => <option key={r} value={r}>{r.replace("_", " ")}</option>)}
             </select>
-            <label style={label}>School / Tenant</label>
-            <select value={createForm.tenantId} onChange={e => setCreateForm(f => ({ ...f, tenantId: e.target.value }))} style={input}>
-              <option value="">— None (Direct B2C User) —</option>
-              {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-            <p style={{ margin: "0.3rem 0 0", fontSize: "0.75rem", color: "#94a3b8" }}>Leave empty for direct B2C users. Select a school only for SchoolVerse-managed users.</p>
             <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem" }}>
               <button onClick={saveCreate} disabled={createSaving} style={primaryBtn}>{createSaving ? "Creating…" : "Create User"}</button>
               <button onClick={() => setCreateOpen(false)} style={cancelBtn}>Cancel</button>
@@ -427,12 +386,6 @@ export default function UsersPage() {
               <input type="checkbox" checked={editForm.isActive} onChange={e => setEditForm(f => ({ ...f, isActive: e.target.checked }))} />
               Account active
             </label>
-            <label style={label}>School / Tenant</label>
-            <select value={editForm.tenantId} onChange={e => setEditForm(f => ({ ...f, tenantId: e.target.value }))} style={input}>
-              <option value="">— None (Direct B2C User) —</option>
-              {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-            <p style={{ margin: "0.3rem 0 0", fontSize: "0.75rem", color: "#94a3b8" }}>Leave empty for direct B2C users. Select a school only for SchoolVerse-managed users.</p>
             <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem" }}>
               <button onClick={saveEdit} disabled={editSaving} style={primaryBtn}>{editSaving ? "Saving…" : "Save Changes"}</button>
               <button onClick={() => setEditUser(null)} style={cancelBtn}>Cancel</button>

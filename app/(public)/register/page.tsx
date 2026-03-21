@@ -1,12 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 
 const PURPLE = "#7c3aed";
-
-interface BoardOption { id: string; name: string; code: string; }
-interface GradeOption { id: string; name: string; }
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
@@ -15,36 +12,12 @@ export default function RegisterPage() {
     mobile: "",
     password: "",
     confirmPassword: "",
-    boardId: "",
-    categoryId: "",
     legalAccepted: false,
   });
-
-  const [boards, setBoards] = useState<BoardOption[]>([]);
-  const [grades, setGrades] = useState<GradeOption[]>([]);
-  const [loadingBoards, setLoadingBoards] = useState(true);
-  const [loadingGrades, setLoadingGrades] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/public/boards")
-      .then(r => r.json())
-      .then(j => setBoards(j.data || []))
-      .finally(() => setLoadingBoards(false));
-  }, []);
-
-  useEffect(() => {
-    if (!form.boardId) { setGrades([]); return; }
-    setLoadingGrades(true);
-    setForm(f => ({ ...f, categoryId: "" }));
-    fetch(`/api/public/grades?boardId=${form.boardId}`)
-      .then(r => r.json())
-      .then(j => setGrades(j.data || []))
-      .finally(() => setLoadingGrades(false));
-  }, [form.boardId]);
 
   function set(field: string, value: string | boolean) {
     setForm(f => ({ ...f, [field]: value }));
@@ -58,9 +31,9 @@ export default function RegisterPage() {
     if (form.password !== form.confirmPassword) {
       setError("Passwords do not match"); return;
     }
-    if (!form.boardId) { setError("Please select a board"); return; }
-    if (!form.categoryId) { setError("Please select a grade"); return; }
-    if (!form.legalAccepted) { setError("You must accept the Terms & Conditions to register"); return; }
+    if (!form.legalAccepted) {
+      setError("You must accept the Terms & Conditions to register"); return;
+    }
 
     setSaving(true);
     try {
@@ -72,8 +45,6 @@ export default function RegisterPage() {
           email: form.email || undefined,
           mobile: form.mobile || undefined,
           password: form.password,
-          boardId: form.boardId,
-          categoryId: form.categoryId,
           legalAccepted: form.legalAccepted,
         }),
       });
@@ -149,30 +120,6 @@ export default function RegisterPage() {
           </div>
           <p style={{ margin: "-0.5rem 0 1rem", fontSize: "0.75rem", color: "#94a3b8" }}>Provide at least one of email or mobile.</p>
 
-          {/* Board + Grade */}
-          <div style={{ background: "#f8fafc", borderRadius: "8px", padding: "1rem", marginBottom: "1rem", border: "1px solid #e2e8f0" }}>
-            <p style={{ margin: "0 0 0.75rem", fontSize: "0.85rem", fontWeight: 700, color: "#374151" }}>Education Details</p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-              <div>
-                <label style={lbl}>Board *</label>
-                <select value={form.boardId} onChange={e => set("boardId", e.target.value)} required style={{ ...inp, background: "#fff" }}>
-                  <option value="">{loadingBoards ? "Loading…" : "Select board"}</option>
-                  {boards.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={lbl}>Grade *</label>
-                <select value={form.categoryId} onChange={e => set("categoryId", e.target.value)} required disabled={!form.boardId} style={{ ...inp, background: "#fff", opacity: !form.boardId ? 0.6 : 1 }}>
-                  <option value="">
-                    {!form.boardId ? "Select board first" : loadingGrades ? "Loading…" : grades.length === 0 ? "No grades available" : "Select grade"}
-                  </option>
-                  {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Password */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
             <div>
               <label style={lbl}>Password *</label>
@@ -187,7 +134,6 @@ export default function RegisterPage() {
             Must be at least 8 characters, with one uppercase letter and one number.
           </p>
 
-          {/* Legal */}
           <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", marginBottom: "1.5rem" }}>
             <input
               type="checkbox"

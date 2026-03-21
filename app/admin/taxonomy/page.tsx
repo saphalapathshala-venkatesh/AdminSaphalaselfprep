@@ -1,32 +1,28 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
-// Hierarchy: Board → Grade (Category) → Subject → Topic → Subtopic
-// "grade" is the UI label for what is stored as Category internally.
-type TaxonomyLevel = "board" | "grade" | "subject" | "topic" | "subtopic";
+// Hierarchy: Category → Subject → Topic → Subtopic
+type TaxonomyLevel = "category" | "subject" | "topic" | "subtopic";
 
 const LEVEL_LABELS: Record<TaxonomyLevel, string> = {
-  board: "Board",
-  grade: "Grade",
-  subject: "Subject",
-  topic: "Topic",
+  category: "Category",
+  subject:  "Subject",
+  topic:    "Topic",
   subtopic: "Subtopic",
 };
 
 const CHILD_LEVELS: Record<TaxonomyLevel, TaxonomyLevel | null> = {
-  board: "grade",
-  grade: "subject",
-  subject: "topic",
-  topic: "subtopic",
+  category: "subject",
+  subject:  "topic",
+  topic:    "subtopic",
   subtopic: null,
 };
 
 const LEVEL_COLORS: Record<TaxonomyLevel, string> = {
-  board: "#0ea5e9",
-  grade: "#3b82f6",
-  subject: "#8b5cf6",
-  topic: "#059669",
+  category: "#0ea5e9",
+  subject:  "#8b5cf6",
+  topic:    "#059669",
   subtopic: "#d97706",
 };
 
@@ -37,18 +33,9 @@ interface TaxNode {
   parentId?: string;
 }
 
-// Tree shape returned by API (Board → categories → subjects → topics → subtopics)
-interface TreeBoard {
-  id: string;
-  name: string;
-  code: string;
-  isActive: boolean;
-  categories: TreeCategory[];
-}
 interface TreeCategory {
   id: string;
   name: string;
-  boardId: string;
   subjects: TreeSubject[];
 }
 interface TreeSubject {
@@ -70,16 +57,15 @@ interface TreeSubtopic {
 }
 
 export default function TaxonomyPage() {
-  const [boards, setBoards] = useState<TreeBoard[]>([]);
+  const [categories, setCategories] = useState<TreeCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const [selected, setSelected] = useState<TaxNode | null>(null);
   const [formMode, setFormMode] = useState<"idle" | "create" | "edit">("idle");
-  const [formLevel, setFormLevel] = useState<TaxonomyLevel>("board");
+  const [formLevel, setFormLevel] = useState<TaxonomyLevel>("category");
   const [formName, setFormName] = useState("");
-  const [formCode, setFormCode] = useState(""); // only for Board
   const [formParentId, setFormParentId] = useState("");
   const [formError, setFormError] = useState("");
   const [formSaving, setFormSaving] = useState(false);
@@ -99,7 +85,7 @@ export default function TaxonomyPage() {
     try {
       const res = await fetch("/api/taxonomy?tree=true");
       const data = await res.json();
-      setBoards(data.data || []);
+      setCategories(data.data || []);
     } catch {
       showToast("Failed to load taxonomy", "error");
     } finally {
@@ -132,7 +118,6 @@ export default function TaxonomyPage() {
     setFormMode("create");
     setFormLevel(level);
     setFormName("");
-    setFormCode("");
     setFormParentId(parentId || "");
     setFormError("");
     setSelected(null);
@@ -143,35 +128,27 @@ export default function TaxonomyPage() {
     setFormMode("edit");
     setFormLevel(selected.level);
     setFormName(selected.name);
-    setFormCode("");
     setFormError("");
   }
 
   async function handleSave() {
     if (!formName.trim()) { setFormError("Name is required"); return; }
-    if (formLevel === "board" && !formCode.trim() && formMode === "create") {
-      // code will be auto-derived from name on server — don't block
-    }
     setFormSaving(true);
     setFormError("");
     try {
       if (formMode === "create") {
-        const body: any = { level: formLevel, name: formName.trim(), parentId: formParentId || undefined };
-        if (formLevel === "board" && formCode.trim()) body.code = formCode.trim();
+        const body = { level: formLevel, name: formName.trim(), parentId: formParentId || undefined };
         const res = await fetch("/api/taxonomy", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
         const data = await res.json();
         if (!res.ok) { setFormError(data.error || "Failed to create"); return; }
         showToast(`${LEVEL_LABELS[formLevel]} created`, "success");
       } else if (formMode === "edit" && selected) {
-        const body: any = { level: selected.level, id: selected.id, name: formName.trim() };
-        if (selected.level === "board" && formCode.trim()) body.code = formCode.trim();
+        const body = { level: selected.level, id: selected.id, name: formName.trim() };
         const res = await fetch("/api/taxonomy", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          method: "PUT", headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
         const data = await res.json();
@@ -205,38 +182,31 @@ export default function TaxonomyPage() {
     }
   }
 
-  // ── Search filter ────────────────────────────────────────────────────────
-  function filterBoards(bds: TreeBoard[], q: string): TreeBoard[] {
-    if (!q) return bds;
+  function filterCategories(cats: TreeCategory[], q: string): TreeCategory[] {
+    if (!q) return cats;
     const lq = q.toLowerCase();
-    return bds.map(board => {
-      const bMatch = board.name.toLowerCase().includes(lq);
-      const filteredCats = board.categories.map(cat => {
-        const cMatch = cat.name.toLowerCase().includes(lq);
-        const filteredSubs = cat.subjects.map(sub => {
-          const sMatch = sub.name.toLowerCase().includes(lq);
-          const filteredTopics = sub.topics.map(top => {
-            const tMatch = top.name.toLowerCase().includes(lq);
-            const filteredSts = top.subtopics.filter(st => st.name.toLowerCase().includes(lq));
-            if (tMatch || filteredSts.length) return { ...top, subtopics: tMatch ? top.subtopics : filteredSts };
-            return null;
-          }).filter(Boolean) as TreeTopic[];
-          if (sMatch || filteredTopics.length) return { ...sub, topics: sMatch ? sub.topics : filteredTopics };
+    return cats.map(cat => {
+      const cMatch = cat.name.toLowerCase().includes(lq);
+      const filteredSubs = cat.subjects.map(sub => {
+        const sMatch = sub.name.toLowerCase().includes(lq);
+        const filteredTopics = sub.topics.map(top => {
+          const tMatch = top.name.toLowerCase().includes(lq);
+          const filteredSts = top.subtopics.filter(st => st.name.toLowerCase().includes(lq));
+          if (tMatch || filteredSts.length) return { ...top, subtopics: tMatch ? top.subtopics : filteredSts };
           return null;
-        }).filter(Boolean) as TreeSubject[];
-        if (cMatch || filteredSubs.length) return { ...cat, subjects: cMatch ? cat.subjects : filteredSubs };
+        }).filter(Boolean) as TreeTopic[];
+        if (sMatch || filteredTopics.length) return { ...sub, topics: sMatch ? sub.topics : filteredTopics };
         return null;
-      }).filter(Boolean) as TreeCategory[];
-      if (bMatch || filteredCats.length) return { ...board, categories: bMatch ? board.categories : filteredCats };
+      }).filter(Boolean) as TreeSubject[];
+      if (cMatch || filteredSubs.length) return { ...cat, subjects: cMatch ? cat.subjects : filteredSubs };
       return null;
-    }).filter(Boolean) as TreeBoard[];
+    }).filter(Boolean) as TreeCategory[];
   }
 
-  const filtered = filterBoards(boards, search);
+  const filtered = filterCategories(categories, search);
 
-  const canAddGrade = selected?.level === "board";
-  const canAddSubject = selected?.level === "grade";
-  const canAddTopic = selected?.level === "subject";
+  const canAddSubject  = selected?.level === "category";
+  const canAddTopic    = selected?.level === "subject";
   const canAddSubtopic = selected?.level === "topic";
 
   return (
@@ -245,16 +215,11 @@ export default function TaxonomyPage() {
         <div>
           <h1 style={{ fontSize: "1.5rem", fontWeight: 600, color: "#111", margin: 0 }}>Taxonomy</h1>
           <p style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem", color: "#64748b" }}>
-            Board → Grade → Subject → Topic → Subtopic
+            Category → Subject → Topic → Subtopic
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <button onClick={() => startCreate("board")} style={btnStyle}>+ Board</button>
-          <button
-            onClick={() => canAddGrade && startCreate("grade", selected!.id)}
-            disabled={!canAddGrade}
-            style={{ ...btnStyle, ...(!canAddGrade ? btnDisabled : {}) }}
-          >+ Grade</button>
+          <button onClick={() => startCreate("category")} style={btnStyle}>+ Category</button>
           <button
             onClick={() => canAddSubject && startCreate("subject", selected!.id)}
             disabled={!canAddSubject}
@@ -301,35 +266,27 @@ export default function TaxonomyPage() {
           {loading ? (
             <p style={{ color: "#666" }}>Loading...</p>
           ) : filtered.length === 0 ? (
-            <p style={{ color: "#666" }}>No boards yet. Add a Board to get started.</p>
+            <p style={{ color: "#666" }}>No categories yet. Add a Category to get started.</p>
           ) : (
-            filtered.map(board => (
-              <TreeNode key={board.id} level="board" id={board.id} name={board.name}
-                badge={board.isActive ? undefined : "inactive"}
+            filtered.map(cat => (
+              <TreeNode key={cat.id} level="category" id={cat.id} name={cat.name}
                 expanded={expanded} selected={selected}
                 toggleExpand={toggleExpand} handleSelect={handleSelect} indent={0}>
-                {expanded.has(board.id) && board.categories.map(cat => (
-                  <TreeNode key={cat.id} level="grade" id={cat.id} name={cat.name}
+                {expanded.has(cat.id) && cat.subjects.map(sub => (
+                  <TreeNode key={sub.id} level="subject" id={sub.id} name={sub.name}
                     expanded={expanded} selected={selected}
                     toggleExpand={toggleExpand} handleSelect={handleSelect}
-                    parentId={board.id} indent={1}>
-                    {expanded.has(cat.id) && cat.subjects.map(sub => (
-                      <TreeNode key={sub.id} level="subject" id={sub.id} name={sub.name}
+                    parentId={cat.id} indent={1}>
+                    {expanded.has(sub.id) && sub.topics.map(top => (
+                      <TreeNode key={top.id} level="topic" id={top.id} name={top.name}
                         expanded={expanded} selected={selected}
                         toggleExpand={toggleExpand} handleSelect={handleSelect}
-                        parentId={cat.id} indent={2}>
-                        {expanded.has(sub.id) && sub.topics.map(top => (
-                          <TreeNode key={top.id} level="topic" id={top.id} name={top.name}
+                        parentId={sub.id} indent={2}>
+                        {expanded.has(top.id) && top.subtopics.map(st => (
+                          <TreeNode key={st.id} level="subtopic" id={st.id} name={st.name}
                             expanded={expanded} selected={selected}
                             toggleExpand={toggleExpand} handleSelect={handleSelect}
-                            parentId={sub.id} indent={3}>
-                            {expanded.has(top.id) && top.subtopics.map(st => (
-                              <TreeNode key={st.id} level="subtopic" id={st.id} name={st.name}
-                                expanded={expanded} selected={selected}
-                                toggleExpand={toggleExpand} handleSelect={handleSelect}
-                                parentId={top.id} indent={4} />
-                            ))}
-                          </TreeNode>
+                            parentId={top.id} indent={3} />
                         ))}
                       </TreeNode>
                     ))}
@@ -391,24 +348,7 @@ export default function TaxonomyPage() {
                 onKeyDown={e => e.key === "Enter" && handleSave()}
                 style={inputStyle}
                 autoFocus
-                placeholder={formLevel === "board" ? "e.g. CBSE, ICSE, State Board" : formLevel === "grade" ? "e.g. Grade 10, Class 11" : ""}
               />
-
-              {formLevel === "board" && (
-                <>
-                  <label style={{ ...labelStyle, marginTop: "0.75rem" }}>Code (optional — auto-derived from name if blank)</label>
-                  <input
-                    type="text"
-                    value={formCode}
-                    onChange={e => setFormCode(e.target.value.toUpperCase())}
-                    style={inputStyle}
-                    placeholder="e.g. CBSE"
-                  />
-                  <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: "0.3rem 0 0" }}>
-                    Short unique identifier. Uppercase letters and numbers only.
-                  </p>
-                </>
-              )}
 
               <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
                 <button onClick={handleSave} disabled={formSaving} style={{ ...btnStyle, backgroundColor: "#059669" }}>
@@ -423,7 +363,6 @@ export default function TaxonomyPage() {
         </div>
       </div>
 
-      {/* Delete confirm modal */}
       {deleteConfirm && (
         <div style={modalOverlay}>
           <div style={modalBox}>
@@ -460,8 +399,6 @@ function TreeNode({
   indent?: number;
   children?: React.ReactNode;
 }) {
-  const hasChildren = React.Children.count(children) > 0 ||
-    (level !== "subtopic" && expanded.has(id));
   const isExpandable = level !== "subtopic";
   const isExpanded = expanded.has(id);
   const isSelected = selected?.id === id;
@@ -505,8 +442,6 @@ function TreeNode({
     </div>
   );
 }
-
-import React from "react";
 
 const btnStyle: React.CSSProperties = {
   padding: "0.375rem 0.75rem", backgroundColor: "#7c3aed", color: "#fff", border: "none",
