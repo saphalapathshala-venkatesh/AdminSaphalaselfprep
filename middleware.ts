@@ -4,35 +4,17 @@ export const config = {
   matcher: ["/admin/:path*"],
 };
 
-export async function middleware(req: NextRequest) {
+export function middleware(req: NextRequest) {
   const token = req.cookies.get("admin_session")?.value;
 
   if (!token) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  const verifyUrl = new URL("/api/auth/me", req.url);
-  try {
-    const res = await fetch(verifyUrl.toString(), {
-      headers: { Cookie: `admin_session=${token}` },
-    });
-
-    if (!res.ok) {
-      return NextResponse.redirect(new URL("/login", req.url));
-    }
-
-    const data = await res.json();
-    if (!data.user) {
-      return NextResponse.redirect(new URL("/login", req.url));
-    }
-
-    const role = data.user.role;
-    if (role !== "ADMIN" && role !== "SUPER_ADMIN") {
-      return NextResponse.redirect(new URL("/login", req.url));
-    }
-
-    return NextResponse.next();
-  } catch {
-    return NextResponse.redirect(new URL("/login", req.url));
-  }
+  // Cookie is present — allow the request through.
+  // Full session validation (expiry, revocation, role) is enforced in every
+  // API route via getSessionUserFromRequest / getSessionUser.  Running a DB
+  // round-trip here in Vercel edge middleware causes self-call failures that
+  // redirect valid users back to /login.
+  return NextResponse.next();
 }
