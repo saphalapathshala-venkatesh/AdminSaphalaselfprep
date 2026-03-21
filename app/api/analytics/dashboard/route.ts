@@ -121,7 +121,7 @@ export async function GET(req: NextRequest) {
       ).catch(() => []),
 
       prisma.$queryRaw<{ date: string; points: bigint }[]>(
-        Prisma.sql`SELECT DATE("createdAt") as date, COALESCE(SUM("points"), 0)::bigint as points FROM "XpEvent" WHERE "createdAt" >= ${start} AND "createdAt" <= ${end} GROUP BY DATE("createdAt") ORDER BY date`
+        Prisma.sql`SELECT DATE("createdAt") as date, COALESCE(SUM("delta"), 0)::bigint as points FROM "XpLedgerEntry" WHERE "delta" > 0 AND "createdAt" >= ${start} AND "createdAt" <= ${end} GROUP BY DATE("createdAt") ORDER BY date`
       ).catch(() => []),
 
       safeStream
@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
           ).catch(() => []),
 
       prisma.$queryRaw<{ userId: string; totalXp: bigint }[]>(
-        Prisma.sql`SELECT "userId", COALESCE(SUM("points"), 0)::bigint as "totalXp" FROM "XpEvent" WHERE "createdAt" >= ${start} AND "createdAt" <= ${end} GROUP BY "userId" ORDER BY "totalXp" DESC LIMIT 10`
+        Prisma.sql`SELECT "userId", COALESCE(SUM("delta"), 0)::bigint as "totalXp" FROM "XpLedgerEntry" WHERE "delta" > 0 AND "createdAt" >= ${start} AND "createdAt" <= ${end} GROUP BY "userId" ORDER BY "totalXp" DESC LIMIT 10`
       ).catch(() => []),
 
       prisma.$queryRaw<{ testId: string; attempts: bigint }[]>(

@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
       rows = raw.map(r => ({ date: String(r.date).slice(0, 10), count: Number(r.count), uniqueUsers: Number(r.uniqueUsers) }));
     } else if (type === "xp") {
       const raw = await prisma.$queryRaw<any[]>(
-        Prisma.sql`SELECT DATE("createdAt") as date, COALESCE(SUM("points"), 0)::bigint as points, COUNT(*)::bigint as events FROM "XpEvent" WHERE "createdAt" >= ${start} AND "createdAt" <= ${end} GROUP BY DATE("createdAt") ORDER BY date`
+        Prisma.sql`SELECT DATE("createdAt") as date, COALESCE(SUM("delta"), 0)::bigint as points, COUNT(*)::bigint as events FROM "XpLedgerEntry" WHERE "delta" > 0 AND "createdAt" >= ${start} AND "createdAt" <= ${end} GROUP BY DATE("createdAt") ORDER BY date`
       );
       rows = raw.map(r => ({ date: String(r.date).slice(0, 10), points: Number(r.points), events: Number(r.events) }));
     } else if (type === "revenue") {

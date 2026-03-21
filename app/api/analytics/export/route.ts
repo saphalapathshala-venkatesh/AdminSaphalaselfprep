@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     } else if (type === "xp") {
       headers = ["Date", "XP Points", "Events"];
       const data = await prisma.$queryRaw<any[]>(
-        Prisma.sql`SELECT DATE("createdAt") as date, COALESCE(SUM("points"), 0)::bigint as points, COUNT(*)::bigint as events FROM "XpEvent" WHERE "createdAt" >= ${start} AND "createdAt" <= ${end} GROUP BY DATE("createdAt") ORDER BY date`
+        Prisma.sql`SELECT DATE("createdAt") as date, COALESCE(SUM("delta"), 0)::bigint as points, COUNT(*)::bigint as events FROM "XpLedgerEntry" WHERE "delta" > 0 AND "createdAt" >= ${start} AND "createdAt" <= ${end} GROUP BY DATE("createdAt") ORDER BY date`
       );
       rows = data.map(r => [String(r.date).slice(0, 10), String(Number(r.points)), String(Number(r.events))]);
     } else if (type === "revenue") {
