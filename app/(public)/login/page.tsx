@@ -2,12 +2,10 @@
 export const dynamic = "force-dynamic";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 type Phase = "idle" | "submitting" | "redirecting";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -45,8 +43,10 @@ export default function LoginPage() {
       setPhase("redirecting");
       console.debug("[Auth] Redirect triggered", Date.now() - t0, "ms");
 
-      // Use replace so the back button doesn't return to login after entry
-      router.replace("/admin/dashboard");
+      // Hard navigation so the browser sends the fresh session cookie with
+      // the request — client-side router.replace() can race the cookie commit
+      // and cause middleware to block the route in production.
+      window.location.href = "/admin/dashboard";
     } catch {
       setError("Something went wrong. Please try again.");
       setPhase("idle");
