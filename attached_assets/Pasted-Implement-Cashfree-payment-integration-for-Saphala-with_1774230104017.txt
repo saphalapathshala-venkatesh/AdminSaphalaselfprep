@@ -1,0 +1,269 @@
+Implement Cashfree payment integration for Saphala with a future-proof payment abstraction layer so the active merchant account can be changed later without rewriting the codebase.
+
+Goal:
+Build Saphala’s payment layer cleanly for current Cashfree integration, while keeping the architecture flexible enough to switch to:
+- a different Cashfree account later
+- or another payment provider in the future
+
+IMPORTANT:
+Audit first before implementing anything. Do not hardcode merchant config directly into the business flow.
+
+==================================================
+PHASE 1 — AUDIT FIRST (MANDATORY)
+==================================================
+
+Audit the current Saphala codebase across admin + DB + APIs + frontend for:
+
+1. Existing order / purchase architecture
+- whether any Order / Purchase / Transaction model already exists
+- whether any checkout UI already exists
+- whether any entitlement activation logic already exists after purchase
+
+2. Existing entitlement architecture
+- current UserEntitlement structure
+- how productCode is linked to courses/tests/videos/live classes
+- how entitlement validity is enforced
+
+3. Existing product architecture
+- what exactly is being sold today:
+  - course
+  - test series
+  - ebook package
+  - live classes
+  - combo package
+- whether productCode mapping is already stable
+
+4. Existing admin/payment configuration
+- any current payment env vars
+- any current provider-specific code
+- any invoice/receipt handling already present
+
+Output required:
+A. what already exists
+B. what can be reused
+C. what is missing
+D. what should be built first
+
+Do not implement before completing the audit.
+
+==================================================
+PHASE 2 — PAYMENT ABSTRACTION LAYER (CRITICAL)
+==================================================
+
+Build the payment system so Cashfree is the active provider now, but the provider/account can be changed later.
+
+Requirements:
+
+1. Create a payment abstraction layer
+- central payment service interface
+- provider-specific implementation for Cashfree
+- no direct Cashfree logic scattered across routes/pages
+
+2. Active payment config
+Use a provider/account configuration system instead of hardcoding one account permanently.
+
+Suggested structure:
+- provider (CASHFREE for now)
+- environment (TEST / PROD)
+- appId / clientId
+- secretKey
+- webhookSecret
+- isActive
+- optional owner label / note
+
+3. Future-proofing
+The architecture must support later switching to:
+- another Cashfree merchant account
+- or another provider
+without rewriting order/entitlement logic.
+
+==================================================
+PHASE 3 — DATA MODELS
+==================================================
+
+Create or extend the minimal DB models needed.
+
+A. PaymentConfig (if not already present)
+Fields such as:
+- id
+- provider
+- environment
+- appId / clientId
+- secretKey
+- webhookSecret
+- isActive
+- displayName / ownerName optional
+- createdAt / updatedAt
+
+B. Order / Purchase / PaymentOrder
+Fields such as:
+- id
+- userId
+- productCode
+- amount
+- currency
+- status (CREATED / PENDING / PAID / FAILED / CANCELLED)
+- provider
+- providerOrderId
+- providerPaymentId
+- metadata json if needed
+- createdAt / updatedAt
+- paidAt optional
+
+C. Link to entitlements
+Ensure successful payment can activate:
+- UserEntitlement.userId
+- UserEntitlement.productCode
+- status = ACTIVE
+- validUntil if applicable
+- purchaseId / orderId linkage if possible
+
+Keep schema additive and minimal.
+
+==================================================
+PHASE 4 — CASHFREE INTEGRATION
+==================================================
+
+Implement Cashfree as the first provider through the abstraction layer.
+
+Requirements:
+
+1. Order creation
+- create payment order for a selected product/package
+- amount and productCode must come from trusted backend logic, not raw frontend input
+- return the data needed for frontend checkout
+
+2. Payment initiation
+- frontend should start Cashfree checkout using server-created order details
+
+3. Payment verification
+- backend must verify payment through secure flow
+- do not trust frontend success callbacks alone
+
+4. Webhooks
+Implement Cashfree webhook endpoint correctly.
+
+Important rules:
+- verify webhook signature correctly
+- use the RAW request payload for signature verification
+- handle duplicate delivery safely / idempotently
+- webhook processing must not create duplicate entitlements
+
+5. Payment finalization
+On confirmed payment success:
+- mark order as PAID
+- activate correct UserEntitlement
+- ensure idempotency (same payment event should not grant duplicate entitlements)
+
+==================================================
+PHASE 5 — FRONTEND CHECKOUT FLOW
+==================================================
+
+Build the student-facing checkout flow.
+
+Requirements:
+1. User selects a product/package
+2. Backend creates trusted order
+3. Frontend launches Cashfree payment flow
+4. Show clean states:
+- processing
+- success
+- failed
+- pending
+5. On success:
+- redirect to success page or purchased product
+- refresh entitlement-driven access
+6. On failure:
+- show retry option cleanly
+
+Do not make the UX confusing or fragile.
+
+==================================================
+PHASE 6 — ENTITLEMENT ACTIVATION (VERY IMPORTANT)
+==================================================
+
+Payment success must activate the correct product/package access.
+
+Rules:
+1. Map payment to the correct productCode
+2. Activate UserEntitlement safely
+3. Respect validity logic if products expire
+4. Do not double-grant on duplicate webhooks or repeated callbacks
+5. Keep the entitlement system as the source of truth for frontend access
+
+==================================================
+PHASE 7 — ADMIN / CONFIG MANAGEMENT
+==================================================
+
+Implement the minimum admin/payment management support needed.
+
+At minimum:
+1. Ability to inspect orders/payments
+2. See payment status
+3. See linked user + productCode
+4. See if entitlement was granted
+
+If PaymentConfig is admin-managed, keep it safe and restricted.
+If not, document clearly whether config is env-driven for now with architecture ready for later DB-based switching.
+
+==================================================
+PHASE 8 — ACCOUNT FLEXIBILITY (IMPORTANT)
+==================================================
+
+Design the implementation so the active payment account can be changed later without rewriting business logic.
+
+Examples:
+- current Cashfree account now
+- parent’s Cashfree account later
+- test account vs production account
+- possibly another provider later
+
+This means:
+- no provider/account-specific hardcoding in checkout business logic
+- all merchant credentials/config must be centralized
+
+==================================================
+PHASE 9 — ENGINEERING RULES
+==================================================
+
+1. Audit first before implementation.
+2. Keep all business logic backend-trusted.
+3. Do not trust frontend amount/productCode blindly.
+4. Use idempotent payment processing.
+5. Use raw-body webhook verification correctly.
+6. Do not scatter Cashfree-specific logic across the app.
+7. Keep admin app and student frontend cleanly separated.
+8. Preserve existing entitlement architecture and extend it safely.
+
+==================================================
+PHASE 10 — VALIDATION
+==================================================
+
+Validate all flows:
+
+1. Test order creation
+2. Test successful payment
+3. Test failed payment
+4. Test pending payment
+5. Test duplicate webhook delivery
+6. Test repeated callback handling
+7. Test entitlement grant after success
+8. Test no entitlement grant on failure
+9. Test switching active config/account path conceptually or via architecture review
+
+==================================================
+DELIVERABLES
+==================================================
+
+1. Audit summary
+2. Payment abstraction layer
+3. Cashfree provider implementation
+4. Order/payment models
+5. Webhook endpoint with signature verification + idempotency
+6. Entitlement activation flow
+7. Frontend checkout flow
+8. Admin/order visibility
+9. Clear note on how account/provider can be changed later
+
+Expected outcome:
+Saphala should have a production-safe Cashfree integration now, while remaining flexible enough to switch to another Cashfree account or another payment provider later without major rework.
