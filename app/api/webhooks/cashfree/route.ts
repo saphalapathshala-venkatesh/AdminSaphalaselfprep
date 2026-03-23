@@ -15,7 +15,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAllActiveProviders } from "@/lib/payment/index";
-import { settlePaidOrder } from "@/app/api/student/orders/[id]/route";
+import { settlePaidOrder } from "@/lib/payment/settlePaidOrder";
 
 export async function POST(req: NextRequest) {
   // 1 — Read raw body (must be before any parsing)
