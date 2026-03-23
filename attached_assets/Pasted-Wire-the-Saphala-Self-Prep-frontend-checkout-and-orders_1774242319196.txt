@@ -1,0 +1,122 @@
+Wire the Saphala Self Prep frontend checkout and orders experience to the latest backend/admin payment + refund system changes.
+
+Context:
+The backend/admin app now supports:
+1. Hardened payment flow
+   - server-calculated pricing
+   - validated returnUrl
+   - pending order reuse within a window
+   - zero-amount order fast-path (free / 100% coupon) that auto-settles without Cashfree
+   - proper notify_url to Cashfree
+   - race-safe settlement / duplicate protection
+2. Student orders flow
+   - student order creation endpoint
+   - student order status/poll endpoint
+   - paid order records
+3. RefundRequest workflow
+   - POST /api/student/refund-requests
+   - GET /api/student/refund-requests
+   - one open refund request per paid order
+4. Admin review exists already in admin app, so frontend only needs student-side wiring.
+
+Your task:
+Audit the current frontend and wire it cleanly to the backend without broad refactors.
+
+Scope:
+A. Checkout page wiring
+1. Find the current product/package purchase flow in the frontend.
+2. Wire checkout to the latest backend student order create API.
+3. Ensure frontend sends only:
+   - packageId
+   - couponCode if supported
+   - returnUrl
+   and never trusts or calculates final amount on the client.
+4. Handle these backend responses correctly:
+   - normal paid Cashfree flow with paymentSessionId / gateway order data
+   - resumed existing pending order
+   - zero-amount/free fast-path already settled with status PAID and access granted
+5. If the order is already settled/free, redirect the learner directly to the correct post-purchase success/access location instead of opening payment UI.
+6. If payment is required, continue with the proper Cashfree frontend flow already used by the app, preserving existing UX where possible.
+7. Validate returnUrl generation on the frontend so it points only to the current site’s valid success/orders location.
+
+B. Payment result / polling / success UX
+1. Find the current payment callback or return page logic.
+2. Wire it to the latest student order status endpoint.
+3. Support these states cleanly:
+   - PAID
+   - PENDING / CREATED
+   - FAILED
+   - CANCELLED / EXPIRED if applicable
+4. Add resilient polling for pending states with sensible retry limits and user-friendly messages.
+5. Ensure duplicate refreshes do not break UX.
+6. On PAID:
+   - show success state
+   - refresh purchased-content/access state
+   - redirect user to the correct access page or my orders page
+7. On FAILED:
+   - show retry CTA
+   - allow resume of pending order if backend returns reusable order
+8. Do not trust query params alone for payment success; always verify with backend.
+
+C. My Orders page
+1. Create or update a student “My Orders” page.
+2. Show paid orders clearly with:
+   - package/course name
+   - amount paid
+   - order date
+   - payment status
+   - access/open button
+3. If the backend already returns refund request info or open-request state, reflect it in the UI.
+4. Add a “Request Refund” button only for eligible paid orders and hide/disable it when an open refund request already exists.
+
+D. Refund request frontend wiring
+1. Create or update the student refund request flow using:
+   - GET /api/student/refund-requests
+   - POST /api/student/refund-requests
+2. Build a simple modal or page form with:
+   - reason category dropdown
+   - free-text explanation
+   - submit button
+3. Handle backend validation/errors cleanly:
+   - not a paid order
+   - not owner
+   - already has open request
+   - generic failure
+4. Add a “My Refund Requests” section/page showing:
+   - package name
+   - requested amount
+   - status
+   - requested date
+   - admin note if returned by API
+5. Keep UI simple, clean, and aligned to existing Saphala frontend styling.
+
+E. Purchased access sync
+1. After successful payment or free settlement, make sure the frontend re-fetches the learner’s purchases/entitlements.
+2. Ensure newly unlocked content appears immediately without requiring logout/login.
+3. Audit any existing guards that use stale access state and fix only what is necessary.
+
+F. UX and safety checks
+1. Prevent double-click duplicate checkout submissions on the frontend.
+2. Show loading / processing states during order creation, payment verification, and refund submission.
+3. Preserve mobile usability.
+4. Do not introduce hardcoded business rules already owned by backend/admin.
+
+G. Deliverable expectations
+1. First audit the current frontend files involved.
+2. Then implement only the necessary changes.
+3. Then run TypeScript check and build check.
+4. Report clearly:
+   - files changed
+   - routes/pages wired
+   - how paid flow works now
+   - how free/zero-amount flow works now
+   - how pending-order resume works now
+   - how refund request flow works now
+   - any backend response assumptions made
+
+Important:
+- Frontend and admin are separate apps; keep separation clean.
+- Do not duplicate pricing/business logic from backend.
+- Do not refactor unrelated modules.
+- Prefer minimal, production-safe wiring.
+- Preserve current design language unless a UI fix is required for clarity.

@@ -224,6 +224,11 @@ model User {
   gender               String?
   refunds              Refund[] @relation("RefundUser")
   processedRefunds     Refund[] @relation("RefundAdmin")
+  refundRequests          RefundRequest[] @relation("RefundRequestUser")
+  reviewedRefundRequests  RefundRequest[] @relation("RefundRequestReviewer")
+  processedRefundRequests RefundRequest[] @relation("RefundRequestProcessor")
+  paymentOrders        PaymentOrder[]  @relation("PaymentOrderUser")
+  paymentConfigs       PaymentConfig[] @relation("PaymentConfigCreatedBy")
   @@index([role])
   @@index([isBlocked])
   @@index([deletedAt])
@@ -266,6 +271,8 @@ model Category {
   updatedAt DateTime  @updatedAt
   subjects  Subject[]
   exams     Exam[]
+  packages             ProductPackage[]      @relation("PackageExamCategory")
+  couponExamScopes     CouponExamCategoryScope[] @relation("CouponExamCategoryScope")
 }
 
 // EXAM MASTER
@@ -705,17 +712,23 @@ model PdfAsset {
 }
 // PRODUCT BUILDER (packages → entitlements)
 model ProductPackage {
-  id          String @id @default(cuid())
-  code        String @unique
-  name        String
-  description String?
-  entitlementCodes String[] @default([])
-  pricePaise  Int    @default(0)
-  currency    String @default("INR")
-  isActive    Boolean @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  purchases   Purchase[]
+  id                String  @id @default(cuid())
+  code              String  @unique
+  name              String
+  description       String?
+  entitlementCodes  String[] @default([])
+  pricePaise        Int      @default(0)
+  currency          String   @default("INR")
+  isActive          Boolean  @default(true)
+  // Commercial targeting: which ProductCategory enum value this package belongs to
+  productCategory   ProductCategory?
+  // Exam targeting: which exam/category group this package targets (links to Category taxonomy)
+  categoryId        String?
+  examCategory      Category? @relation("PackageExamCategory", fields: [categoryId], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  purchases         Purchase[]
+  paymentOrders     PaymentOrder[]
 }
 // COUPONS
 model Coupon {
@@ -727,13 +740,45 @@ model Coupon {
   validUntil   DateTime?
   usageLimit   Int?
   perUserLimit Int?
+  // Legacy entitlement-based applicability (kept for backward compatibility)
   applicableEntitlements String[] @default([])
+  // Dual-layer applicability flags (default true = applies to all, backward compatible)
+  appliesToAllPaidProductCategories Boolean @default(true)
+  appliesToAllExamCategories        Boolean @default(true)
   isActive     Boolean @default(true)
   createdById  String
   createdBy    User   @relation(fields: [createdById], references: [id], onDelete: Restrict)
   createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  purchases    Purchase[]
+  updatedAt     DateTime @updatedAt
+  purchases     Purchase[]
+  paymentOrders PaymentOrder[]
+  productCategoryScopes CouponProductCategoryScope[]
+  examCategoryScopes    CouponExamCategoryScope[]
+}
+
+// Junction: which paid product categories a coupon applies to
+// Only used when appliesToAllPaidProductCategories = false
+// productCategory stores the ProductCategory enum value (e.g. "TEST_SERIES").
+// FREE_DEMO is excluded at the API layer — never inserted here.
+model CouponProductCategoryScope {
+  id              String          @id @default(cuid())
+  couponId        String
+  coupon          Coupon          @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  productCategory ProductCategory
+  @@unique([couponId, productCategory])
+  @@index([couponId])
+}
+
+// Junction: which exam categories (taxonomy Category) a coupon applies to
+// Only used when appliesToAllExamCategories = false
+model CouponExamCategoryScope {
+  id         String   @id @default(cuid())
+  couponId   String
+  coupon     Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation("CouponExamCategoryScope", fields: [categoryId], references: [id], onDelete: Cascade)
+  @@unique([couponId, categoryId])
+  @@index([couponId])
 }
 // XP RULE ENGINE + LEDGER
 model XpRule {
@@ -818,22 +863,23 @@ model UserAchievement {
 
 // REVENUE + ANALYTICS (minimal storage; charts computed)
 model Purchase {
-  id           String @id @default(cuid())
-  userId       String
-  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  packageId    String?
-  package      ProductPackage? @relation(fields: [packageId], references: [id], onDelete: SetNull)
-  couponId     String?
-  coupon       Coupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
-  stream       RevenueStream
-  currency     String @default("INR")
-  grossPaise   Int
-  feePaise     Int    @default(0)
-  netPaise     Int
+  id             String @id @default(cuid())
+  userId         String
+  user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packageId      String?
+  package        ProductPackage? @relation(fields: [packageId], references: [id], onDelete: SetNull)
+  couponId       String?
+  coupon         Coupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  paymentOrderId String? @unique   // DB-level guard: exactly one Purchase per PaymentOrder
+  stream         RevenueStream
+  currency       String @default("INR")
+  grossPaise     Int
+  feePaise       Int    @default(0)
+  netPaise       Int
   legalAcceptedAt   DateTime?
   legalVersion      String?
-  createdAt    DateTime @default(now())
-  refund       Refund?
+  createdAt      DateTime @default(now())
+  refund         Refund?
   @@index([stream, createdAt])
   @@index([userId, createdAt])
 }
@@ -844,6 +890,26 @@ enum RefundStatus {
   PARTIALLY_APPROVED
   REJECTED
   REFUNDED
+}
+
+// ── Student-initiated refund workflow ──────────────────────────────────────────
+enum RefundRequestStatus {
+  REQUESTED     // Student submitted; awaiting admin triage
+  UNDER_REVIEW  // Admin has opened the case
+  APPROVED      // Admin approved; ready to process
+  REJECTED      // Admin denied
+  PROCESSED     // Refund money returned (gateway execution in future phase)
+  FAILED        // Attempted processing failed
+  CANCELLED     // Student or admin cancelled before a decision
+}
+
+enum RefundReasonCategory {
+  CHANGED_MIND
+  TECHNICAL_ISSUE
+  CONTENT_NOT_AS_DESCRIBED
+  DUPLICATE_PURCHASE
+  COURSE_NOT_STARTED
+  OTHER
 }
 
 model Refund {
@@ -868,6 +934,54 @@ model Refund {
   @@index([status, createdAt])
   @@index([userId, createdAt])
 }
+model RefundRequest {
+  id             String              @id @default(cuid())
+
+  // Order linkage (source of truth for what was paid)
+  paymentOrderId String
+  paymentOrder   PaymentOrder        @relation(fields: [paymentOrderId], references: [id], onDelete: Restrict)
+
+  // User linkage
+  userId         String
+  user           User                @relation("RefundRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Package snapshot at request time (denormalised so it survives package edits)
+  packageId      String?
+  packageName    String?
+  packageCode    String?
+
+  // Financial
+  paidPaise      Int                  // amount student paid (from PaymentOrder.finalAmountPaise)
+  requestedPaise Int?                 // what student expects back (optional)
+  approvedPaise  Int?                 // admin decision
+
+  // Student reason
+  reasonCategory RefundReasonCategory
+  reasonText     String               // free-text from student
+
+  // Admin workflow
+  status         RefundRequestStatus @default(REQUESTED)
+  adminNote      String?              // internal admin note
+
+  reviewedById   String?
+  reviewedBy     User?               @relation("RefundRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt     DateTime?
+
+  processedById  String?
+  processedBy    User?               @relation("RefundRequestProcessor", fields: [processedById], references: [id], onDelete: SetNull)
+  processedAt    DateTime?
+
+  // Gateway reference — populated when actual gateway refund is triggered (future)
+  gatewayRefundRef String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([paymentOrderId])
+}
+
 // AUDIT LOGGING (LOCKED requirement)
 model AuditLog {
   id          String   @id @default(cuid())
@@ -1025,6 +1139,12 @@ model LiveClass {
   recordingPolicy RecordingPolicy @default(NO_RECORD)
   replayVideoId   String?
   publishedAt     DateTime?
+  // unlockAt: students cannot access this live class before this datetime (null = no unlock restriction)
+  unlockAt        DateTime?
+  // Zoom meeting metadata — populated by Zoom API when platform=ZOOM
+  zoomMeetingId   String?
+  zoomPassword    String?
+  zoomStartUrl    String?
   createdById     String
   createdBy       User            @relation("LiveClassCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   createdAt       DateTime        @default(now())
@@ -1349,6 +1469,73 @@ enum LanguageAvailable {
   EN
   TE
   BOTH
+}
+
+// ============================================================
+// PAYMENT INFRASTRUCTURE
+// ============================================================
+
+enum PaymentOrderStatus {
+  CREATED    // PaymentOrder row created, awaiting Cashfree order creation
+  PENDING    // Cashfree order created, payment in-progress
+  PAID       // Confirmed by webhook
+  FAILED     // Payment failed or expired
+  CANCELLED  // Manually cancelled
+}
+
+// Stores active/inactive payment provider credentials.
+// Only one config should have isActive=true at a time.
+// Admin-switchable from the dashboard — never hardcoded.
+model PaymentConfig {
+  id            String   @id @default(cuid())
+  provider      String   @default("CASHFREE")  // "CASHFREE" only for now
+  displayName   String                          // e.g. "Main Cashfree (Prod)"
+  environment   String   @default("TEST")       // "TEST" | "PROD"
+  appId         String
+  secretKey     String
+  webhookSecret String
+  isActive      Boolean  @default(false)
+  notes         String?
+  createdById   String
+  createdBy     User     @relation("PaymentConfigCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  orders        PaymentOrder[]
+  @@index([isActive])
+}
+
+// Tracks the full lifecycle of a payment attempt.
+// Created before Cashfree order; updated by webhook on completion.
+model PaymentOrder {
+  id                String             @id @default(cuid())
+  userId            String
+  user              User               @relation("PaymentOrderUser", fields: [userId], references: [id], onDelete: Restrict)
+  packageId         String
+  package           ProductPackage     @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  couponId          String?
+  coupon            Coupon?            @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  paymentConfigId   String?
+  paymentConfig     PaymentConfig?     @relation(fields: [paymentConfigId], references: [id], onDelete: SetNull)
+  grossPaise        Int                // original package price
+  discountPaise     Int    @default(0) // coupon discount applied
+  finalAmountPaise  Int                // backend-calculated final charge
+  currency          String @default("INR")
+  status            PaymentOrderStatus @default(CREATED)
+  provider          String @default("CASHFREE")
+  providerOrderId   String?            // Cashfree cf_order_id
+  providerPaymentId String? @unique    // Cashfree payment ID — unique per real payment
+  paymentSessionId  String?            // Cashfree payment_session_id (for JS SDK)
+  legalAcceptedAt   DateTime?
+  legalVersion      String?
+  purchaseId        String?            // linked Purchase.id after payment success
+  metadata          Json?
+  paidAt            DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  refundRequests    RefundRequest[]
+  @@index([userId, createdAt])
+  @@index([providerOrderId])
+  @@index([status, createdAt])
 }
 
 model LearnerAnnotation {

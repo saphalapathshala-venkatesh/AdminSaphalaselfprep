@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       title, description, facultyId, courseId, categoryId, examId, subjectId, topicId, subtopicId,
       sessionDate, startTime, endTime, accessType, status,
       platform, joinUrl, sessionCode, thumbnailUrl,
-      notifyLearners, recordingPolicy,
+      notifyLearners, recordingPolicy, unlockAt,
     } = body;
 
     if (!title?.trim()) return NextResponse.json({ error: "title is required" }, { status: 400 });
@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
         thumbnailUrl: thumbnailUrl?.trim() || null,
         notifyLearners: Boolean(notifyLearners),
         recordingPolicy: recordingPolicy || "NO_RECORD",
+        unlockAt: unlockAt ? new Date(unlockAt) : null,
         createdById: user.id,
       },
       include: {

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
+import { deleteZoomMeeting } from "@/lib/zoom";
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getSessionUserFromRequest(_req);
@@ -34,7 +35,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       title, description, facultyId, courseId, categoryId, examId, subjectId, topicId, subtopicId,
       sessionDate, startTime, endTime, accessType, status,
       platform, joinUrl, sessionCode, thumbnailUrl,
-      notifyLearners, recordingPolicy, replayVideoId, publishedAt,
+      notifyLearners, recordingPolicy, replayVideoId, publishedAt, unlockAt,
     } = body;
 
     const wasPublished = existing.status !== "PUBLISHED" && status === "PUBLISHED";
@@ -64,6 +65,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         recordingPolicy: recordingPolicy || existing.recordingPolicy,
         replayVideoId: replayVideoId !== undefined ? (replayVideoId || null) : existing.replayVideoId,
         publishedAt: wasPublished ? new Date() : (publishedAt !== undefined ? (publishedAt ? new Date(publishedAt) : null) : existing.publishedAt),
+        unlockAt: unlockAt !== undefined ? (unlockAt ? new Date(unlockAt) : null) : existing.unlockAt,
       },
       include: {
         faculty: { select: { id: true, name: true } },
@@ -95,8 +97,16 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       return NextResponse.json({ error: "Only SUPER_ADMIN can delete a published or completed session" }, { status: 403 });
     }
 
+    // Fire-and-forget: clean up the Zoom meeting before deleting the record.
+    // Silently swallowed — never blocks deletion even if Zoom API is unavailable.
+    if (existing.zoomMeetingId) {
+      deleteZoomMeeting(existing.zoomMeetingId).catch(err =>
+        console.warn(`[Zoom] Could not delete meeting ${existing.zoomMeetingId} for LiveClass ${params.id}:`, err)
+      );
+    }
+
     await prisma.liveClass.delete({ where: { id: params.id } });
-    writeAuditLog({ actorId: user.id, action: "LIVE_CLASS_DELETE", entityType: "LiveClass", entityId: params.id, before: { title: existing.title } });
+    writeAuditLog({ actorId: user.id, action: "LIVE_CLASS_DELETE", entityType: "LiveClass", entityId: params.id, before: { title: existing.title, zoomMeetingId: existing.zoomMeetingId } });
     return NextResponse.json({ data: { deleted: true } });
   } catch (err) {
     console.error("LiveClass DELETE error:", err);

@@ -1,0 +1,190 @@
+Refactor the Coupons feature in the Saphala Admin app to support a dual-layer applicability system:
+
+1. Product Categories (commercial layer)
+2. Exam Categories (taxonomy layer like APPSC, AP Police, etc.)
+
+Goal:
+Build a clean, scalable, mismatch-proof coupon system that applies based on BOTH:
+- product category (what is being sold)
+- exam/category taxonomy (who it is for)
+
+-----------------------------------
+CORE REQUIREMENTS
+-----------------------------------
+
+1. Product Categories Layer
+- System has 8 product categories total
+- Only 7 are paid categories
+- EXCLUDE Free Demo / Free Courses category completely
+
+Coupon must support:
+- appliesToAllPaidProductCategories (boolean)
+- OR specific product categories (multi-select)
+
+-----------------------------------
+
+2. Exam Categories Layer (VERY IMPORTANT)
+- These are dynamic taxonomy categories like:
+  - APPSC
+  - AP Police
+  - TG Police
+  - etc.
+
+Requirements:
+- These must be fetched dynamically from DB (Category table)
+- Any NEW category added in future must automatically appear in coupon UI
+- No hardcoding
+
+Coupon must support:
+- appliesToAllExamCategories (boolean)
+- OR specific exam categories (multi-select)
+
+-----------------------------------
+
+3. Final Applicability Logic (CRITICAL)
+
+Coupon is VALID only if BOTH conditions pass:
+
+(Product Category Match) AND (Exam Category Match)
+
+Where:
+
+Product Category Match:
+- appliesToAllPaidProductCategories = true
+  OR
+- selected package’s product category is in coupon mapping
+
+Exam Category Match:
+- appliesToAllExamCategories = true
+  OR
+- selected package’s categoryId matches coupon mapping
+
+-----------------------------------
+
+4. Schema Changes
+
+Add:
+
+A. CouponProductCategoryScope
+- id
+- couponId
+- productCategoryId
+
+B. CouponExamCategoryScope
+- id
+- couponId
+- categoryId
+
+Add fields in Coupon:
+- appliesToAllPaidProductCategories: boolean
+- appliesToAllExamCategories: boolean
+
+-----------------------------------
+
+5. Admin UI Changes (IMPORTANT)
+
+Update coupon creation modal:
+
+Section: Applicability
+
+-----------------------------------
+Layer 1: Product Categories
+-----------------------------------
+
+Show:
+
+[ ] All Paid Product Categories
+[ ] Specific Product Categories
+
+If "Specific":
+→ Render checkboxes for ALL paid product categories
+→ Exclude Free Demo category
+
+-----------------------------------
+Layer 2: Exam Categories
+-----------------------------------
+
+Show:
+
+[ ] All Exam Categories
+[ ] Specific Exam Categories
+
+If "Specific":
+→ Render dynamic checkboxes from Category table
+→ Must auto-update when new categories are added
+→ No hardcoding
+
+-----------------------------------
+
+6. Validation Rules
+
+- If "All Paid Product Categories" selected → no need to select individual ones
+- If "Specific Product Categories" → at least one required
+
+- If "All Exam Categories" selected → no need to select individual ones
+- If "Specific Exam Categories" → at least one required
+
+- Free category must NEVER be selectable
+
+-----------------------------------
+
+7. Coupon Evaluation Logic (Backend)
+
+When applying coupon:
+
+Step 1: Get selected package
+Step 2: Read:
+  - package.productCategoryId
+  - package.categoryId
+
+Step 3:
+Check:
+(productCategory condition) AND (examCategory condition)
+
+Only then apply discount
+
+-----------------------------------
+
+8. Backward Compatibility
+
+- Do NOT break existing coupons
+- If old entitlement-based fields exist:
+  - treat them as legacy fallback OR
+  - migrate safely if possible
+
+-----------------------------------
+
+9. Constraints
+
+- No hardcoding of categories
+- Must be DB-driven
+- Must align with existing package/category system
+- Must support:
+  - single-product packages
+  - combo packs
+  - full prep packs
+
+-----------------------------------
+
+10. Deliverables
+
+After implementation report:
+
+- Schema changes
+- API changes
+- UI changes
+- Product categories detected
+- Exam categories fetched dynamically
+- Confirmation Free category excluded
+- Final applicability logic
+- Backward compatibility handling
+
+-----------------------------------
+
+IMPORTANT
+
+This must be:
+- Admin-first
+- Scalable
+- Future-proof
+- Zero mismatch risk

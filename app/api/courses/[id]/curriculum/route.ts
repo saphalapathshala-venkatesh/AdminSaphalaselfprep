@@ -55,6 +55,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   // We guard against null sourceId before pushing into ID arrays.
 
   const videoIds: string[] = [];
+  const liveClassIds: string[] = [];
   const htmlPageIds: string[] = [];
   const pdfIds: string[] = [];
   const deckIds: string[] = [];
@@ -65,6 +66,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         for (const item of les.items) {
           if (!item.sourceId) continue; // EXTERNAL_LINK and future types with no source
           if (item.itemType === "VIDEO") videoIds.push(item.sourceId);
+          else if (item.itemType === "LIVE_CLASS") liveClassIds.push(item.sourceId);
           else if (item.itemType === "HTML_PAGE") htmlPageIds.push(item.sourceId);
           else if (item.itemType === "PDF") pdfIds.push(item.sourceId);
           else if (item.itemType === "FLASHCARD_DECK") deckIds.push(item.sourceId);
@@ -73,15 +75,16 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     }
   }
 
-  const [videos, htmlPages, pdfs, decks] = await Promise.all([
+  const [videos, liveClasses, htmlPages, pdfs, decks] = await Promise.all([
     videoIds.length ? prisma.video.findMany({ where: { id: { in: videoIds } }, select: { id: true, unlockAt: true } }) : [],
+    liveClassIds.length ? prisma.liveClass.findMany({ where: { id: { in: liveClassIds } }, select: { id: true, unlockAt: true } }) : [],
     htmlPageIds.length ? prisma.contentPage.findMany({ where: { id: { in: htmlPageIds } }, select: { id: true, unlockAt: true } }) : [],
     pdfIds.length ? prisma.pdfAsset.findMany({ where: { id: { in: pdfIds } }, select: { id: true, unlockAt: true } }) : [],
     deckIds.length ? prisma.flashcardDeck.findMany({ where: { id: { in: deckIds } }, select: { id: true, unlockAt: true } }) : [],
   ]);
 
   const contentUnlockMap: Record<string, Date | null> = {};
-  for (const r of [...videos, ...htmlPages, ...pdfs, ...decks]) {
+  for (const r of [...videos, ...liveClasses, ...htmlPages, ...pdfs, ...decks]) {
     contentUnlockMap[r.id] = (r as { id: string; unlockAt: Date | null }).unlockAt;
   }
 
