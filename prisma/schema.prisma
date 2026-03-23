@@ -224,6 +224,8 @@ model User {
   gender               String?
   refunds              Refund[] @relation("RefundUser")
   processedRefunds     Refund[] @relation("RefundAdmin")
+  paymentOrders        PaymentOrder[]  @relation("PaymentOrderUser")
+  paymentConfigs       PaymentConfig[] @relation("PaymentConfigCreatedBy")
   @@index([role])
   @@index([isBlocked])
   @@index([deletedAt])
@@ -715,7 +717,8 @@ model ProductPackage {
   isActive    Boolean @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  purchases   Purchase[]
+  purchases     Purchase[]
+  paymentOrders PaymentOrder[]
 }
 // COUPONS
 model Coupon {
@@ -732,8 +735,9 @@ model Coupon {
   createdById  String
   createdBy    User   @relation(fields: [createdById], references: [id], onDelete: Restrict)
   createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  purchases    Purchase[]
+  updatedAt     DateTime @updatedAt
+  purchases     Purchase[]
+  paymentOrders PaymentOrder[]
 }
 // XP RULE ENGINE + LEDGER
 model XpRule {
@@ -1355,6 +1359,72 @@ enum LanguageAvailable {
   EN
   TE
   BOTH
+}
+
+// ============================================================
+// PAYMENT INFRASTRUCTURE
+// ============================================================
+
+enum PaymentOrderStatus {
+  CREATED    // PaymentOrder row created, awaiting Cashfree order creation
+  PENDING    // Cashfree order created, payment in-progress
+  PAID       // Confirmed by webhook
+  FAILED     // Payment failed or expired
+  CANCELLED  // Manually cancelled
+}
+
+// Stores active/inactive payment provider credentials.
+// Only one config should have isActive=true at a time.
+// Admin-switchable from the dashboard — never hardcoded.
+model PaymentConfig {
+  id            String   @id @default(cuid())
+  provider      String   @default("CASHFREE")  // "CASHFREE" only for now
+  displayName   String                          // e.g. "Main Cashfree (Prod)"
+  environment   String   @default("TEST")       // "TEST" | "PROD"
+  appId         String
+  secretKey     String
+  webhookSecret String
+  isActive      Boolean  @default(false)
+  notes         String?
+  createdById   String
+  createdBy     User     @relation("PaymentConfigCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  orders        PaymentOrder[]
+  @@index([isActive])
+}
+
+// Tracks the full lifecycle of a payment attempt.
+// Created before Cashfree order; updated by webhook on completion.
+model PaymentOrder {
+  id                String             @id @default(cuid())
+  userId            String
+  user              User               @relation("PaymentOrderUser", fields: [userId], references: [id], onDelete: Restrict)
+  packageId         String
+  package           ProductPackage     @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  couponId          String?
+  coupon            Coupon?            @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  paymentConfigId   String?
+  paymentConfig     PaymentConfig?     @relation(fields: [paymentConfigId], references: [id], onDelete: SetNull)
+  grossPaise        Int                // original package price
+  discountPaise     Int    @default(0) // coupon discount applied
+  finalAmountPaise  Int                // backend-calculated final charge
+  currency          String @default("INR")
+  status            PaymentOrderStatus @default(CREATED)
+  provider          String @default("CASHFREE")
+  providerOrderId   String?            // Cashfree cf_order_id
+  providerPaymentId String?            // Cashfree payment ID (from webhook)
+  paymentSessionId  String?            // Cashfree payment_session_id (for JS SDK)
+  legalAcceptedAt   DateTime?
+  legalVersion      String?
+  purchaseId        String?            // linked Purchase.id after payment success
+  metadata          Json?
+  paidAt            DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  @@index([userId, createdAt])
+  @@index([providerOrderId])
+  @@index([status, createdAt])
 }
 
 model LearnerAnnotation {
