@@ -1,0 +1,73 @@
+Fix and enhance the Cashfree Payment Config UI so SUPER_ADMIN can clearly see and paste the 3 required credentials.
+
+Goal:
+Make the UI extremely clear and copy-paste friendly (like a chat input experience), so values can be pasted directly without confusion.
+
+-----------------------------------
+REQUIRED FIELDS (must be visible)
+-----------------------------------
+
+1. CASHFREE_APP_ID
+2. CASHFREE_SECRET_KEY
+3. CASHFREE_WEBHOOK_SECRET
+
+-----------------------------------
+TASKS
+-----------------------------------
+
+1. Fix existing UI issues
+- secretKey toggle currently broken → fix show/hide properly
+- webhookSecret has no toggle → add show/hide toggle
+- ensure masking works correctly when hidden
+
+2. Update labels to canonical names
+
+Replace labels with EXACT names:
+
+- CASHFREE_APP_ID
+- CASHFREE_SECRET_KEY
+- CASHFREE_WEBHOOK_SECRET
+
+3. Add helper text under each field
+
+CASHFREE_APP_ID:
+"Cashfree App ID (Client ID) from Dashboard → Developers → API Keys"
+
+CASHFREE_SECRET_KEY:
+"Cashfree Secret Key (Client Secret) — keep this secure"
+
+CASHFREE_WEBHOOK_SECRET:
+"Used to verify Cashfree webhook signatures (usually same as Secret Key)"
+
+4. Improve input UX (VERY IMPORTANT)
+
+- Make inputs large and clearly visible (chat-like)
+- Use monospace font (so values are readable)
+- Add:
+  - "Paste" friendly input (no trimming issues)
+  - optional copy button for existing values (masked-safe)
+- Ensure inputs do not auto-clear accidentally
+
+5. Validation
+
+- Do not allow save if:
+  - APP_ID empty
+  - SECRET_KEY empty
+- webhook secret can be optional but recommended
+
+6. Preserve backend safety
+
+- Do NOT expose secrets in API responses
+- Only allow editing via SUPER_ADMIN
+- Mask values in GET response (already implemented)
+
+7. No backend logic changes
+This is UI-only improvement
+
+8. Deliverables
+
+After changes:
+- list files modified
+- confirm toggles working
+- confirm values persist correctly after save
+- confirm no secrets leaked in network responses
