@@ -224,6 +224,9 @@ model User {
   gender               String?
   refunds              Refund[] @relation("RefundUser")
   processedRefunds     Refund[] @relation("RefundAdmin")
+  refundRequests          RefundRequest[] @relation("RefundRequestUser")
+  reviewedRefundRequests  RefundRequest[] @relation("RefundRequestReviewer")
+  processedRefundRequests RefundRequest[] @relation("RefundRequestProcessor")
   paymentOrders        PaymentOrder[]  @relation("PaymentOrderUser")
   paymentConfigs       PaymentConfig[] @relation("PaymentConfigCreatedBy")
   @@index([role])
@@ -851,6 +854,26 @@ enum RefundStatus {
   REFUNDED
 }
 
+// ── Student-initiated refund workflow ──────────────────────────────────────────
+enum RefundRequestStatus {
+  REQUESTED     // Student submitted; awaiting admin triage
+  UNDER_REVIEW  // Admin has opened the case
+  APPROVED      // Admin approved; ready to process
+  REJECTED      // Admin denied
+  PROCESSED     // Refund money returned (gateway execution in future phase)
+  FAILED        // Attempted processing failed
+  CANCELLED     // Student or admin cancelled before a decision
+}
+
+enum RefundReasonCategory {
+  CHANGED_MIND
+  TECHNICAL_ISSUE
+  CONTENT_NOT_AS_DESCRIBED
+  DUPLICATE_PURCHASE
+  COURSE_NOT_STARTED
+  OTHER
+}
+
 model Refund {
   id              String       @id @default(cuid())
   purchaseId      String       @unique
@@ -873,6 +896,54 @@ model Refund {
   @@index([status, createdAt])
   @@index([userId, createdAt])
 }
+model RefundRequest {
+  id             String              @id @default(cuid())
+
+  // Order linkage (source of truth for what was paid)
+  paymentOrderId String
+  paymentOrder   PaymentOrder        @relation(fields: [paymentOrderId], references: [id], onDelete: Restrict)
+
+  // User linkage
+  userId         String
+  user           User                @relation("RefundRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Package snapshot at request time (denormalised so it survives package edits)
+  packageId      String?
+  packageName    String?
+  packageCode    String?
+
+  // Financial
+  paidPaise      Int                  // amount student paid (from PaymentOrder.finalAmountPaise)
+  requestedPaise Int?                 // what student expects back (optional)
+  approvedPaise  Int?                 // admin decision
+
+  // Student reason
+  reasonCategory RefundReasonCategory
+  reasonText     String               // free-text from student
+
+  // Admin workflow
+  status         RefundRequestStatus @default(REQUESTED)
+  adminNote      String?              // internal admin note
+
+  reviewedById   String?
+  reviewedBy     User?               @relation("RefundRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt     DateTime?
+
+  processedById  String?
+  processedBy    User?               @relation("RefundRequestProcessor", fields: [processedById], references: [id], onDelete: SetNull)
+  processedAt    DateTime?
+
+  // Gateway reference — populated when actual gateway refund is triggered (future)
+  gatewayRefundRef String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([paymentOrderId])
+}
+
 // AUDIT LOGGING (LOCKED requirement)
 model AuditLog {
   id          String   @id @default(cuid())
@@ -1423,6 +1494,7 @@ model PaymentOrder {
   paidAt            DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+  refundRequests    RefundRequest[]
   @@index([userId, createdAt])
   @@index([providerOrderId])
   @@index([status, createdAt])
