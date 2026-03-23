@@ -207,12 +207,18 @@ export async function POST(req: NextRequest) {
 
   const { config, provider } = activePayment;
 
-  // 6 — Construct notify_url from the incoming request host
+  // 6 — Construct notify_url.
+  //     Priority: NEXT_PUBLIC_APP_URL env var (set in production) → request host headers.
   //     This ensures Cashfree sends payment events to our webhook even if it
   //     was not configured in the Cashfree dashboard separately.
-  const host   = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
-  const proto  = req.headers.get("x-forwarded-proto") || "https";
-  const notifyUrl = host ? `${proto}://${host}/api/webhooks/cashfree` : "";
+  let notifyUrl = "";
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    notifyUrl = `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/api/webhooks/cashfree`;
+  } else {
+    const host  = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
+    const proto = req.headers.get("x-forwarded-proto") || "https";
+    if (host) notifyUrl = `${proto}://${host}/api/webhooks/cashfree`;
+  }
 
   // 7 — Create PaymentOrder record (status=CREATED)
   const order = await prisma.paymentOrder.create({

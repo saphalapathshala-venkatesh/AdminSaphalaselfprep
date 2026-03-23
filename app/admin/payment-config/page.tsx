@@ -579,17 +579,72 @@ export default function PaymentConfigPage() {
       )}
 
       {/* Webhook URL helper */}
-      <div style={{ marginTop: "2rem", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "1rem 1.25rem", fontSize: "0.8125rem", color: "#92400e" }}>
-        <strong>Cashfree Webhook URL</strong>
-        <br />
-        <code style={{ background: "#fef3c7", padding: "2px 7px", borderRadius: 4, fontFamily: "monospace", fontSize: "0.8rem", display: "inline-block", margin: "4px 0" }}>
-          https://your-domain.com/api/webhooks/cashfree
+      <WebhookUrlPanel />
+    </div>
+  );
+}
+
+/* ─── WebhookUrlPanel ───────────────────────────────────────────────────── */
+function WebhookUrlPanel() {
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [copied, setCopied]         = useState(false);
+
+  useEffect(() => {
+    // NEXT_PUBLIC_APP_URL is embedded at build time (set it in production).
+    // Fall back to window.location.origin so it always shows the real domain.
+    const base =
+      (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "") ||
+      window.location.origin;
+    setWebhookUrl(`${base}/api/webhooks/cashfree`);
+  }, []);
+
+  function handleCopy() {
+    if (!webhookUrl) return;
+    navigator.clipboard.writeText(webhookUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    }).catch(() => {});
+  }
+
+  return (
+    <div style={{ marginTop: "2rem", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "1.125rem 1.25rem", fontSize: "0.8125rem", color: "#92400e" }}>
+      <div style={{ fontWeight: 700, marginBottom: 6 }}>Cashfree Webhook URL</div>
+
+      {/* URL row with copy button */}
+      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "#fef3c7", border: "1px solid #fde68a", borderRadius: 7, padding: "0.5rem 0.75rem", marginBottom: 8 }}>
+        <code style={{ flex: 1, fontFamily: "monospace", fontSize: "0.82rem", color: "#78350f", wordBreak: "break-all" }}>
+          {webhookUrl || "Loading…"}
         </code>
-        <br />
-        Configure this in <strong>Cashfree Dashboard → Developers → Webhooks</strong>.
-        Set event types: <code>PAYMENT_SUCCESS_WEBHOOK</code> and <code>PAYMENT_FAILED_WEBHOOK</code>.
-        The <code>CASHFREE_WEBHOOK_SECRET</code> must match the secret entered above.
+        <button
+          onClick={handleCopy}
+          disabled={!webhookUrl}
+          title="Copy webhook URL"
+          style={{
+            background: copied ? "#f0fdf4" : "#fff",
+            color: copied ? GREEN : "#92400e",
+            border: `1px solid ${copied ? "#bbf7d0" : "#fcd34d"}`,
+            borderRadius: 5, padding: "3px 10px", fontSize: "0.72rem",
+            cursor: webhookUrl ? "pointer" : "default",
+            fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0,
+            display: "flex", alignItems: "center", gap: 4,
+          }}
+        >
+          <IconCopy size={12} />
+          {copied ? "Copied!" : "Copy"}
+        </button>
       </div>
+
+      <p style={{ margin: 0, lineHeight: 1.55 }}>
+        Use this URL in <strong>Cashfree Dashboard → Developers → Webhooks</strong>.
+        Set event types: <code>PAYMENT_SUCCESS_WEBHOOK</code> and <code>PAYMENT_FAILED_WEBHOOK</code>.
+        The <code>CASHFREE_WEBHOOK_SECRET</code> above must match the secret configured in that webhook.
+        {!process.env.NEXT_PUBLIC_APP_URL && (
+          <span style={{ display: "block", marginTop: 6, color: "#b45309", fontSize: "0.75rem" }}>
+            Tip: Set the <code>NEXT_PUBLIC_APP_URL</code> environment variable to your production domain to ensure
+            the correct URL is shown and sent to Cashfree during order creation.
+          </span>
+        )}
+      </p>
     </div>
   );
 }
