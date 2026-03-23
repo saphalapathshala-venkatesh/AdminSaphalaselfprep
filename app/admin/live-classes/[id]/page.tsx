@@ -6,6 +6,7 @@ import Link from "next/link";
 import AdminImageUploader from "@/components/admin/AdminImageUploader";
 
 const PURPLE = "#7c3aed";
+const BLUE   = "#1d4ed8";
 const inputStyle: React.CSSProperties = { width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "0.875rem", outline: "none", background: "#fff", boxSizing: "border-box" };
 const labelStyle: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "0.375rem" };
 const sectionStyle: React.CSSProperties = { background: "#fff", borderRadius: "12px", padding: "1.5rem", boxShadow: "0 1px 3px rgba(0,0,0,0.07)", marginBottom: "1.5rem" };
@@ -24,6 +25,7 @@ export default function EditLiveClassPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [zoomWorking, setZoomWorking] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [faculties, setFaculties] = useState<SelectOption[]>([]);
@@ -45,6 +47,12 @@ export default function EditLiveClassPage() {
     recordingPolicy: "NO_RECORD", replayVideoId: "", unlockAt: "",
   });
 
+  const [zoom, setZoom] = useState<{
+    meetingId: string | null;
+    password: string | null;
+    startUrl: string | null;
+  }>({ meetingId: null, password: null, startUrl: null });
+
   const showToast = (msg: string, ok = true) => { setToast({ msg, ok }); setTimeout(() => setToast(null), 3500); };
 
   useEffect(() => {
@@ -59,10 +67,7 @@ export default function EditLiveClassPage() {
       const lc = lj.data;
       if (lc) {
         let sessionDate = "";
-        if (lc.sessionDate) {
-          const d = new Date(lc.sessionDate);
-          sessionDate = d.toISOString().split("T")[0];
-        }
+        if (lc.sessionDate) sessionDate = new Date(lc.sessionDate).toISOString().split("T")[0];
         let unlockAt = "";
         if (lc.unlockAt) unlockAt = new Date(lc.unlockAt).toISOString().slice(0, 16);
         setForm({
@@ -80,6 +85,7 @@ export default function EditLiveClassPage() {
           replayVideoId: lc.replayVideoId || "",
           unlockAt,
         });
+        setZoom({ meetingId: lc.zoomMeetingId || null, password: lc.zoomPassword || null, startUrl: lc.zoomStartUrl || null });
         if (lc.categoryId) fetch(`/api/taxonomy?level=subject&parentId=${lc.categoryId}`).then(r => r.json()).then(j => setSubjects(j.data || []));
         if (lc.subjectId) fetch(`/api/taxonomy?level=topic&parentId=${lc.subjectId}`).then(r => r.json()).then(j => setTopics(j.data || []));
         if (lc.topicId) fetch(`/api/taxonomy?level=subtopic&parentId=${lc.topicId}`).then(r => r.json()).then(j => setSubtopics(j.data || []));
@@ -133,6 +139,9 @@ export default function EditLiveClassPage() {
 
   async function handleDelete() {
     setDeleting(true);
+    if (zoom.meetingId) {
+      await fetch("/api/live-classes/zoom", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ liveClassId: id, action: "delete" }) }).catch(() => {});
+    }
     const res = await fetch(`/api/live-classes/${id}`, { method: "DELETE" });
     const json = await res.json();
     if (res.ok) router.push("/admin/live-classes");
@@ -145,7 +154,37 @@ export default function EditLiveClassPage() {
     else showToast("Failed", false);
   }
 
+  async function handleZoomAction(action: "create" | "delete" | "update") {
+    setZoomWorking(true);
+    const res = await fetch("/api/live-classes/zoom", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ liveClassId: id, action }),
+    });
+    const json = await res.json();
+    setZoomWorking(false);
+    if (!res.ok) {
+      showToast(json.error || "Zoom error", false);
+      return;
+    }
+    if (action === "create") {
+      const d = json.data;
+      setZoom({ meetingId: d.zoomMeetingId, password: d.password, startUrl: d.startUrl });
+      setForm(f => ({ ...f, joinUrl: d.joinUrl, sessionCode: d.password }));
+      showToast("Zoom meeting created!");
+    } else if (action === "delete") {
+      setZoom({ meetingId: null, password: null, startUrl: null });
+      setForm(f => ({ ...f, joinUrl: "", sessionCode: "" }));
+      showToast("Zoom meeting removed");
+    } else if (action === "update") {
+      showToast("Zoom meeting updated");
+    }
+  }
+
   if (loading) return <div style={{ padding: "3rem", textAlign: "center", color: "#94a3b8" }}>Loading…</div>;
+
+  const hasZoomMeeting = Boolean(zoom.meetingId);
+  const isZoomPlatform = form.platform === "ZOOM";
 
   return (
     <div style={{ maxWidth: 860 }}>
@@ -155,7 +194,8 @@ export default function EditLiveClassPage() {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ background: "#fff", borderRadius: "12px", padding: "2rem", width: 380, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
             <h3 style={{ margin: "0 0 0.75rem", fontSize: "1.1rem" }}>Delete Session?</h3>
-            <p style={{ margin: "0 0 1.5rem", color: "#64748b", fontSize: "0.875rem" }}>This cannot be undone.</p>
+            <p style={{ margin: "0 0 0.5rem", color: "#64748b", fontSize: "0.875rem" }}>This cannot be undone.</p>
+            {hasZoomMeeting && <p style={{ margin: "0 0 1.25rem", color: "#b45309", fontSize: "0.8125rem", background: "#fef3c7", borderRadius: "6px", padding: "0.5rem 0.75rem" }}>The linked Zoom meeting will also be deleted.</p>}
             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
               <button onClick={() => setConfirmDelete(false)} style={{ padding: "0.5rem 1.25rem", borderRadius: "6px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer" }}>Cancel</button>
               <button onClick={handleDelete} disabled={deleting} style={{ padding: "0.5rem 1.25rem", borderRadius: "6px", border: "none", background: "#dc2626", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
@@ -173,6 +213,7 @@ export default function EditLiveClassPage() {
           <h1 style={{ margin: 0, fontSize: "1.375rem", fontWeight: 700, color: "#0f172a" }}>Edit Session</h1>
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
+          {form.status === "DRAFT" && <button onClick={() => quickStatus("SCHEDULED")} style={{ padding: "0.4rem 1rem", borderRadius: "6px", border: "1px solid #93c5fd", color: BLUE, background: "#eff6ff", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 }}>Schedule</button>}
           {form.status === "SCHEDULED" && <button onClick={() => quickStatus("PUBLISHED")} style={{ padding: "0.4rem 1rem", borderRadius: "6px", border: "1px solid #86efac", color: "#15803d", background: "#f0fdf4", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 }}>Publish</button>}
           {form.status === "PUBLISHED" && <button onClick={() => quickStatus("COMPLETED")} style={{ padding: "0.4rem 1rem", borderRadius: "6px", border: "1px solid #a5b4fc", color: "#4338ca", background: "#eef2ff", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 }}>Mark Complete</button>}
           <button onClick={() => setConfirmDelete(true)} style={{ padding: "0.4rem 1rem", borderRadius: "6px", border: "1px solid #fca5a5", color: "#dc2626", background: "transparent", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 }}>Delete</button>
@@ -256,11 +297,11 @@ export default function EditLiveClassPage() {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
               <div>
-                <label style={labelStyle}>Start Time</label>
+                <label style={labelStyle}>Start Time (IST)</label>
                 <input type="time" value={form.startTime} onChange={e => set("startTime", e.target.value)} style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>End Time</label>
+                <label style={labelStyle}>End Time (IST)</label>
                 <input type="time" value={form.endTime} onChange={e => set("endTime", e.target.value)} style={inputStyle} />
               </div>
             </div>
@@ -292,16 +333,61 @@ export default function EditLiveClassPage() {
               <option value="OTHER">Other</option>
             </select>
           </div>
+
+          {isZoomPlatform && (
+            <div style={{ background: hasZoomMeeting ? "#f0fdf4" : "#eff6ff", border: `1px solid ${hasZoomMeeting ? "#86efac" : "#93c5fd"}`, borderRadius: "10px", padding: "1rem 1.25rem", marginBottom: "1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: hasZoomMeeting ? "0.75rem" : 0 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: "0.875rem", color: hasZoomMeeting ? "#15803d" : BLUE }}>
+                    {hasZoomMeeting ? "✅ Zoom Meeting Active" : "📹 No Zoom Meeting Yet"}
+                  </div>
+                  {hasZoomMeeting && (
+                    <div style={{ fontSize: "0.75rem", color: "#374151", marginTop: "0.25rem" }}>
+                      Meeting ID: <strong>{zoom.meetingId}</strong> · Password: <strong>{zoom.password}</strong>
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  {!hasZoomMeeting && (
+                    <button type="button" onClick={() => handleZoomAction("create")} disabled={zoomWorking || !form.sessionDate || !form.startTime}
+                      style={{ padding: "0.4rem 1rem", borderRadius: "6px", border: "none", background: BLUE, color: "#fff", cursor: (zoomWorking || !form.sessionDate || !form.startTime) ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "0.8125rem", opacity: (!form.sessionDate || !form.startTime) ? 0.6 : 1 }}>
+                      {zoomWorking ? "Creating…" : "Create Zoom Meeting"}
+                    </button>
+                  )}
+                  {hasZoomMeeting && <>
+                    <button type="button" onClick={() => handleZoomAction("update")} disabled={zoomWorking}
+                      style={{ padding: "0.4rem 1rem", borderRadius: "6px", border: "1px solid #86efac", color: "#15803d", background: "#fff", cursor: zoomWorking ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "0.8125rem" }}>
+                      {zoomWorking ? "Syncing…" : "Sync to Zoom"}
+                    </button>
+                    <button type="button" onClick={() => handleZoomAction("delete")} disabled={zoomWorking}
+                      style={{ padding: "0.4rem 1rem", borderRadius: "6px", border: "1px solid #fca5a5", color: "#dc2626", background: "#fff", cursor: zoomWorking ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "0.8125rem" }}>
+                      Remove
+                    </button>
+                  </>}
+                </div>
+              </div>
+
+              {hasZoomMeeting && zoom.startUrl && (
+                <div style={{ marginTop: "0.5rem", fontSize: "0.75rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                  <a href={zoom.startUrl} target="_blank" rel="noopener noreferrer" style={{ color: BLUE, textDecoration: "none", fontWeight: 600 }}>🎙 Host Start URL ↗</a>
+                </div>
+              )}
+
+              {!form.sessionDate && <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem", color: "#64748b" }}>Set a session date and start time first to create a Zoom meeting.</p>}
+            </div>
+          )}
+
           <div style={rowStyle}>
             <div>
-              <label style={labelStyle}>Join URL</label>
-              <input value={form.joinUrl} onChange={e => set("joinUrl", e.target.value)} style={inputStyle} />
+              <label style={labelStyle}>Join URL {isZoomPlatform && hasZoomMeeting && <span style={{ fontWeight: 400, color: "#15803d", fontSize: "0.75rem" }}>(auto-filled)</span>}</label>
+              <input value={form.joinUrl} onChange={e => set("joinUrl", e.target.value)} placeholder={isZoomPlatform ? "Auto-filled by Zoom" : "https://…"} style={inputStyle} />
             </div>
             <div>
-              <label style={labelStyle}>Session / Meeting Code</label>
+              <label style={labelStyle}>Meeting Code / Password {isZoomPlatform && hasZoomMeeting && <span style={{ fontWeight: 400, color: "#15803d", fontSize: "0.75rem" }}>(auto-filled)</span>}</label>
               <input value={form.sessionCode} onChange={e => set("sessionCode", e.target.value)} style={inputStyle} />
             </div>
           </div>
+
           <div style={{ marginBottom: "1rem" }}>
             <AdminImageUploader
               label="Thumbnail"
@@ -324,7 +410,7 @@ export default function EditLiveClassPage() {
             </select>
           </div>
           <div style={{ marginBottom: "1rem" }}>
-            <label style={labelStyle}>Replay Recording <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: "0.75rem" }}>(link a published video as the replay for this session)</span></label>
+            <label style={labelStyle}>Replay Recording <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: "0.75rem" }}>(link a published video as the replay)</span></label>
             <select value={form.replayVideoId} onChange={e => set("replayVideoId", e.target.value)} style={inputStyle}>
               <option value="">— No Replay Video —</option>
               {videos.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}

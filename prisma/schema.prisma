@@ -1027,6 +1027,10 @@ model LiveClass {
   publishedAt     DateTime?
   // unlockAt: students cannot access this live class before this datetime (null = no unlock restriction)
   unlockAt        DateTime?
+  // Zoom meeting metadata — populated by Zoom API when platform=ZOOM
+  zoomMeetingId   String?
+  zoomPassword    String?
+  zoomStartUrl    String?
   createdById     String
   createdBy       User            @relation("LiveClassCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   createdAt       DateTime        @default(now())
