@@ -6,6 +6,9 @@ const ENTITLEMENT_OPTIONS = [
   "SELFPREP_HTML", "TESTHUB", "FLASHCARDS", "PDF_ACCESS", "SMART_PRACTICE", "AI_ADDON",
 ];
 
+type PaidProductCat = { code: string; label: string; isFree: boolean };
+type ExamCat = { id: string; name: string };
+
 interface ProductPackage {
   id: string;
   code: string;
@@ -15,6 +18,8 @@ interface ProductPackage {
   pricePaise: number;
   currency: string;
   isActive: boolean;
+  productCategory: string | null;
+  categoryId: string | null;
   createdAt: string;
   _count?: { purchases: number };
 }
@@ -36,8 +41,26 @@ export default function ProductsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<ProductPackage | null>(null);
-  const [form, setForm] = useState({ code: "", name: "", description: "", entitlementCodes: [] as string[], priceRupees: "", isActive: true });
+  const [form, setForm] = useState({
+    code: "", name: "", description: "",
+    entitlementCodes: [] as string[],
+    priceRupees: "",
+    productCategory: "",
+    categoryId: "",
+    isActive: true,
+  });
   const [saving, setSaving] = useState(false);
+  const [productCats, setProductCats] = useState<PaidProductCat[]>([]);
+  const [examCats, setExamCats] = useState<ExamCat[]>([]);
+
+  useEffect(() => {
+    fetch("/api/admin/product-categories")
+      .then(r => r.json()).then(j => setProductCats((j.data || []).filter((c: PaidProductCat) => !c.isFree)))
+      .catch(() => {});
+    fetch("/api/taxonomy?level=category")
+      .then(r => r.json()).then(j => setExamCats(j.data || []))
+      .catch(() => {});
+  }, []);
   const [showSimPanel, setShowSimPanel] = useState(false);
   const [simPkgId, setSimPkgId] = useState("");
   const [simUserId, setSimUserId] = useState("");
@@ -63,7 +86,7 @@ export default function ProductsPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ code: "", name: "", description: "", entitlementCodes: [], priceRupees: "", isActive: true });
+    setForm({ code: "", name: "", description: "", entitlementCodes: [], priceRupees: "", productCategory: "", categoryId: "", isActive: true });
     setShowModal(true);
   };
 
@@ -75,6 +98,8 @@ export default function ProductsPage() {
       description: p.description || "",
       entitlementCodes: p.entitlementCodes || [],
       priceRupees: String(p.pricePaise / 100),
+      productCategory: p.productCategory || "",
+      categoryId: p.categoryId || "",
       isActive: p.isActive,
     });
     setShowModal(true);
@@ -90,6 +115,8 @@ export default function ProductsPage() {
         entitlementCodes: form.entitlementCodes,
         pricePaise: Math.round(parseFloat(form.priceRupees || "0") * 100),
         currency: "INR",
+        productCategory: form.productCategory || null,
+        categoryId: form.categoryId || null,
         isActive: form.isActive,
       };
       if (editing) payload.id = editing.id;
@@ -279,6 +306,32 @@ export default function ProductsPage() {
               <div>
                 <label style={{ fontSize: "0.75rem", color: "#374151", display: "block", marginBottom: "0.25rem" }}>Price (₹ Rupees) *</label>
                 <input type="number" step="0.01" value={form.priceRupees} onChange={e => setForm(f => ({ ...f, priceRupees: e.target.value }))} style={inputStyle} placeholder="499.00" />
+              </div>
+              <div style={{ display: "flex", gap: "0.75rem" }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: "0.75rem", color: "#374151", display: "block", marginBottom: "0.25rem" }}>
+                    Product Category
+                    <span style={{ color: "#9ca3af", marginLeft: "0.25rem" }}>(coupon targeting)</span>
+                  </label>
+                  <select value={form.productCategory} onChange={e => setForm(f => ({ ...f, productCategory: e.target.value }))} style={inputStyle}>
+                    <option value="">— Not set —</option>
+                    {productCats.map(c => (
+                      <option key={c.code} value={c.code}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: "0.75rem", color: "#374151", display: "block", marginBottom: "0.25rem" }}>
+                    Exam Category
+                    <span style={{ color: "#9ca3af", marginLeft: "0.25rem" }}>(coupon targeting)</span>
+                  </label>
+                  <select value={form.categoryId} onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))} style={inputStyle}>
+                    <option value="">— Not set —</option>
+                    {examCats.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div>
                 <label style={{ fontSize: "0.75rem", color: "#374151", display: "block", marginBottom: "0.5rem" }}>Entitlement Codes *</label>

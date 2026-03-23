@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
+import { ProductCategory } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   const user = await getSessionUserFromRequest(req);
@@ -54,10 +55,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { code, name, description, entitlementCodes, pricePaise, currency, isActive } = body;
+    const { code, name, description, entitlementCodes, pricePaise, currency, isActive, productCategory, categoryId } = body;
 
     if (!code || !code.trim()) return NextResponse.json({ error: "Code is required" }, { status: 400 });
     if (!name || !name.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 });
+
+    if (productCategory && !Object.values(ProductCategory).includes(productCategory)) {
+      return NextResponse.json({ error: "Invalid productCategory value" }, { status: 400 });
+    }
 
     const existing = await prisma.productPackage.findUnique({ where: { code: code.trim().toUpperCase() } });
     if (existing) return NextResponse.json({ error: "A package with this code already exists" }, { status: 409 });
@@ -71,6 +76,8 @@ export async function POST(req: NextRequest) {
         pricePaise: parseInt(pricePaise) || 0,
         currency: currency || "INR",
         isActive: isActive !== undefined ? isActive : true,
+        productCategory: productCategory || null,
+        categoryId: categoryId || null,
       },
     });
 
@@ -95,11 +102,15 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { id, code, name, description, entitlementCodes, pricePaise, currency, isActive } = body;
+    const { id, code, name, description, entitlementCodes, pricePaise, currency, isActive, productCategory, categoryId } = body;
     if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
 
     const existing = await prisma.productPackage.findUnique({ where: { id } });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    if (productCategory && !Object.values(ProductCategory).includes(productCategory)) {
+      return NextResponse.json({ error: "Invalid productCategory value" }, { status: 400 });
+    }
 
     if (code && code.trim().toUpperCase() !== existing.code) {
       const dup = await prisma.productPackage.findUnique({ where: { code: code.trim().toUpperCase() } });
@@ -116,6 +127,8 @@ export async function PUT(req: NextRequest) {
         pricePaise: pricePaise !== undefined ? parseInt(pricePaise) || 0 : existing.pricePaise,
         currency: currency || existing.currency,
         isActive: isActive !== undefined ? isActive : existing.isActive,
+        productCategory: productCategory !== undefined ? (productCategory || null) : existing.productCategory,
+        categoryId: categoryId !== undefined ? (categoryId || null) : existing.categoryId,
       },
     });
 

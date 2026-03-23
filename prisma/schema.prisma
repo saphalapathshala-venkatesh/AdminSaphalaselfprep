@@ -271,6 +271,8 @@ model Category {
   updatedAt DateTime  @updatedAt
   subjects  Subject[]
   exams     Exam[]
+  packages             ProductPackage[]      @relation("PackageExamCategory")
+  couponExamScopes     CouponExamCategoryScope[] @relation("CouponExamCategoryScope")
 }
 
 // EXAM MASTER
@@ -710,18 +712,23 @@ model PdfAsset {
 }
 // PRODUCT BUILDER (packages → entitlements)
 model ProductPackage {
-  id          String @id @default(cuid())
-  code        String @unique
-  name        String
-  description String?
-  entitlementCodes String[] @default([])
-  pricePaise  Int    @default(0)
-  currency    String @default("INR")
-  isActive    Boolean @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  purchases     Purchase[]
-  paymentOrders PaymentOrder[]
+  id                String  @id @default(cuid())
+  code              String  @unique
+  name              String
+  description       String?
+  entitlementCodes  String[] @default([])
+  pricePaise        Int      @default(0)
+  currency          String   @default("INR")
+  isActive          Boolean  @default(true)
+  // Commercial targeting: which ProductCategory enum value this package belongs to
+  productCategory   ProductCategory?
+  // Exam targeting: which exam/category group this package targets (links to Category taxonomy)
+  categoryId        String?
+  examCategory      Category? @relation("PackageExamCategory", fields: [categoryId], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  purchases         Purchase[]
+  paymentOrders     PaymentOrder[]
 }
 // COUPONS
 model Coupon {
@@ -733,7 +740,11 @@ model Coupon {
   validUntil   DateTime?
   usageLimit   Int?
   perUserLimit Int?
+  // Legacy entitlement-based applicability (kept for backward compatibility)
   applicableEntitlements String[] @default([])
+  // Dual-layer applicability flags (default true = applies to all, backward compatible)
+  appliesToAllPaidProductCategories Boolean @default(true)
+  appliesToAllExamCategories        Boolean @default(true)
   isActive     Boolean @default(true)
   createdById  String
   createdBy    User   @relation(fields: [createdById], references: [id], onDelete: Restrict)
@@ -741,6 +752,33 @@ model Coupon {
   updatedAt     DateTime @updatedAt
   purchases     Purchase[]
   paymentOrders PaymentOrder[]
+  productCategoryScopes CouponProductCategoryScope[]
+  examCategoryScopes    CouponExamCategoryScope[]
+}
+
+// Junction: which paid product categories a coupon applies to
+// Only used when appliesToAllPaidProductCategories = false
+// productCategory stores the ProductCategory enum value (e.g. "TEST_SERIES").
+// FREE_DEMO is excluded at the API layer — never inserted here.
+model CouponProductCategoryScope {
+  id              String          @id @default(cuid())
+  couponId        String
+  coupon          Coupon          @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  productCategory ProductCategory
+  @@unique([couponId, productCategory])
+  @@index([couponId])
+}
+
+// Junction: which exam categories (taxonomy Category) a coupon applies to
+// Only used when appliesToAllExamCategories = false
+model CouponExamCategoryScope {
+  id         String   @id @default(cuid())
+  couponId   String
+  coupon     Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation("CouponExamCategoryScope", fields: [categoryId], references: [id], onDelete: Cascade)
+  @@unique([couponId, categoryId])
+  @@index([couponId])
 }
 // XP RULE ENGINE + LEDGER
 model XpRule {

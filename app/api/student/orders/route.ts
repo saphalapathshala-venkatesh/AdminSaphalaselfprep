@@ -63,7 +63,13 @@ export async function POST(req: NextRequest) {
 
   if (couponCode?.trim()) {
     const code = couponCode.trim().toUpperCase();
-    const coupon = await prisma.coupon.findUnique({ where: { code } });
+    const coupon = await prisma.coupon.findUnique({
+      where: { code },
+      include: {
+        productCategoryScopes: true,
+        examCategoryScopes:    true,
+      },
+    });
     if (!coupon)           return NextResponse.json({ error: "Coupon not found" }, { status: 400 });
     if (!coupon.isActive)  return NextResponse.json({ error: "Coupon is inactive" }, { status: 400 });
 
@@ -80,9 +86,27 @@ export async function POST(req: NextRequest) {
       if (userUsed >= coupon.perUserLimit) return NextResponse.json({ error: "You have already used this coupon the maximum number of times" }, { status: 400 });
     }
 
+    // Legacy entitlement-based check (kept for backward compatibility with old coupons)
     if (coupon.applicableEntitlements.length > 0) {
       const overlap = pkg.entitlementCodes.filter(e => coupon.applicableEntitlements.includes(e));
       if (overlap.length === 0) return NextResponse.json({ error: "Coupon is not applicable to this package" }, { status: 400 });
+    }
+
+    // Dual-layer applicability check — BOTH conditions must pass
+    // Layer 1: Product category (commercial layer)
+    if (!coupon.appliesToAllPaidProductCategories) {
+      const allowedProductCats = coupon.productCategoryScopes.map(s => s.productCategory as string);
+      if (!pkg.productCategory || !allowedProductCats.includes(pkg.productCategory)) {
+        return NextResponse.json({ error: "Coupon is not applicable to this product type" }, { status: 400 });
+      }
+    }
+
+    // Layer 2: Exam category (taxonomy layer)
+    if (!coupon.appliesToAllExamCategories) {
+      const allowedCategoryIds = coupon.examCategoryScopes.map(s => s.categoryId);
+      if (!pkg.categoryId || !allowedCategoryIds.includes(pkg.categoryId)) {
+        return NextResponse.json({ error: "Coupon is not applicable to this exam category" }, { status: 400 });
+      }
     }
 
     discountPaise = coupon.discountType === "PERCENT"
