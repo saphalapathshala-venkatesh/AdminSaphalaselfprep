@@ -85,6 +85,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true, error: "invalid_json" });
   }
 
+  console.log("Cashfree webhook received", payload);
+
   const eventType     = payload?.type || payload?.event_type || "";
   const orderData     = payload?.data?.order  || payload?.order   || {};
   const paymentData   = payload?.data?.payment || payload?.payment || {};
