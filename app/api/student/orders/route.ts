@@ -28,6 +28,17 @@ export async function POST(req: NextRequest) {
   if (!legalAccepted)   return NextResponse.json({ error: "You must accept the Terms & Conditions before checkout." }, { status: 400 });
   if (!returnUrl)       return NextResponse.json({ error: "returnUrl is required" }, { status: 400 });
 
+  // Validate returnUrl is a proper http/https URL — prevents open redirect
+  // via a crafted POST that supplies a javascript: or data: scheme URL.
+  try {
+    const parsed = new URL(returnUrl);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return NextResponse.json({ error: "returnUrl must be an http or https URL" }, { status: 400 });
+    }
+  } catch {
+    return NextResponse.json({ error: "returnUrl must be a valid URL" }, { status: 400 });
+  }
+
   // 1 — Validate package
   const pkg = await prisma.productPackage.findUnique({ where: { id: packageId } });
   if (!pkg)           return NextResponse.json({ error: "Package not found" }, { status: 404 });
