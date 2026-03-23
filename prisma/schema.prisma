@@ -822,22 +822,23 @@ model UserAchievement {
 
 // REVENUE + ANALYTICS (minimal storage; charts computed)
 model Purchase {
-  id           String @id @default(cuid())
-  userId       String
-  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  packageId    String?
-  package      ProductPackage? @relation(fields: [packageId], references: [id], onDelete: SetNull)
-  couponId     String?
-  coupon       Coupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
-  stream       RevenueStream
-  currency     String @default("INR")
-  grossPaise   Int
-  feePaise     Int    @default(0)
-  netPaise     Int
+  id             String @id @default(cuid())
+  userId         String
+  user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packageId      String?
+  package        ProductPackage? @relation(fields: [packageId], references: [id], onDelete: SetNull)
+  couponId       String?
+  coupon         Coupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  paymentOrderId String? @unique   // DB-level guard: exactly one Purchase per PaymentOrder
+  stream         RevenueStream
+  currency       String @default("INR")
+  grossPaise     Int
+  feePaise       Int    @default(0)
+  netPaise       Int
   legalAcceptedAt   DateTime?
   legalVersion      String?
-  createdAt    DateTime @default(now())
-  refund       Refund?
+  createdAt      DateTime @default(now())
+  refund         Refund?
   @@index([stream, createdAt])
   @@index([userId, createdAt])
 }
@@ -1413,7 +1414,7 @@ model PaymentOrder {
   status            PaymentOrderStatus @default(CREATED)
   provider          String @default("CASHFREE")
   providerOrderId   String?            // Cashfree cf_order_id
-  providerPaymentId String?            // Cashfree payment ID (from webhook)
+  providerPaymentId String? @unique    // Cashfree payment ID — unique per real payment
   paymentSessionId  String?            // Cashfree payment_session_id (for JS SDK)
   legalAcceptedAt   DateTime?
   legalVersion      String?

@@ -28,6 +28,8 @@ export interface CreateOrderInput {
     phone: string;   // required by Cashfree
   };
   description?: string;
+  /** Full URL Cashfree will POST payment events to (notify_url in Cashfree V3). */
+  notifyUrl?: string;
 }
 
 export interface CreateOrderResult {

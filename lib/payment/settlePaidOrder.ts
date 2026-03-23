@@ -67,6 +67,7 @@ export async function settlePaidOrder(
         userId:          order.userId,
         packageId:       order.packageId,
         couponId:        order.couponId,
+        paymentOrderId:  order.id,        // DB-level: unique per PaymentOrder
         stream:          stream as any,
         currency:        order.currency,
         grossPaise:      order.finalAmountPaise,

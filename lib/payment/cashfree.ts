@@ -54,7 +54,7 @@ export class CashfreeProvider implements PaymentProvider {
       },
       order_meta: {
         return_url: input.returnUrl,
-        notify_url: "",  // webhook handled separately
+        notify_url: input.notifyUrl || "",
       },
       ...(input.description ? { order_note: input.description } : {}),
     };
