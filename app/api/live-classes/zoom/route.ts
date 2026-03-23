@@ -18,8 +18,12 @@ import { createZoomMeeting, deleteZoomMeeting, updateZoomMeeting } from "@/lib/z
 
 function toISOUtc(sessionDate: Date | null, startTime: string | null): string | null {
   if (!sessionDate || !startTime) return null;
-  const dateStr = sessionDate.toISOString().split("T")[0];
-  return new Date(`${dateStr}T${startTime}:00+05:30`).toISOString();
+  // Extract the date in IST to avoid UTC-midnight edge cases where the UTC date
+  // is one day behind the IST date (e.g. 2026-03-31T18:30Z = 2026-04-01 00:00 IST).
+  const istDateStr = sessionDate
+    .toLocaleString("sv-SE", { timeZone: "Asia/Kolkata" })
+    .split(" ")[0]; // "YYYY-MM-DD"
+  return new Date(`${istDateStr}T${startTime}:00+05:30`).toISOString();
 }
 
 function parseDurationMinutes(startTime: string | null, endTime: string | null): number {

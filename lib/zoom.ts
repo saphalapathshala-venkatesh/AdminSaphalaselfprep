@@ -155,5 +155,7 @@ export async function updateZoomMeeting(
 }
 
 function generatePassword(): string {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
+  // Pad to ensure we always get exactly 6 alphanumeric chars regardless of random value
+  const raw = Math.random().toString(36).slice(2).padEnd(6, "0");
+  return raw.slice(0, 6).toUpperCase();
 }

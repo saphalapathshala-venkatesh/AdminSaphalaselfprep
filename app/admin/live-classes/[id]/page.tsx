@@ -356,6 +356,7 @@ export default function EditLiveClassPage() {
                   )}
                   {hasZoomMeeting && <>
                     <button type="button" onClick={() => handleZoomAction("update")} disabled={zoomWorking}
+                      title="Saves the current title and schedule to Zoom. Save your form changes first before syncing."
                       style={{ padding: "0.4rem 1rem", borderRadius: "6px", border: "1px solid #86efac", color: "#15803d", background: "#fff", cursor: zoomWorking ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "0.8125rem" }}>
                       {zoomWorking ? "Syncing…" : "Sync to Zoom"}
                     </button>
@@ -368,8 +369,9 @@ export default function EditLiveClassPage() {
               </div>
 
               {hasZoomMeeting && zoom.startUrl && (
-                <div style={{ marginTop: "0.5rem", fontSize: "0.75rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                <div style={{ marginTop: "0.5rem", fontSize: "0.75rem", display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
                   <a href={zoom.startUrl} target="_blank" rel="noopener noreferrer" style={{ color: BLUE, textDecoration: "none", fontWeight: 600 }}>🎙 Host Start URL ↗</a>
+                  <span style={{ color: "#94a3b8" }}>· Save changes before clicking Sync to Zoom</span>
                 </div>
               )}
 

@@ -28,7 +28,8 @@ function computeLiveStatus(lc: {
 
   if (!lc.sessionDate || !lc.startTime) return "upcoming";
 
-  const dateStr = lc.sessionDate.toISOString().split("T")[0];
+  // Use IST date to avoid UTC-midnight boundary edge cases
+  const dateStr = lc.sessionDate.toLocaleString("sv-SE", { timeZone: "Asia/Kolkata" }).split(" ")[0];
   const startIso = new Date(`${dateStr}T${lc.startTime}:00+05:30`);
   const endIso   = lc.endTime
     ? new Date(`${dateStr}T${lc.endTime}:00+05:30`)
@@ -51,7 +52,7 @@ function shouldExposeJoinUrl(lc: {
   if (liveStatus === "live_now") return true;
 
   if (!lc.sessionDate || !lc.startTime) return false;
-  const dateStr = lc.sessionDate.toISOString().split("T")[0];
+  const dateStr = lc.sessionDate.toLocaleString("sv-SE", { timeZone: "Asia/Kolkata" }).split(" ")[0];
   const startIso = new Date(`${dateStr}T${lc.startTime}:00+05:30`);
   const now = new Date();
   return now >= new Date(startIso.getTime() - JOIN_WINDOW_MS) && now < startIso;
@@ -70,17 +71,23 @@ export async function GET(req: NextRequest) {
 
   const now = new Date();
 
+  // Only these statuses are ever visible to students — never overridden by query param
+  const STUDENT_VISIBLE_STATUSES = ["SCHEDULED", "PUBLISHED", "COMPLETED"] as const;
+  // Allow the caller to filter to a sub-set of safe statuses, but never expand beyond safe list
+  const allowedStatus = statusFilter && STUDENT_VISIBLE_STATUSES.includes(statusFilter as any)
+    ? [statusFilter]
+    : STUDENT_VISIBLE_STATUSES;
+
   const where: any = {
     tenantId: "default",
-    status: { in: ["SCHEDULED", "PUBLISHED", "COMPLETED"] },
+    status: { in: allowedStatus },
     OR: [
       { unlockAt: null },
       { unlockAt: { lte: now } },
     ],
   };
 
-  if (courseId)     where.courseId = courseId;
-  if (statusFilter) where.status   = statusFilter;
+  if (courseId) where.courseId = courseId;
 
   try {
     const [items, total] = await Promise.all([
@@ -124,6 +131,15 @@ export async function GET(req: NextRequest) {
       const liveStatus = computeLiveStatus(lc);
       const canJoin    = shouldExposeJoinUrl(lc, liveStatus);
 
+      // Compute duration in minutes for frontend display
+      let durationMinutes: number | null = null;
+      if (lc.startTime && lc.endTime) {
+        const [sh, sm] = lc.startTime.split(":").map(Number);
+        const [eh, em] = lc.endTime.split(":").map(Number);
+        const diff = (eh * 60 + em) - (sh * 60 + sm);
+        if (diff > 0) durationMinutes = diff;
+      }
+
       return {
         id:           lc.id,
         title:        lc.title,
@@ -131,6 +147,7 @@ export async function GET(req: NextRequest) {
         sessionDate:  lc.sessionDate,
         startTime:    lc.startTime,
         endTime:      lc.endTime,
+        durationMinutes,
         status:       lc.status,
         liveStatus,   // "upcoming" | "live_now" | "completed"
         platform:     lc.platform,
@@ -144,10 +161,13 @@ export async function GET(req: NextRequest) {
         subtopicId:   lc.subtopicId,
         faculty:      lc.faculty,
         course:       lc.course,
-        replayVideoId: lc.replayVideoId,
-        // Join credentials — exposed only in join window
+        replayVideoId:  lc.replayVideoId,
+        recordingPolicy: lc.recordingPolicy,
+        publishedAt:    lc.publishedAt,
+        // Join credentials — exposed only in join window (15 min before start + during session)
         canJoin,
-        joinUrl:      canJoin ? lc.joinUrl : null,
+        joinUrl:         canJoin ? lc.joinUrl : null,
+        sessionCode:     canJoin ? lc.sessionCode : null,
         meetingPassword: canJoin ? lc.zoomPassword : null,
         zoomMeetingId:   canJoin ? lc.zoomMeetingId : null,
       };
