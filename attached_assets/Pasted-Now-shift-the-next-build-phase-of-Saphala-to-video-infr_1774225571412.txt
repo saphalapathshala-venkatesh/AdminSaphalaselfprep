@@ -1,0 +1,136 @@
+Now shift the next build phase of Saphala to video infrastructure integration in this exact order:
+
+1. Zoom integration for LIVE classes
+2. Bunny integration for recorded video delivery
+3. Frontend video/live UI wiring and testing after both integrations are in place
+
+Goal:
+Do not start with frontend-only placeholders. First wire the actual infrastructure for LIVE and recorded class delivery, then connect and test the frontend against real integrations.
+
+==================================================
+PHASE 1 — ZOOM INTEGRATION (LIVE CLASSES)
+==================================================
+
+First audit the current LIVE class system across admin + DB + APIs + frontend.
+
+Check:
+1. existing LiveClass model / schema
+2. scheduling fields
+3. faculty fields
+4. joinUrl handling
+5. course linkage
+6. taxonomy linkage
+7. publish/unlock fields
+8. frontend live class rendering
+9. whether any Zoom-specific integration already exists
+
+Then implement clean Zoom integration for LIVE classes.
+
+Requirements:
+1. Admin can create/schedule LIVE classes cleanly.
+2. Zoom meeting details should be integrated into platform flow instead of only manual random linking where possible.
+3. Store the required meeting metadata safely in DB.
+4. Student should see:
+   - upcoming class
+   - live now
+   - completed
+5. Join button should work cleanly from student frontend.
+6. Keep course linkage and taxonomy consistent.
+7. New subjects/topics/subtopics added later must reflect automatically with no hardcoding.
+
+Output required after Zoom phase:
+A. what existed
+B. what was added
+C. what still remains manual
+D. what frontend fields are now available
+
+==================================================
+PHASE 2 — BUNNY INTEGRATION (RECORDED VIDEOS)
+==================================================
+
+After Zoom is wired, audit the current recorded video flow.
+
+Check:
+1. current Video model / schema
+2. playbackUrl handling
+3. upload status / processing status fields
+4. thumbnail handling
+5. course linkage
+6. taxonomy linkage
+7. publish/unlock/order fields
+8. whether current system is only manual URL entry
+
+Then implement Bunny integration for recorded classes.
+
+Requirements:
+1. Use Bunny as the recorded video delivery/storage system.
+2. Wire admin flow for recorded videos so the platform supports Bunny-based playback infrastructure.
+3. Store the necessary Bunny-related metadata cleanly.
+4. Keep DB-driven course linkage, taxonomy, publish status, unlock date, and ordering intact.
+5. Ensure future new subjects/topics/subtopics reflect automatically without hardcoding.
+
+Output required after Bunny phase:
+A. what existed
+B. what was replaced or improved
+C. what metadata is now stored
+D. what frontend playback data is now available
+
+==================================================
+PHASE 3 — FRONTEND VIDEO / LIVE UI WIRING
+==================================================
+
+Only after Zoom + Bunny are wired, audit and implement the student-facing frontend video/live experience.
+
+Requirements:
+
+A. Recorded classes
+1. show recorded video cards in course flow
+2. open proper player page / experience
+3. support locked/unlocked states
+4. support publish/unpublish visibility correctly
+5. support admin-defined ordering inside course flow
+
+B. LIVE classes
+1. show upcoming/live/completed cards
+2. show date/time clearly
+3. show join button only where appropriate
+4. reflect Zoom-backed meeting information correctly
+5. support course linkage and ordering
+
+C. Mixed course flow
+Verify that frontend reflects admin-defined order for:
+- ebooks
+- tests/quizzes
+- recorded videos
+- live classes
+
+D. Mobile QA
+Ensure both LIVE and recorded flows are clean on mobile.
+
+==================================================
+ENGINEERING RULES
+==================================================
+
+1. Audit first before implementing each phase.
+2. Do not hardcode taxonomy names or course assumptions.
+3. New subjects, topics, and subtopics added later must reflect automatically.
+4. Keep admin app and student frontend cleanly separated.
+5. Keep admin as source of truth.
+6. Preserve existing Ebook and Test flows.
+7. Build infrastructure first, UI after.
+
+==================================================
+DELIVERABLES
+==================================================
+
+1. Zoom integration for LIVE classes
+2. Bunny integration for recorded video delivery
+3. frontend video/live UI wiring
+4. end-to-end testing readiness for videos
+5. clean summary of:
+   - what already existed
+   - what was newly built
+   - what still needs polishing
+
+Expected outcome:
+Saphala should have real LIVE and recorded video infrastructure wired first, and only then the frontend student video/live experience should be finalized and tested.
