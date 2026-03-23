@@ -136,6 +136,12 @@ export default function EditVideoPage() {
     else { showToast(json.error || "Failed to delete", false); setDeleting(false); setConfirmDelete(false); }
   }
 
+  async function quickStatus(status: string) {
+    const res = await fetch(`/api/videos/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
+    if (res.ok) { setForm(f => ({ ...f, status })); showToast(`Status → ${status}`); }
+    else showToast("Failed", false);
+  }
+
   if (loading) return <div style={{ padding: "3rem", textAlign: "center", color: "#94a3b8" }}>Loading…</div>;
 
   return (
@@ -167,8 +173,16 @@ export default function EditVideoPage() {
           <span style={{ color: "#e2e8f0" }}>/</span>
           <h1 style={{ margin: 0, fontSize: "1.375rem", fontWeight: 700, color: "#0f172a" }}>Edit Video</h1>
         </div>
-        <Link href="/admin/content-flow" style={{ padding: "0.4rem 1rem", borderRadius: "6px", border: "1px solid #c4b5fd", color: PURPLE, textDecoration: "none", fontSize: "0.8125rem", fontWeight: 600 }}>Content Flow ↗</Link>
-        <button onClick={() => setConfirmDelete(true)} style={{ padding: "0.4rem 1rem", borderRadius: "6px", border: "1px solid #fca5a5", color: "#dc2626", background: "transparent", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 }}>Delete</button>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          {(form.status === "DRAFT" || form.status === "READY") && (
+            <button onClick={() => quickStatus("PUBLISHED")} style={{ padding: "0.4rem 1rem", borderRadius: "6px", border: "1px solid #86efac", color: "#15803d", background: "#f0fdf4", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 }}>Publish</button>
+          )}
+          {form.status === "PUBLISHED" && (
+            <button onClick={() => quickStatus("ARCHIVED")} style={{ padding: "0.4rem 1rem", borderRadius: "6px", border: "1px solid #cbd5e1", color: "#475569", background: "#f8fafc", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 }}>Archive</button>
+          )}
+          <Link href="/admin/content-flow" style={{ padding: "0.4rem 1rem", borderRadius: "6px", border: "1px solid #c4b5fd", color: PURPLE, textDecoration: "none", fontSize: "0.8125rem", fontWeight: 600 }}>Content Flow ↗</Link>
+          <button onClick={() => setConfirmDelete(true)} style={{ padding: "0.4rem 1rem", borderRadius: "6px", border: "1px solid #fca5a5", color: "#dc2626", background: "transparent", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 }}>Delete</button>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit}>

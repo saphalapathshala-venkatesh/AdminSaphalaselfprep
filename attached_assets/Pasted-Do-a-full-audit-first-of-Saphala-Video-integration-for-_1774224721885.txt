@@ -1,0 +1,129 @@
+Do a full audit first of Saphala Video integration for BOTH Recorded Classes and LIVE Classes, then implement the missing pieces cleanly.
+
+Goal:
+Build a unified video content system that supports both recorded classes and live classes, while fitting cleanly into the existing Saphala course, taxonomy, publish, unlock, and frontend delivery architecture.
+
+Phase 1 — Audit first (mandatory)
+Read and report the current state across admin + DB + APIs + frontend for:
+
+1. Recorded video support
+- existing schema/model
+- taxonomy fields
+- course linkage
+- thumbnail
+- playback URL
+- duration
+- ordering
+- publish/unlock fields
+
+2. LIVE class support
+- existing schema/model
+- taxonomy fields
+- course linkage
+- date/time fields
+- faculty
+- join URL
+- status
+- ordering
+- publish/unlock fields
+
+3. Frontend delivery
+- course page rendering
+- student video page
+- live class card/page
+- locked/unlocked handling
+- previous/next course flow
+- mobile behavior
+
+4. Admin flows
+- create/edit forms
+- image upload support
+- taxonomy dropdown reflection
+- publish workflow
+- manual ordering
+
+Output required from audit:
+A. What already exists
+B. What is partially wired
+C. What is missing
+D. What is inconsistent/risky
+E. Recommended build order
+
+Phase 2 — Implement missing pieces
+Implement a unified system for:
+1. Recorded Classes
+2. LIVE Classes
+
+Requirements:
+
+A. Shared architecture
+- Keep taxonomy support consistent:
+  category → subject → topic → subtopic
+- Ensure new subjects/topics/subtopics added later automatically reflect without hardcoding
+- Keep course linkage consistent
+- Keep ordering/sequence admin-driven
+- Keep publish/unlock behavior consistent
+
+B. Recorded Classes
+Fields/support:
+- title
+- description
+- thumbnail
+- faculty
+- category/subject/topic/subtopic
+- course linkage
+- video playback URL
+- duration
+- order
+- unlock date
+- draft/published status
+
+Frontend:
+- course card/list rendering
+- recorded video player page
+- locked/unlocked handling
+- previous/next navigation
+- mobile-friendly layout
+
+C. LIVE Classes
+Fields/support:
+- title
+- description
+- faculty
+- category/subject/topic/subtopic
+- course linkage
+- date
+- start time
+- end time
+- join URL
+- order
+- unlock date if applicable
+- draft/published status
+- status display (upcoming/live/completed)
+
+Frontend:
+- live class card in course flow
+- date/time clearly shown
+- join button
+- completed state handling
+- optional recording support if architecture already allows
+
+D. Admin UX
+- clean create/edit forms
+- direct thumbnail upload from system, not manual URL pasting
+- taxonomy dropdowns
+- course dropdown/linkage
+- publish/unpublish
+- ordering controls
+- edit existing items safely
+
+E. Engineering rules
+- Do not hardcode taxonomy labels
+- Make new subjects/topics/subtopics reflect automatically
+- Keep admin as source of truth
+- Preserve separation between admin app and student frontend
+- Reuse shared patterns where appropriate
+- Do not break existing tests/ebooks/course flows
+
+Expected outcome:
+Saphala should have a clean, scalable Video integration system supporting both LIVE and Recorded classes, fully wired through admin, DB, APIs, course flow, and student frontend.

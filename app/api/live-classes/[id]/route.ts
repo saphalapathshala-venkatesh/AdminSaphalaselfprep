@@ -34,7 +34,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       title, description, facultyId, courseId, categoryId, examId, subjectId, topicId, subtopicId,
       sessionDate, startTime, endTime, accessType, status,
       platform, joinUrl, sessionCode, thumbnailUrl,
-      notifyLearners, recordingPolicy, replayVideoId, publishedAt,
+      notifyLearners, recordingPolicy, replayVideoId, publishedAt, unlockAt,
     } = body;
 
     const wasPublished = existing.status !== "PUBLISHED" && status === "PUBLISHED";
@@ -64,6 +64,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         recordingPolicy: recordingPolicy || existing.recordingPolicy,
         replayVideoId: replayVideoId !== undefined ? (replayVideoId || null) : existing.replayVideoId,
         publishedAt: wasPublished ? new Date() : (publishedAt !== undefined ? (publishedAt ? new Date(publishedAt) : null) : existing.publishedAt),
+        unlockAt: unlockAt !== undefined ? (unlockAt ? new Date(unlockAt) : null) : existing.unlockAt,
       },
       include: {
         faculty: { select: { id: true, name: true } },

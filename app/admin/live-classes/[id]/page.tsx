@@ -33,6 +33,7 @@ export default function EditLiveClassPage() {
   const [subjects, setSubjects] = useState<TaxOption[]>([]);
   const [topics, setTopics] = useState<TaxOption[]>([]);
   const [subtopics, setSubtopics] = useState<TaxOption[]>([]);
+  const [videos, setVideos] = useState<{ id: string; title: string }[]>([]);
 
   const [form, setForm] = useState({
     title: "", description: "", facultyId: "", courseId: "",
@@ -41,7 +42,7 @@ export default function EditLiveClassPage() {
     accessType: "FREE", status: "DRAFT",
     platform: "ZOOM", joinUrl: "", sessionCode: "",
     thumbnailUrl: "", notifyLearners: false,
-    recordingPolicy: "NO_RECORD", replayVideoId: "",
+    recordingPolicy: "NO_RECORD", replayVideoId: "", unlockAt: "",
   });
 
   const showToast = (msg: string, ok = true) => { setToast({ msg, ok }); setTimeout(() => setToast(null), 3500); };
@@ -53,7 +54,8 @@ export default function EditLiveClassPage() {
       fetch("/api/courses?all=true").then(r => r.json()),
       fetch("/api/taxonomy?level=category").then(r => r.json()),
       fetch("/api/exams").then(r => r.json()),
-    ]).then(([lj, fj, cj, taxj, examj]) => {
+      fetch("/api/videos?pageSize=200&status=PUBLISHED").then(r => r.json()),
+    ]).then(([lj, fj, cj, taxj, examj, vj]) => {
       const lc = lj.data;
       if (lc) {
         let sessionDate = "";
@@ -61,6 +63,8 @@ export default function EditLiveClassPage() {
           const d = new Date(lc.sessionDate);
           sessionDate = d.toISOString().split("T")[0];
         }
+        let unlockAt = "";
+        if (lc.unlockAt) unlockAt = new Date(lc.unlockAt).toISOString().slice(0, 16);
         setForm({
           title: lc.title || "", description: lc.description || "",
           facultyId: lc.facultyId || "", courseId: lc.courseId || "",
@@ -74,6 +78,7 @@ export default function EditLiveClassPage() {
           notifyLearners: Boolean(lc.notifyLearners),
           recordingPolicy: lc.recordingPolicy || "NO_RECORD",
           replayVideoId: lc.replayVideoId || "",
+          unlockAt,
         });
         if (lc.categoryId) fetch(`/api/taxonomy?level=subject&parentId=${lc.categoryId}`).then(r => r.json()).then(j => setSubjects(j.data || []));
         if (lc.subjectId) fetch(`/api/taxonomy?level=topic&parentId=${lc.subjectId}`).then(r => r.json()).then(j => setTopics(j.data || []));
@@ -83,6 +88,7 @@ export default function EditLiveClassPage() {
       setCourses(cj.data || []);
       setCategories(taxj.data || []);
       setExams(examj.exams || []);
+      setVideos(vj.data || []);
       setLoading(false);
     });
   }, [id]);
@@ -116,6 +122,7 @@ export default function EditLiveClassPage() {
       categoryId: form.categoryId || null,
       examId: form.examId || null,
       replayVideoId: form.replayVideoId || null,
+      unlockAt: form.unlockAt ? form.unlockAt + ":00+05:30" : null,
     };
     const res = await fetch(`/api/live-classes/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     const json = await res.json();
@@ -317,8 +324,16 @@ export default function EditLiveClassPage() {
             </select>
           </div>
           <div style={{ marginBottom: "1rem" }}>
-            <label style={labelStyle}>Replay Video ID</label>
-            <input value={form.replayVideoId} onChange={e => set("replayVideoId", e.target.value)} placeholder="Link to a Video record for replay" style={inputStyle} />
+            <label style={labelStyle}>Replay Recording <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: "0.75rem" }}>(link a published video as the replay for this session)</span></label>
+            <select value={form.replayVideoId} onChange={e => set("replayVideoId", e.target.value)} style={inputStyle}>
+              <option value="">— No Replay Video —</option>
+              {videos.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom: "1rem" }}>
+            <label style={labelStyle}>Unlock At <span style={{ fontWeight: 400, color: "#94a3b8" }}>(optional)</span></label>
+            <input type="datetime-local" value={form.unlockAt} onChange={e => set("unlockAt", e.target.value)} style={inputStyle} />
+            {form.unlockAt && <p style={{ margin: "4px 0 0", fontSize: "0.75rem", color: PURPLE }}>Students can access from {new Date(form.unlockAt + ":00+05:30").toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST onwards.</p>}
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: "0.625rem", cursor: "pointer" }}>
             <input type="checkbox" checked={form.notifyLearners} onChange={e => set("notifyLearners", e.target.checked)} style={{ width: 16, height: 16, accentColor: PURPLE }} />

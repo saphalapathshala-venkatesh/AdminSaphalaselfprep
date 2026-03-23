@@ -35,7 +35,7 @@ export default function NewLiveClassPage() {
     accessType: "FREE", status: "DRAFT",
     platform: "ZOOM", joinUrl: "", sessionCode: "",
     thumbnailUrl: "", notifyLearners: false,
-    recordingPolicy: "NO_RECORD",
+    recordingPolicy: "NO_RECORD", unlockAt: "",
   });
 
   const showToast = (msg: string, ok = true) => { setToast({ msg, ok }); setTimeout(() => setToast(null), 3500); };
@@ -76,6 +76,7 @@ export default function NewLiveClassPage() {
       courseId: form.courseId || null,
       categoryId: form.categoryId || null,
       examId: form.examId || null,
+      unlockAt: form.unlockAt ? form.unlockAt + ":00+05:30" : null,
     };
 
     const res = await fetch("/api/live-classes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -246,10 +247,15 @@ export default function NewLiveClassPage() {
               <option value="RECORD_AND_SHARE">Record and share with learners</option>
             </select>
           </div>
-          <label style={{ display: "flex", alignItems: "center", gap: "0.625rem", cursor: "pointer" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.625rem", cursor: "pointer", marginBottom: "1rem" }}>
             <input type="checkbox" checked={form.notifyLearners} onChange={e => set("notifyLearners", e.target.checked)} style={{ width: 16, height: 16, accentColor: PURPLE }} />
             <span style={{ fontSize: "0.875rem", color: "#374151" }}>Notify eligible learners when published</span>
           </label>
+          <div>
+            <label style={labelStyle}>Unlock At <span style={{ fontWeight: 400, color: "#94a3b8" }}>(optional — students can access from this date onwards)</span></label>
+            <input type="datetime-local" value={form.unlockAt} onChange={e => set("unlockAt", e.target.value)} style={inputStyle} />
+            {form.unlockAt && <p style={{ margin: "4px 0 0", fontSize: "0.75rem", color: PURPLE }}>Students can access from {new Date(form.unlockAt + ":00+05:30").toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST onwards.</p>}
+          </div>
         </div>
 
         <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
