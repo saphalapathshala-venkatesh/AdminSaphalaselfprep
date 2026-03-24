@@ -273,6 +273,7 @@ model Category {
   exams     Exam[]
   packages             ProductPackage[]      @relation("PackageExamCategory")
   couponExamScopes     CouponExamCategoryScope[] @relation("CouponExamCategoryScope")
+  categorySubjects     CategorySubject[]
 }
 
 // EXAM MASTER
@@ -300,16 +301,36 @@ model Exam {
   @@index([categoryId])
 }
 model Subject {
-  id         String   @id @default(cuid())
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  name       String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  topics     Topic[]
+  id           String   @id @default(cuid())
+  categoryId   String
+  category     Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  name         String
+  subjectColor String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  topics           Topic[]
+  categorySubjects CategorySubject[]
   @@unique([categoryId, name])
   @@index([categoryId])
 }
+
+// Junction table: allows one Subject to appear under multiple Categories.
+// Subject.categoryId remains the primary/owner category.
+// This table stores secondary category memberships only.
+model CategorySubject {
+  id         String   @id @default(cuid())
+  categoryId String
+  subjectId  String
+  createdAt  DateTime @default(now())
+
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  subject    Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, subjectId])
+  @@index([categoryId])
+  @@index([subjectId])
+}
+
 model Topic {
   id        String   @id @default(cuid())
   subjectId String

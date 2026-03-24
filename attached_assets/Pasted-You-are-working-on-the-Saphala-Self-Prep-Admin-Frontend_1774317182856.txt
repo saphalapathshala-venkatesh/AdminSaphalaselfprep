@@ -1,0 +1,326 @@
+You are working on the Saphala Self Prep Admin + Frontend ecosystem.
+This task must be implemented safely, additively, and without breaking any existing product flows.
+
+Non-negotiable safety rules
+Do not delete or rename existing tables/columns
+Do not remove any existing relations
+Do not do destructive migrations
+Do not break existing admin create/edit flows
+Do not break existing frontend rendering or access
+Preserve all existing subjectColor values
+All changes must be backward-compatible
+If any old record has no color, use a safe fallback only at render time
+Do not hardcode category/subject logic in frontend; reflect DB/admin state
+Run type checks and verify affected APIs before finishing
+Goal
+
+Implement a shared-subject taxonomy architecture so that one Subject can be used under multiple Categories, and ensure this works consistently across all applicable products:
+
+Ebooks / Content Pages
+PDFs
+Tests / Test Builder / Question Bank
+Videos
+Flashcards
+Live Classes / Recorded Classes
+Any other module using Category / Subject / Topic / Subtopic selections
+
+Also enforce subject-specific colors for all new subjects, while preserving existing subject colors. The architecture analysis confirms the current hierarchy is forcing duplication and that the safest approach is an additive junction-table model.
+
+Current architecture context
+
+The current taxonomy chain is:
+
+Category
+Subject
+Topic
+Subtopic
+
+Right now, Subject is category-scoped, which forces duplicate subjects like “History” under APPSC and AP Police. The architecture note recommends the safe additive fix: add a CategorySubject junction table instead of refactoring existing Subject ownership.
+
+Also note: much of the content already stores taxonomy loosely by IDs/strings, so this must be implemented as a safe retrieval/filtering improvement, not as a destructive remap.
+
+Required implementation
+Part 1 — DB schema (additive only)
+
+Add a new Prisma model:
+
+model CategorySubject {
+  id         String   @id @default(cuid())
+  categoryId String
+  subjectId  String
+  createdAt  DateTime @default(now())
+
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  subject    Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, subjectId])
+  @@index([categoryId])
+  @@index([subjectId])
+}
+Important
+Keep existing Subject.categoryId unchanged
+Treat Subject.categoryId as the primary/owner category
+CategorySubject is for secondary/shared category mapping
+Do not modify Topic/Subtopic schema for this task
+Do not alter existing product tables for this task unless absolutely required for type-safe reads
+Part 2 — Subject color governance
+Rules
+Preserve all existing Subject.subjectColor values
+All newly created subjects must have a color
+If admin does not manually choose one, auto-assign from a controlled palette
+Subject color belongs to the Subject, not to CategorySubject
+Same subject color must be used consistently across all products where subject metadata is shown
+Controlled palette
+
+Use a clean pre-approved palette with distinct colors. Reuse if needed, but rotate intelligently:
+
+#7C3AED
+#2563EB
+#059669
+#DC2626
+#EA580C
+#0891B2
+#BE185D
+#65A30D
+#9333EA
+#0F766E
+#B45309
+#1D4ED8
+Behavior
+On new Subject creation:
+If subjectColor is provided, use it
+Else auto-fill one from the palette
+On existing Subject edit:
+Preserve current color unless admin changes it
+On frontend rendering:
+If subjectColor missing on older rows, use safe fallback only in UI, not forced DB mutation
+Part 3 — Taxonomy API updates
+
+Update taxonomy APIs so that when fetching Subjects by Category, the result includes:
+
+subjects whose Subject.categoryId === selectedCategoryId
+subjects linked through CategorySubject
+Requirements
+De-duplicate results by subject ID
+Return enough metadata to show whether subject is:
+primary/direct
+shared
+and if shared, from which primary category it comes
+Suggested response shape
+
+For subject list items, include something like:
+
+id
+name
+subjectColor
+categoryId
+isSharedForSelectedCategory
+ownerCategoryId
+ownerCategoryName
+
+Do not break existing consumers that expect basic subject fields.
+
+Part 4 — Admin taxonomy UI
+Subject Create/Edit form
+
+Extend the Subject form to include:
+
+Subject Name
+Primary Category (existing behavior)
+Also available under (multi-select categories)
+Subject Color
+Color preview chip
+Rules
+“Also available under” must exclude the selected primary category
+On edit, load and save current secondary category mappings
+Multi-select must create/update CategorySubject rows safely
+Do not create duplicate mapping rows
+If mappings are removed, only remove the related CategorySubject rows, never delete the Subject
+Admin tree/list display
+
+When browsing a category, if a Subject is shown through CategorySubject, visually mark it as:
+
+Shared
+or
+Shared from <owner category>
+
+Keep this subtle and clean.
+
+Part 5 — Product form integration (all applicable modules)
+
+This is the most important part.
+
+Any product/module that selects taxonomy must support the new shared-subject retrieval logic.
+
+Apply to all relevant admin forms:
+Ebooks / Content Pages
+PDF assets / PDF course content
+Tests
+Question Bank
+Question import/edit flows
+Videos
+Flashcard decks/cards where taxonomy is selected
+Live classes
+Recorded classes
+Any reusable content builder using category → subject → topic → subtopic flow
+Required behavior
+
+When admin selects a Category:
+
+Subject dropdown must show both direct + shared subjects
+
+When admin selects a shared Subject:
+
+Topic dropdown must load its existing Topics normally
+Subtopic dropdown must load its existing Subtopics normally
+Important
+
+Do not duplicate Topics/Subtopics.
+Do not create fake copies.
+Topics/Subtopics should naturally flow from the shared Subject.
+
+Part 6 — Product listing/filtering integration
+
+Wherever admin or frontend filters products/content by Category + Subject, update logic so that shared subjects work correctly.
+
+Must review and fix where applicable
+admin content lists
+question bank filters
+test builder filters
+course content assignment screens
+frontend public/product/course filters if they depend on taxonomy APIs
+learner-facing content retrieval where category-based subject filtering is used
+Rule
+
+If a Subject is shared into a Category, the system must behave as though that Subject belongs to that Category for selection/filtering purposes, without physically duplicating it.
+
+Part 7 — Frontend visual consistency for subject colors
+
+Use subjectColor consistently where subject identity is shown.
+
+Apply wherever relevant and already visually reasonable:
+Ebook shells/borders/headers if subject metadata exists
+Flashcards
+Video subject badges
+PDF subject chips/badges
+Test subject tags / metadata areas
+Live class / recorded class badges
+Analytics/report labels if subject color is already used or easy to safely add
+Important
+
+Do not over-redesign UI.
+Use color as a clean metadata accent, not as a risky visual rewrite.
+
+Part 8 — Backward compatibility expectations
+Existing records
+
+All old records must continue to work exactly as before.
+
+No forced migration of old content
+
+Do not attempt to merge duplicate subjects in this task.
+Do not rewrite existing subjectId, topicId, subtopicId, or product taxonomy data.
+
+This task is only:
+additive schema support
+API enhancement
+UI enhancement
+shared selection/filtering support
+color governance for new subjects
+Part 9 — Suggested service/helper layer
+
+Create reusable helpers instead of duplicating logic in many modules.
+
+Suggested helper functions
+getSubjectsForCategory(categoryId)
+getSubjectMappings(subjectId)
+syncCategorySubjectMappings(subjectId, secondaryCategoryIds)
+assignSubjectColor(inputColor?)
+getSafeSubjectColor(subjectColor?)
+
+Use these helpers across taxonomy APIs and product forms.
+
+Part 10 — Validation and QA checklist
+
+Before finishing, verify all of the following:
+
+Schema / DB
+Prisma schema valid
+migration is additive only
+no destructive SQL
+indexes and unique constraint work
+Admin taxonomy
+create subject with color
+create subject without manually choosing color → auto color assigned
+map subject to multiple categories
+edit mappings successfully
+remove mapping without deleting subject
+Product forms
+
+Test at least one create/edit flow each for:
+
+Ebook/content page
+PDF
+Test
+Question bank
+Video
+Flashcard
+Live/recorded class
+
+For each:
+
+choose category
+confirm shared subject appears
+select shared subject
+confirm topic/subtopic load correctly
+save successfully
+edit successfully
+Frontend
+existing content still loads
+subject color still renders safely
+no broken cards/pages
+no undefined subject errors
+Safety
+no duplicate subjects created accidentally
+no duplicate category-subject mappings
+no API contract breakage for existing pages
+Final checks
+run typecheck
+run lint if available
+run build if feasible
+fix all introduced errors
+Part 11 — Deliverables expected from you
+
+When done, provide:
+
+Summary of schema changes
+APIs updated
+Admin forms/pages updated
+Product modules updated
+Any helper utilities added
+Any fallback logic added for old subjects without color
+Confirmation that no destructive changes were made
+Any edge cases or follow-up recommendations
+Part 12 — Explicit constraints
+
+Do not:
+
+refactor the whole taxonomy architecture
+remove Subject.categoryId
+merge duplicate subjects
+alter Topic/Subtopic ownership model
+mass-update existing content rows unless required for a bug fix
+introduce breaking frontend assumptions
+hardcode category names
+skip QA
+Expected outcome
+
+After this task:
+
+one Subject can safely appear under multiple Categories
+the same Subject’s Topics/Subtopics are reused everywhere
+all products can select and use shared subjects
+existing data remains intact
+new subjects always get a clean subject-specific color
+existing subject colors remain preserved
+no breakage in current admin/frontend product flows

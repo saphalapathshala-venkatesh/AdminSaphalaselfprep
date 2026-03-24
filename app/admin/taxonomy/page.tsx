@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { CONTROLLED_PALETTE, getSafeSubjectColor } from "@/lib/subjectColors";
 
 // Hierarchy: Category → Subject → Topic → Subtopic
 type TaxonomyLevel = "category" | "subject" | "topic" | "subtopic";
@@ -31,30 +32,40 @@ interface TaxNode {
   name: string;
   level: TaxonomyLevel;
   parentId?: string;
+  subjectColor?: string | null;
+  isShared?: boolean;
+  ownerCategoryName?: string;
+}
+
+interface TreeSubtopic { id: string; name: string; topicId: string; }
+interface TreeTopic    { id: string; name: string; subjectId: string; subtopics: TreeSubtopic[]; }
+
+interface TreeSubject {
+  id: string;
+  name: string;
+  categoryId: string;
+  subjectColor?: string | null;
+  topics: TreeTopic[];
+  // for shared subjects rendered from junction
+  isShared?: boolean;
+  ownerCategoryName?: string;
+}
+
+interface TreeCategorySubjectJunction {
+  id: string;
+  categoryId: string;
+  subjectId: string;
+  subject: TreeSubject & { category: { id: string; name: string } };
 }
 
 interface TreeCategory {
   id: string;
   name: string;
   subjects: TreeSubject[];
+  categorySubjects: TreeCategorySubjectJunction[];
 }
-interface TreeSubject {
-  id: string;
-  name: string;
-  categoryId: string;
-  topics: TreeTopic[];
-}
-interface TreeTopic {
-  id: string;
-  name: string;
-  subjectId: string;
-  subtopics: TreeSubtopic[];
-}
-interface TreeSubtopic {
-  id: string;
-  name: string;
-  topicId: string;
-}
+
+interface SecondaryCategory { id: string; name: string; }
 
 export default function TaxonomyPage() {
   const [categories, setCategories] = useState<TreeCategory[]>([]);
@@ -63,12 +74,17 @@ export default function TaxonomyPage() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const [selected, setSelected] = useState<TaxNode | null>(null);
+  const [selectedSecondaryCategories, setSelectedSecondaryCategories] = useState<SecondaryCategory[]>([]);
+
   const [formMode, setFormMode] = useState<"idle" | "create" | "edit">("idle");
   const [formLevel, setFormLevel] = useState<TaxonomyLevel>("category");
   const [formName, setFormName] = useState("");
   const [formParentId, setFormParentId] = useState("");
+  const [formSubjectColor, setFormSubjectColor] = useState("");
+  const [formSecondaryCategoryIds, setFormSecondaryCategoryIds] = useState<string[]>([]);
   const [formError, setFormError] = useState("");
   const [formSaving, setFormSaving] = useState(false);
+  const [formPrimaryCategory, setFormPrimaryCategory] = useState<{ id: string; name: string } | null>(null);
 
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<TaxNode | null>(null);
@@ -108,10 +124,22 @@ export default function TaxonomyPage() {
     });
   }
 
-  function handleSelect(level: TaxonomyLevel, id: string, name: string, parentId?: string) {
-    setSelected({ level, id, name, parentId });
+  async function handleSelect(level: TaxonomyLevel, id: string, name: string, parentId?: string, extra?: Partial<TaxNode>) {
+    setSelected({ level, id, name, parentId, ...extra });
     setFormMode("idle");
     setFormError("");
+    setSelectedSecondaryCategories([]);
+
+    // Load secondary categories for subjects
+    if (level === "subject") {
+      try {
+        const res = await fetch(`/api/taxonomy?level=subject&id=${id}`);
+        const d = await res.json();
+        if (d.data?.categorySubjects) {
+          setSelectedSecondaryCategories(d.data.categorySubjects.map((cs: any) => cs.category));
+        }
+      } catch { /* silent */ }
+    }
   }
 
   function startCreate(level: TaxonomyLevel, parentId?: string) {
@@ -119,16 +147,38 @@ export default function TaxonomyPage() {
     setFormLevel(level);
     setFormName("");
     setFormParentId(parentId || "");
+    setFormSubjectColor("");
+    setFormSecondaryCategoryIds([]);
     setFormError("");
     setSelected(null);
+    setSelectedSecondaryCategories([]);
+
+    // Find primary category name for display
+    if (level === "subject" && parentId) {
+      const cat = categories.find(c => c.id === parentId);
+      setFormPrimaryCategory(cat ? { id: cat.id, name: cat.name } : null);
+    } else {
+      setFormPrimaryCategory(null);
+    }
   }
 
-  function startEdit() {
+  async function startEdit() {
     if (!selected) return;
     setFormMode("edit");
     setFormLevel(selected.level);
     setFormName(selected.name);
+    setFormSubjectColor(selected.subjectColor || "");
+    setFormSecondaryCategoryIds(selectedSecondaryCategories.map(c => c.id));
     setFormError("");
+
+    if (selected.level === "subject") {
+      // Find primary category
+      const cat = categories.find(c =>
+        c.subjects.some(s => s.id === selected.id) ||
+        c.id === selected.parentId
+      );
+      setFormPrimaryCategory(cat ? { id: cat.id, name: cat.name } : null);
+    }
   }
 
   async function handleSave() {
@@ -137,7 +187,15 @@ export default function TaxonomyPage() {
     setFormError("");
     try {
       if (formMode === "create") {
-        const body = { level: formLevel, name: formName.trim(), parentId: formParentId || undefined };
+        const body: Record<string, any> = {
+          level: formLevel,
+          name: formName.trim(),
+          parentId: formParentId || undefined,
+        };
+        if (formLevel === "subject") {
+          body.subjectColor = formSubjectColor || undefined;
+          body.secondaryCategoryIds = formSecondaryCategoryIds;
+        }
         const res = await fetch("/api/taxonomy", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
@@ -146,7 +204,11 @@ export default function TaxonomyPage() {
         if (!res.ok) { setFormError(data.error || "Failed to create"); return; }
         showToast(`${LEVEL_LABELS[formLevel]} created`, "success");
       } else if (formMode === "edit" && selected) {
-        const body = { level: selected.level, id: selected.id, name: formName.trim() };
+        const body: Record<string, any> = { level: selected.level, id: selected.id, name: formName.trim() };
+        if (selected.level === "subject") {
+          body.subjectColor = formSubjectColor || null;
+          body.secondaryCategoryIds = formSecondaryCategoryIds;
+        }
         const res = await fetch("/api/taxonomy", {
           method: "PUT", headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
@@ -154,7 +216,11 @@ export default function TaxonomyPage() {
         const data = await res.json();
         if (!res.ok) { setFormError(data.error || "Failed to update"); return; }
         showToast(`${LEVEL_LABELS[selected.level]} updated`, "success");
-        setSelected({ ...selected, name: formName.trim() });
+        setSelected({ ...selected, name: formName.trim(), subjectColor: formSubjectColor || null });
+        setSelectedSecondaryCategories(
+          categories.filter(c => formSecondaryCategoryIds.includes(c.id))
+            .map(c => ({ id: c.id, name: c.name }))
+        );
       }
       setFormMode("idle");
       fetchTree();
@@ -187,7 +253,8 @@ export default function TaxonomyPage() {
     const lq = q.toLowerCase();
     return cats.map(cat => {
       const cMatch = cat.name.toLowerCase().includes(lq);
-      const filteredSubs = cat.subjects.map(sub => {
+      const allSubs = getMergedSubjects(cat);
+      const filteredSubs = allSubs.map(sub => {
         const sMatch = sub.name.toLowerCase().includes(lq);
         const filteredTopics = sub.topics.map(top => {
           const tMatch = top.name.toLowerCase().includes(lq);
@@ -198,9 +265,34 @@ export default function TaxonomyPage() {
         if (sMatch || filteredTopics.length) return { ...sub, topics: sMatch ? sub.topics : filteredTopics };
         return null;
       }).filter(Boolean) as TreeSubject[];
-      if (cMatch || filteredSubs.length) return { ...cat, subjects: cMatch ? cat.subjects : filteredSubs };
+      if (cMatch || filteredSubs.length) return {
+        ...cat,
+        subjects: cMatch ? cat.subjects : filteredSubs.filter(s => !s.isShared),
+        categorySubjects: cMatch
+          ? cat.categorySubjects
+          : cat.categorySubjects.filter(cs => filteredSubs.some(s => s.isShared && s.id === cs.subject.id)),
+      };
       return null;
     }).filter(Boolean) as TreeCategory[];
+  }
+
+  function getMergedSubjects(cat: TreeCategory): TreeSubject[] {
+    const direct = cat.subjects.map(s => ({ ...s, isShared: false }));
+    const seen = new Set(direct.map(s => s.id));
+    const shared = (cat.categorySubjects || [])
+      .filter(cs => !seen.has(cs.subject.id))
+      .map(cs => ({
+        ...cs.subject,
+        isShared: true,
+        ownerCategoryName: cs.subject.category?.name,
+      }));
+    return [...direct, ...shared].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  function toggleSecondaryCategory(catId: string) {
+    setFormSecondaryCategoryIds(prev =>
+      prev.includes(catId) ? prev.filter(id => id !== catId) : [...prev, catId]
+    );
   }
 
   const filtered = filterCategories(categories, search);
@@ -208,6 +300,11 @@ export default function TaxonomyPage() {
   const canAddSubject  = selected?.level === "category";
   const canAddTopic    = selected?.level === "subject";
   const canAddSubtopic = selected?.level === "topic";
+
+  // Categories available as secondary (exclude primary category of current subject)
+  const secondaryCategoryOptions = categories.filter(c =>
+    formPrimaryCategory ? c.id !== formPrimaryCategory.id : true
+  );
 
   return (
     <div style={{ fontFamily: "system-ui, sans-serif" }}>
@@ -272,8 +369,13 @@ export default function TaxonomyPage() {
               <TreeNode key={cat.id} level="category" id={cat.id} name={cat.name}
                 expanded={expanded} selected={selected}
                 toggleExpand={toggleExpand} handleSelect={handleSelect} indent={0}>
-                {expanded.has(cat.id) && cat.subjects.map(sub => (
-                  <TreeNode key={sub.id} level="subject" id={sub.id} name={sub.name}
+                {expanded.has(cat.id) && getMergedSubjects(cat).map(sub => (
+                  <TreeNode
+                    key={`${cat.id}-${sub.id}`}
+                    level="subject" id={sub.id} name={sub.name}
+                    subjectColor={sub.subjectColor}
+                    isShared={sub.isShared}
+                    sharedFrom={sub.isShared ? sub.ownerCategoryName : undefined}
                     expanded={expanded} selected={selected}
                     toggleExpand={toggleExpand} handleSelect={handleSelect}
                     parentId={cat.id} indent={1}>
@@ -298,7 +400,7 @@ export default function TaxonomyPage() {
         </div>
 
         {/* Detail / Form panel */}
-        <div style={{ flex: "1 1 40%", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "1.25rem", backgroundColor: "#fff" }}>
+        <div style={{ flex: "1 1 40%", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "1.25rem", backgroundColor: "#fff", overflowY: "auto", maxHeight: "80vh" }}>
           {formMode === "idle" && !selected && (
             <p style={{ color: "#888", fontSize: "0.875rem" }}>Select an item from the tree or use the buttons above to add new items.</p>
           )}
@@ -306,14 +408,46 @@ export default function TaxonomyPage() {
           {formMode === "idle" && selected && (
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ fontSize: "0.75rem", color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
                     {LEVEL_LABELS[selected.level]}
+                    {selected.isShared && (
+                      <span style={{ marginLeft: "0.5rem", fontSize: "0.65rem", background: "#ede9fe", color: "#7c3aed", borderRadius: "3px", padding: "1px 5px" }}>
+                        Shared
+                      </span>
+                    )}
                   </span>
-                  <h2 style={{ fontSize: "1.25rem", fontWeight: 600, margin: "0.25rem 0" }}>{selected.name}</h2>
-                  <p style={{ fontSize: "0.8125rem", color: "#999" }}>ID: {selected.id}</p>
+                  <h2 style={{ fontSize: "1.25rem", fontWeight: 600, margin: "0.25rem 0", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    {selected.level === "subject" && selected.subjectColor && (
+                      <span style={{ width: "14px", height: "14px", borderRadius: "50%", background: selected.subjectColor, display: "inline-block", flexShrink: 0 }} />
+                    )}
+                    {selected.name}
+                  </h2>
+                  <p style={{ fontSize: "0.8125rem", color: "#999", margin: 0 }}>ID: {selected.id}</p>
+                  {selected.isShared && selected.ownerCategoryName && (
+                    <p style={{ fontSize: "0.8rem", color: "#7c3aed", margin: "0.25rem 0 0" }}>
+                      Owner: {selected.ownerCategoryName}
+                    </p>
+                  )}
+                  {selected.level === "subject" && selected.subjectColor && (
+                    <p style={{ fontSize: "0.8rem", color: "#64748b", margin: "0.25rem 0 0" }}>
+                      Color: <code style={{ background: "#f1f5f9", padding: "1px 4px", borderRadius: "3px" }}>{selected.subjectColor}</code>
+                    </p>
+                  )}
+                  {selected.level === "subject" && selectedSecondaryCategories.length > 0 && (
+                    <div style={{ marginTop: "0.5rem" }}>
+                      <p style={{ fontSize: "0.8rem", color: "#64748b", margin: "0 0 0.25rem" }}>Also available under:</p>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
+                        {selectedSecondaryCategories.map(c => (
+                          <span key={c.id} style={{ fontSize: "0.75rem", background: "#ede9fe", color: "#7c3aed", borderRadius: "3px", padding: "2px 6px" }}>
+                            {c.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
+                <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0, marginLeft: "0.75rem" }}>
                   <button onClick={startEdit} style={{ ...btnStyle, backgroundColor: "#7c3aed" }}>Edit</button>
                   <button onClick={() => setDeleteConfirm(selected)} style={{ ...btnStyle, backgroundColor: "#dc2626" }}>Delete</button>
                 </div>
@@ -350,6 +484,91 @@ export default function TaxonomyPage() {
                 autoFocus
               />
 
+              {/* Subject-specific fields */}
+              {formLevel === "subject" && (
+                <>
+                  {formPrimaryCategory && (
+                    <div style={{ marginTop: "0.75rem" }}>
+                      <label style={labelStyle}>Primary Category</label>
+                      <div style={{ fontSize: "0.875rem", color: "#374151", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "4px", padding: "0.5rem 0.625rem" }}>
+                        {formPrimaryCategory.name}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: "0.75rem" }}>
+                    <label style={labelStyle}>Subject Color</label>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                      {/* Preview swatch */}
+                      <div style={{
+                        width: "28px", height: "28px", borderRadius: "50%",
+                        background: formSubjectColor || "#e5e7eb",
+                        border: "2px solid #d1d5db", flexShrink: 0,
+                      }} />
+                      {/* Palette dots */}
+                      {CONTROLLED_PALETTE.map(hex => (
+                        <button
+                          key={hex}
+                          title={hex}
+                          onClick={() => setFormSubjectColor(hex)}
+                          style={{
+                            width: "22px", height: "22px", borderRadius: "50%", background: hex,
+                            border: formSubjectColor === hex ? "3px solid #111" : "2px solid transparent",
+                            cursor: "pointer", padding: 0, flexShrink: 0,
+                          }}
+                        />
+                      ))}
+                      {/* Custom hex input */}
+                      <input
+                        type="text"
+                        placeholder="#hex"
+                        value={formSubjectColor}
+                        onChange={e => setFormSubjectColor(e.target.value)}
+                        style={{ ...inputStyle, width: "90px", padding: "0.25rem 0.5rem", fontSize: "0.8rem" }}
+                      />
+                      {formSubjectColor && (
+                        <button
+                          onClick={() => setFormSubjectColor("")}
+                          title="Clear color"
+                          style={{ fontSize: "0.75rem", color: "#6b7280", background: "none", border: "none", cursor: "pointer" }}
+                        >✕</button>
+                      )}
+                    </div>
+                    {!formSubjectColor && (
+                      <p style={{ fontSize: "0.75rem", color: "#9ca3af", margin: "0.25rem 0 0" }}>
+                        Leave blank to auto-assign a color from the palette.
+                      </p>
+                    )}
+                  </div>
+
+                  <div style={{ marginTop: "0.75rem" }}>
+                    <label style={labelStyle}>Also available under</label>
+                    <p style={{ fontSize: "0.75rem", color: "#9ca3af", margin: "0 0 0.5rem" }}>
+                      Select additional categories where this subject should appear.
+                    </p>
+                    {secondaryCategoryOptions.length === 0 ? (
+                      <p style={{ fontSize: "0.8125rem", color: "#9ca3af" }}>No other categories yet.</p>
+                    ) : (
+                      <div style={{ border: "1px solid #e5e7eb", borderRadius: "4px", maxHeight: "160px", overflowY: "auto" }}>
+                        {secondaryCategoryOptions.map(cat => (
+                          <label
+                            key={cat.id}
+                            style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.375rem 0.625rem", cursor: "pointer", fontSize: "0.875rem", borderBottom: "1px solid #f3f4f6" }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={formSecondaryCategoryIds.includes(cat.id)}
+                              onChange={() => toggleSecondaryCategory(cat.id)}
+                            />
+                            {cat.name}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
               <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
                 <button onClick={handleSave} disabled={formSaving} style={{ ...btnStyle, backgroundColor: "#059669" }}>
                   {formSaving ? "Saving..." : "Save"}
@@ -385,28 +604,35 @@ export default function TaxonomyPage() {
 }
 
 function TreeNode({
-  level, id, name, badge, expanded, selected, toggleExpand, handleSelect, parentId, indent = 0, children,
+  level, id, name, subjectColor, isShared, sharedFrom, expanded, selected,
+  toggleExpand, handleSelect, parentId, indent = 0, children,
 }: {
   level: TaxonomyLevel;
   id: string;
   name: string;
-  badge?: string;
+  subjectColor?: string | null;
+  isShared?: boolean;
+  sharedFrom?: string;
   expanded: Set<string>;
   selected: TaxNode | null;
   toggleExpand: (id: string) => void;
-  handleSelect: (level: TaxonomyLevel, id: string, name: string, parentId?: string) => void;
+  handleSelect: (level: TaxonomyLevel, id: string, name: string, parentId?: string, extra?: Partial<TaxNode>) => void;
   parentId?: string;
   indent?: number;
   children?: React.ReactNode;
 }) {
   const isExpandable = level !== "subtopic";
   const isExpanded = expanded.has(id);
-  const isSelected = selected?.id === id;
+  const isSelected = selected?.id === id && selected?.parentId === parentId;
+
+  const accentDot = level === "subject" && subjectColor
+    ? subjectColor
+    : LEVEL_COLORS[level];
 
   return (
     <div>
       <div
-        onClick={() => handleSelect(level, id, name, parentId)}
+        onClick={() => handleSelect(level, id, name, parentId, { subjectColor, isShared, ownerCategoryName: sharedFrom })}
         style={{
           display: "flex", alignItems: "center", gap: "0.375rem",
           padding: "0.375rem 0.5rem",
@@ -428,13 +654,16 @@ function TreeNode({
         )}
         <span style={{
           display: "inline-block", width: "0.5rem", height: "0.5rem", borderRadius: "50%",
-          backgroundColor: LEVEL_COLORS[level], flexShrink: 0,
+          backgroundColor: accentDot, flexShrink: 0,
         }} />
         <span style={{ fontWeight: isSelected ? 600 : 400, color: "#1e293b" }}>{name}</span>
         <span style={{ fontSize: "0.6875rem", color: "#94a3b8", marginLeft: "auto" }}>{LEVEL_LABELS[level]}</span>
-        {badge && (
-          <span style={{ fontSize: "0.6rem", color: "#dc2626", background: "#fee2e2", borderRadius: "3px", padding: "1px 4px", fontWeight: 700 }}>
-            {badge}
+        {isShared && (
+          <span style={{
+            fontSize: "0.6rem", color: "#7c3aed", background: "#ede9fe",
+            borderRadius: "3px", padding: "1px 4px", fontWeight: 700, whiteSpace: "nowrap",
+          }}>
+            Shared{sharedFrom ? ` · ${sharedFrom}` : ""}
           </span>
         )}
       </div>

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
+import { getSubjectsForCategory, syncCategorySubjectMappings, assignSubjectColor } from "@/lib/taxonomy";
 
 // Taxonomy hierarchy: Category → Subject → Topic → Subtopic
 type TaxonomyLevel = "category" | "subject" | "topic" | "subtopic";
@@ -21,7 +22,9 @@ export async function GET(req: NextRequest) {
   const parentId = searchParams.get("parentId");
   const search   = searchParams.get("search");
   const tree     = searchParams.get("tree");
+  const id       = searchParams.get("id");
 
+  // Full tree including shared subjects
   if (tree === "true") {
     const categories = await prisma.category.findMany({
       orderBy: { name: "asc" },
@@ -37,6 +40,22 @@ export async function GET(req: NextRequest) {
           },
           orderBy: { name: "asc" },
         },
+        // Shared subjects via junction table
+        categorySubjects: {
+          include: {
+            subject: {
+              include: {
+                category: { select: { id: true, name: true } },
+                topics: {
+                  include: {
+                    subtopics: { orderBy: { name: "asc" } },
+                  },
+                  orderBy: { name: "asc" },
+                },
+              },
+            },
+          },
+        },
       },
     });
     return NextResponse.json({ data: categories });
@@ -49,6 +68,21 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  // Subject detail by id (for loading secondary category mappings in edit mode)
+  if (level === "subject" && id && !parentId) {
+    const subject = await prisma.subject.findUnique({
+      where: { id },
+      include: {
+        category: { select: { id: true, name: true } },
+        categorySubjects: {
+          include: { category: { select: { id: true, name: true } } },
+        },
+      },
+    });
+    if (!subject) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ data: subject });
+  }
+
   try {
     let data: any;
     switch (level) {
@@ -58,16 +92,25 @@ export async function GET(req: NextRequest) {
           orderBy: { name: "asc" },
         });
         break;
+
       case "subject":
-        data = await prisma.subject.findMany({
-          where: {
-            ...(parentId ? { categoryId: parentId } : {}),
-            ...(search ? { name: { contains: search, mode: "insensitive" } } : {}),
-          },
-          include: { category: { select: { id: true, name: true } } },
-          orderBy: { name: "asc" },
-        });
+        if (parentId) {
+          // Union: direct subjects + shared subjects for this category
+          data = await getSubjectsForCategory(parentId);
+          if (search) {
+            const lq = search.toLowerCase();
+            data = data.filter((s: any) => s.name.toLowerCase().includes(lq));
+          }
+        } else {
+          // No parentId: return all subjects (no shared metadata)
+          data = await prisma.subject.findMany({
+            where: search ? { name: { contains: search, mode: "insensitive" } } : undefined,
+            include: { category: { select: { id: true, name: true } } },
+            orderBy: { name: "asc" },
+          });
+        }
         break;
+
       case "topic":
         data = await prisma.topic.findMany({
           where: {
@@ -78,6 +121,7 @@ export async function GET(req: NextRequest) {
           orderBy: { name: "asc" },
         });
         break;
+
       case "subtopic":
         data = await prisma.subtopic.findMany({
           where: {
@@ -102,7 +146,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { level, name, parentId } = body;
+    const { level, name, parentId, subjectColor, secondaryCategoryIds } = body;
 
     if (!level || !isValidLevel(level)) return NextResponse.json({ error: "Invalid level" }, { status: 400 });
     if (!name || typeof name !== "string" || !name.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -116,7 +160,15 @@ export async function POST(req: NextRequest) {
       }
       case "subject": {
         if (!parentId) return NextResponse.json({ error: "categoryId (parentId) is required" }, { status: 400 });
-        created = await prisma.subject.create({ data: { name: name.trim(), categoryId: parentId } });
+        const color = assignSubjectColor(subjectColor);
+        created = await prisma.subject.create({
+          data: { name: name.trim(), categoryId: parentId, subjectColor: color },
+        });
+        // Sync secondary category mappings
+        if (Array.isArray(secondaryCategoryIds) && secondaryCategoryIds.length > 0) {
+          const filtered = secondaryCategoryIds.filter((cid: string) => cid !== parentId);
+          await syncCategorySubjectMappings(created.id, filtered);
+        }
         break;
       }
       case "topic": {
@@ -154,7 +206,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { level, id, name } = body;
+    const { level, id, name, subjectColor, secondaryCategoryIds } = body;
 
     if (!level || !isValidLevel(level)) return NextResponse.json({ error: "Invalid level" }, { status: 400 });
     if (!id) return NextResponse.json({ error: "ID is required" }, { status: 400 });
@@ -173,7 +225,21 @@ export async function PUT(req: NextRequest) {
       case "subject": {
         before = await prisma.subject.findUnique({ where: { id } });
         if (!before) return NextResponse.json({ error: "Not found" }, { status: 404 });
-        updated = await prisma.subject.update({ where: { id }, data: { name: name.trim() } });
+
+        const updateData: Record<string, any> = {};
+        if (name) updateData.name = name.trim();
+        // Preserve existing color unless explicitly set (including empty string to clear)
+        if (subjectColor !== undefined) {
+          updateData.subjectColor = subjectColor?.trim() || null;
+        }
+
+        updated = await prisma.subject.update({ where: { id }, data: updateData });
+
+        // Sync secondary category mappings (exclude primary category)
+        if (Array.isArray(secondaryCategoryIds)) {
+          const filtered = secondaryCategoryIds.filter((cid: string) => cid !== updated.categoryId);
+          await syncCategorySubjectMappings(id, filtered);
+        }
         break;
       }
       case "topic": {
