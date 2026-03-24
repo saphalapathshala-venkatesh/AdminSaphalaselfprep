@@ -1057,8 +1057,10 @@ model Course {
   thumbnailUrl            String?
   featured                Boolean    @default(false)
   isFree                  Boolean    @default(false)
-  mrpPaise                Int?
-  sellingPricePaise       Int?
+  mrp                     Decimal?   @db.Decimal(10, 2)
+  sellingPrice            Decimal?   @db.Decimal(10, 2)
+  mrpPaise                Int?       // legacy — deprecated, use mrp
+  sellingPricePaise       Int?       // legacy — deprecated, use sellingPrice
   xpRedemptionEnabled     Boolean    @default(false)
   xpRedemptionMaxPercent  Int        @default(1)
   validityType            String?

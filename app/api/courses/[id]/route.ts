@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
-import { validateCoursePricing, calcDiscountPercent } from "@/lib/pricing";
+import { validatePricing, calculateDiscount } from "@/lib/pricing";
 
 function validateProductTypes(body: any, existing?: any): string | null {
   const hasHtml      = body.hasHtmlCourse      !== undefined ? Boolean(body.hasHtmlCourse)      : existing?.hasHtmlCourse;
@@ -18,6 +18,12 @@ function validateProductTypes(body: any, existing?: any): string | null {
   return null;
 }
 
+function serializeCourse(course: any) {
+  const mrpNum = course.mrp !== null && course.mrp !== undefined ? Number(course.mrp) : null;
+  const spNum  = course.sellingPrice !== null && course.sellingPrice !== undefined ? Number(course.sellingPrice) : null;
+  return { ...course, mrp: mrpNum, sellingPrice: spNum, discountPercent: calculateDiscount(mrpNum, spNum) };
+}
+
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getSessionUserFromRequest(_req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -27,8 +33,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     include: { _count: { select: { videos: true, liveClasses: true } } },
   });
   if (!course) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const discountPercent = calcDiscountPercent(course.mrpPaise, course.sellingPricePaise);
-  return NextResponse.json({ data: { ...course, discountPercent } });
+  return NextResponse.json({ data: serializeCourse(course) });
 }
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
@@ -76,19 +81,19 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         ? body.productCategory : null;
     }
 
-    // Pricing
+    // Pricing — Course is the sole pricing owner
     let isFree = existing.isFree;
-    let mrpPaise = existing.mrpPaise;
-    let sellingPricePaise = existing.sellingPricePaise;
+    let mrp         = existing.mrp !== null && existing.mrp !== undefined ? Number(existing.mrp) : null;
+    let sellingPrice = existing.sellingPrice !== null && existing.sellingPrice !== undefined ? Number(existing.sellingPrice) : null;
     if (body.isFree !== undefined) {
       isFree = Boolean(body.isFree);
-      if (isFree) { mrpPaise = null; sellingPricePaise = null; }
+      if (isFree) { mrp = null; sellingPrice = null; }
     }
     if (!isFree) {
-      if (body.mrpPaise !== undefined) mrpPaise = body.mrpPaise !== null ? (parseInt(String(body.mrpPaise)) || null) : null;
-      if (body.sellingPricePaise !== undefined) sellingPricePaise = body.sellingPricePaise !== null ? (parseInt(String(body.sellingPricePaise)) || null) : null;
+      if (body.mrp !== undefined) mrp = body.mrp !== null && body.mrp !== "" ? (parseFloat(String(body.mrp)) || null) : null;
+      if (body.sellingPrice !== undefined) sellingPrice = body.sellingPrice !== null && body.sellingPrice !== "" ? (parseFloat(String(body.sellingPrice)) || null) : null;
     }
-    const pricingError = validateCoursePricing(isFree, mrpPaise, sellingPricePaise);
+    const pricingError = validatePricing(isFree, mrp, sellingPrice);
     if (pricingError) return NextResponse.json({ error: pricingError }, { status: 400 });
 
     const updated = await prisma.course.update({
@@ -103,8 +108,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         isActive:       body.isActive      !== undefined ? Boolean(body.isActive)     : existing.isActive,
         featured:       body.featured      !== undefined ? Boolean(body.featured)      : existing.featured,
         isFree,
-        mrpPaise,
-        sellingPricePaise,
+        mrp:          mrp !== null ? mrp : null,
+        sellingPrice: sellingPrice !== null ? sellingPrice : null,
         hasHtmlCourse:     body.hasHtmlCourse     !== undefined ? Boolean(body.hasHtmlCourse)     : existing.hasHtmlCourse,
         hasVideoCourse:    body.hasVideoCourse    !== undefined ? Boolean(body.hasVideoCourse)    : existing.hasVideoCourse,
         hasPdfCourse:      body.hasPdfCourse      !== undefined ? Boolean(body.hasPdfCourse)      : existing.hasPdfCourse,
@@ -121,13 +126,12 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         validUntil:     body.validUntil     !== undefined ? (body.validUntil ? new Date(body.validUntil) : null) : existing.validUntil,
       },
     });
-    const discountPercent = calcDiscountPercent(updated.mrpPaise, updated.sellingPricePaise);
 
     writeAuditLog({
       actorId: user.id, action: "COURSE_UPDATE", entityType: "Course", entityId: params.id,
       before: { name: existing.name }, after: { name: updated.name },
     });
-    return NextResponse.json({ data: { ...updated, discountPercent } });
+    return NextResponse.json({ data: serializeCourse(updated) });
   } catch (err) {
     console.error("Course PUT error:", err);
     return NextResponse.json({ error: "Failed to update" }, { status: 500 });

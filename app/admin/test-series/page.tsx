@@ -9,9 +9,6 @@ interface TestSeries {
   description: string | null;
   categoryId: string | null;
   subjectIds: string[];
-  pricePaise: number;
-  discountPaise: number;
-  currency: string;
   thumbnailUrl: string | null;
   scheduleJson: any;
   isFree: boolean;
@@ -51,7 +48,6 @@ export default function TestSeriesPage() {
 
   const [form, setForm] = useState({
     title: "", description: "", categoryId: "", examId: "", subjectIds: [] as string[],
-    priceRupees: "0", discountRupees: "0", currency: "INR",
     thumbnailUrl: "", scheduleJson: "", isFree: false, isPublished: false,
   });
 
@@ -103,7 +99,7 @@ export default function TestSeriesPage() {
 
   function openCreate() {
     setEditing(null);
-    setForm({ title: "", description: "", categoryId: "", examId: "", subjectIds: [], priceRupees: "0", discountRupees: "0", currency: "INR", thumbnailUrl: "", scheduleJson: "", isFree: false, isPublished: false });
+    setForm({ title: "", description: "", categoryId: "", examId: "", subjectIds: [], thumbnailUrl: "", scheduleJson: "", isFree: false, isPublished: false });
     setShowForm(true);
   }
 
@@ -115,9 +111,6 @@ export default function TestSeriesPage() {
       categoryId: item.categoryId || "",
       examId: item.examId || "",
       subjectIds: item.subjectIds || [],
-      priceRupees:    String(item.pricePaise    / 100),
-      discountRupees: String(item.discountPaise / 100),
-      currency: item.currency,
       thumbnailUrl: item.thumbnailUrl || "",
       scheduleJson: item.scheduleJson ? JSON.stringify(item.scheduleJson) : "",
       isFree: item.isFree,
@@ -140,11 +133,9 @@ export default function TestSeriesPage() {
         title: form.title, description: form.description, categoryId: form.categoryId || null,
         examId: form.examId || null,
         subjectIds: form.subjectIds,
-        pricePaise:    Math.round(parseFloat(form.priceRupees    || "0") * 100),
-        discountPaise: Math.round(parseFloat(form.discountRupees || "0") * 100),
-        currency: form.currency,
         thumbnailUrl: form.thumbnailUrl.trim() || null,
         scheduleJson, isFree: form.isFree, isPublished: form.isPublished,
+        // Note: pricing (pricePaise/discountPaise) is NOT sent — Course is the pricing owner
       };
 
       const method = editing ? "PUT" : "POST";
@@ -218,7 +209,6 @@ export default function TestSeriesPage() {
               <th style={thStyle}>Title</th>
               <th style={thStyle}>Category</th>
               <th style={thStyle}>Tests</th>
-              <th style={thStyle}>Price</th>
               <th style={thStyle}>Status</th>
               <th style={thStyle}>Created</th>
               <th style={thStyle}>Actions</th>
@@ -226,9 +216,9 @@ export default function TestSeriesPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>Loading...</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>Loading...</td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>No test series found.</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>No test series found.</td></tr>
             ) : items.map((item) => (
               <tr key={item.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
                 <td style={{ ...tdStyle, width: 44 }}>
@@ -249,7 +239,6 @@ export default function TestSeriesPage() {
                   )}
                 </td>
                 <td style={tdStyle}>{item._count?.tests ?? 0}</td>
-                <td style={tdStyle}>{item.pricePaise > 0 ? `₹${(item.pricePaise / 100).toFixed(2)}` : "Free"}</td>
                 <td style={tdStyle}>
                   {item.isFree && (
                     <span style={{ ...badge, backgroundColor: "#ede9fe", color: "#6d28d9", marginRight: "0.25rem" }}>FREE SERIES</span>
@@ -319,20 +308,7 @@ export default function TestSeriesPage() {
                   <div style={{ fontSize: "0.6875rem", color: "#94a3b8" }}>Hold Ctrl/Cmd to select multiple</div>
                 </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
-                <div>
-                  <label style={labelStyle}>Price (₹)</label>
-                  <input type="number" min="0" step="0.01" placeholder="0.00" value={form.priceRupees} onChange={(e) => setForm({ ...form, priceRupees: e.target.value })} style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Discount (₹)</label>
-                  <input type="number" min="0" step="0.01" placeholder="0.00" value={form.discountRupees} onChange={(e) => setForm({ ...form, discountRupees: e.target.value })} style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Currency</label>
-                  <input value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} style={inputStyle} />
-                </div>
-              </div>
+              {/* Pricing removed — Course is the sole pricing owner */}
               <div>
                 <AdminImageUploader
                   label="Thumbnail"

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import AdminImageUploader from "@/components/admin/AdminImageUploader";
-import { parsePaiseFromRupees, validateCoursePricing, calcDiscountPercent } from "@/lib/pricing";
+import { parseRupees, validatePricing, calculateDiscount, formatRupee } from "@/lib/pricing";
 
 const PURPLE = "#7c3aed";
 
@@ -46,8 +46,8 @@ type Course = ProductTypes & {
   validityMonths?: number | null;
   validUntil?: string | null;
   isFree?: boolean;
-  mrpPaise?: number | null;
-  sellingPricePaise?: number | null;
+  mrp?: number | null;
+  sellingPrice?: number | null;
   _count?: { videos: number; liveClasses: number };
 };
 
@@ -109,8 +109,8 @@ function courseToForm(c: Course & { categoryId?: string | null; examId?: string 
     validityMonths: c.validityMonths != null ? String(c.validityMonths) : "",
     validUntil: c.validUntil ? c.validUntil.slice(0, 10) : "",
     isFree: c.isFree ?? false,
-    mrpRupees: c.mrpPaise != null ? String(c.mrpPaise / 100) : "",
-    sellingPriceRupees: c.sellingPricePaise != null ? String(c.sellingPricePaise / 100) : "",
+    mrpRupees: c.mrp != null ? String(Number(c.mrp)) : "",
+    sellingPriceRupees: c.sellingPrice != null ? String(Number(c.sellingPrice)) : "",
   };
 }
 
@@ -361,13 +361,13 @@ function CourseForm({ form, onChange, error, isEdit, categories, exams, disabled
               </div>
             </div>
             {(() => {
-              const mrp = parsePaiseFromRupees(form.mrpRupees);
-              const sp  = parsePaiseFromRupees(form.sellingPriceRupees);
-              const disc = calcDiscountPercent(mrp, sp);
-              if (!disc || disc <= 0) return null;
+              const mrpVal = parseRupees(form.mrpRupees);
+              const spVal  = parseRupees(form.sellingPriceRupees);
+              const disc   = calculateDiscount(mrpVal, spVal);
+              if (!disc || disc <= 0 || mrpVal === null || spVal === null) return null;
               return (
                 <div style={{ gridColumn: "1/-1", display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "3px 10px", borderRadius: "12px", background: "#dcfce7", color: "#15803d", fontSize: "0.75rem", fontWeight: 700 }}>
-                  {disc}% off — saves ₹{Math.round((mrp! - sp!) / 100)}
+                  {disc}% off — saves {formatRupee(mrpVal - spVal)}
                 </div>
               );
             })()}
@@ -476,10 +476,10 @@ export default function CoursesPage() {
     if (!form.name.trim()) { setFormError("Course name is required"); return; }
     if (!hasAnyType(form)) { setFormError("Select at least one product type"); return; }
 
-    // Convert pricing from rupees → paise
-    const mrpPaise = parsePaiseFromRupees(form.mrpRupees);
-    const sellingPricePaise = parsePaiseFromRupees(form.sellingPriceRupees);
-    const pricingErr = validateCoursePricing(form.isFree, mrpPaise, sellingPricePaise);
+    // Parse and validate pricing in rupees (Decimal)
+    const mrp         = parseRupees(form.mrpRupees);
+    const sellingPrice = parseRupees(form.sellingPriceRupees);
+    const pricingErr  = validatePricing(form.isFree, mrp, sellingPrice);
     if (pricingErr) { setFormError(pricingErr); return; }
 
     setSaving(true); setFormError(null);
@@ -488,7 +488,7 @@ export default function CoursesPage() {
     const url    = isEdit ? `/api/courses/${editTarget!.id}` : "/api/courses";
     const method = isEdit ? "PUT" : "POST";
 
-    const payload = { ...form, mrpPaise, sellingPricePaise };
+    const payload = { ...form, mrp, sellingPrice };
     const res  = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     const json = await res.json();
     setSaving(false);
@@ -679,20 +679,20 @@ export default function CoursesPage() {
                 <td style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9", whiteSpace: "nowrap" }}>
                   {course.isFree ? (
                     <span style={{ padding: "2px 8px", borderRadius: "10px", fontSize: "0.72rem", fontWeight: 700, background: "#dcfce7", color: "#15803d" }}>Free</span>
-                  ) : course.sellingPricePaise != null ? (
+                  ) : course.sellingPrice != null ? (
                     <div>
-                      <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "#0f172a" }}>₹{Math.round(course.sellingPricePaise / 100)}</span>
-                      {course.mrpPaise != null && course.mrpPaise > course.sellingPricePaise && (
+                      <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "#0f172a" }}>{formatRupee(course.sellingPrice)}</span>
+                      {course.mrp != null && Number(course.mrp) > Number(course.sellingPrice) && (
                         <>
-                          <span style={{ marginLeft: "0.3rem", textDecoration: "line-through", color: "#94a3b8", fontSize: "0.75rem" }}>₹{Math.round(course.mrpPaise / 100)}</span>
+                          <span style={{ marginLeft: "0.3rem", textDecoration: "line-through", color: "#94a3b8", fontSize: "0.75rem" }}>{formatRupee(course.mrp)}</span>
                           <span style={{ marginLeft: "0.3rem", padding: "1px 5px", borderRadius: "6px", fontSize: "0.68rem", fontWeight: 700, background: "#dcfce7", color: "#15803d" }}>
-                            {calcDiscountPercent(course.mrpPaise, course.sellingPricePaise)}% off
+                            {calculateDiscount(course.mrp, course.sellingPrice)}% off
                           </span>
                         </>
                       )}
                     </div>
-                  ) : course.mrpPaise != null ? (
-                    <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "#0f172a" }}>₹{Math.round(course.mrpPaise / 100)}</span>
+                  ) : course.mrp != null ? (
+                    <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "#0f172a" }}>{formatRupee(course.mrp)}</span>
                   ) : (
                     <span style={{ color: "#94a3b8", fontSize: "0.8125rem" }}>—</span>
                   )}

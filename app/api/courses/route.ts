@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
-import { parsePaiseFromRupees, validateCoursePricing, calcDiscountPercent } from "@/lib/pricing";
+import { parseRupees, validatePricing, calculateDiscount } from "@/lib/pricing";
 
 function parseProductTypes(body: any) {
   return {
@@ -97,11 +97,11 @@ export async function POST(req: NextRequest) {
     const productCategory = body.productCategory && VALID_PRODUCT_CATEGORIES.includes(body.productCategory)
       ? body.productCategory : null;
 
-    // Pricing
+    // Pricing — Course is the sole pricing owner
     const isFree = Boolean(body.isFree);
-    const mrpPaise = isFree ? null : (body.mrpPaise !== undefined && body.mrpPaise !== null ? (parseInt(String(body.mrpPaise)) || null) : null);
-    const sellingPricePaise = isFree ? null : (body.sellingPricePaise !== undefined && body.sellingPricePaise !== null ? (parseInt(String(body.sellingPricePaise)) || null) : null);
-    const pricingError = validateCoursePricing(isFree, mrpPaise, sellingPricePaise);
+    const mrp         = isFree ? null : parseRupees(body.mrp);
+    const sellingPrice = isFree ? null : parseRupees(body.sellingPrice);
+    const pricingError = validatePricing(isFree, mrp, sellingPrice);
     if (pricingError) return NextResponse.json({ error: pricingError }, { status: 400 });
 
     const course = await prisma.course.create({
@@ -116,8 +116,8 @@ export async function POST(req: NextRequest) {
         isActive:     isActive !== undefined ? Boolean(isActive) : true,
         featured:     Boolean(body.featured),
         isFree,
-        mrpPaise,
-        sellingPricePaise,
+        mrp:          mrp !== null ? mrp : undefined,
+        sellingPrice: sellingPrice !== null ? sellingPrice : undefined,
         validityType:   body.validityType   || null,
         validityDays:   body.validityDays   ? Math.max(1, parseInt(body.validityDays) || 0)   : null,
         validityMonths: body.validityMonths ? Math.max(1, parseInt(body.validityMonths) || 0) : null,
@@ -131,8 +131,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    const mrpNum = course.mrp !== null && course.mrp !== undefined ? Number(course.mrp) : null;
+    const spNum  = course.sellingPrice !== null && course.sellingPrice !== undefined ? Number(course.sellingPrice) : null;
     writeAuditLog({ actorId: user.id, action: "COURSE_CREATE", entityType: "Course", entityId: course.id, after: { name: course.name, ...productTypes } });
-    return NextResponse.json({ data: course }, { status: 201 });
+    return NextResponse.json({ data: { ...course, mrp: mrpNum, sellingPrice: spNum, discountPercent: calculateDiscount(mrpNum, spNum) } }, { status: 201 });
   } catch (err) {
     console.error("Courses POST error:", err);
     return NextResponse.json({ error: "Failed to create course" }, { status: 500 });
