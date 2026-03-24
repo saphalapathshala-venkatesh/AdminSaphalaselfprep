@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import AdminImageUploader from "@/components/admin/AdminImageUploader";
+import { parsePaiseFromRupees, validateCoursePricing, calcDiscountPercent } from "@/lib/pricing";
 
 const PURPLE = "#7c3aed";
 
@@ -44,6 +45,9 @@ type Course = ProductTypes & {
   validityDays?: number | null;
   validityMonths?: number | null;
   validUntil?: string | null;
+  isFree?: boolean;
+  mrpPaise?: number | null;
+  sellingPricePaise?: number | null;
   _count?: { videos: number; liveClasses: number };
 };
 
@@ -61,6 +65,9 @@ type FormData = {
   validityDays: string;
   validityMonths: string;
   validUntil: string;
+  isFree: boolean;
+  mrpRupees: string;
+  sellingPriceRupees: string;
 } & ProductTypes;
 
 // ─── Product type config ──────────────────────────────────────────────────────
@@ -80,6 +87,7 @@ const defaultForm = (): FormData => ({
   hasHtmlCourse: false, hasVideoCourse: false, hasPdfCourse: false, hasTestSeries: false, hasFlashcardDecks: false,
   xpRedemptionEnabled: false, xpRedemptionMaxPercent: 1,
   validityType: "", validityDays: "", validityMonths: "", validUntil: "",
+  isFree: false, mrpRupees: "", sellingPriceRupees: "",
 });
 
 function courseToForm(c: Course & { categoryId?: string | null; examId?: string | null }): FormData {
@@ -100,6 +108,9 @@ function courseToForm(c: Course & { categoryId?: string | null; examId?: string 
     validityDays: c.validityDays != null ? String(c.validityDays) : "",
     validityMonths: c.validityMonths != null ? String(c.validityMonths) : "",
     validUntil: c.validUntil ? c.validUntil.slice(0, 10) : "",
+    isFree: c.isFree ?? false,
+    mrpRupees: c.mrpPaise != null ? String(c.mrpPaise / 100) : "",
+    sellingPriceRupees: c.sellingPricePaise != null ? String(c.sellingPricePaise / 100) : "",
   };
 }
 
@@ -312,6 +323,63 @@ function CourseForm({ form, onChange, error, isEdit, categories, exams, disabled
         )}
       </div>
 
+      {/* Pricing */}
+      <div style={{ padding: "0.875rem", background: "#faf5ff", borderRadius: "8px", border: "1px solid #ddd6fe" }}>
+        <label style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#6d28d9", display: "block", marginBottom: "0.625rem" }}>Pricing</label>
+        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", marginBottom: "0.75rem" }}>
+          <input type="checkbox" checked={form.isFree} onChange={e => set({ isFree: e.target.checked, mrpRupees: "", sellingPriceRupees: "" })} style={{ width: 16, height: 16, accentColor: PURPLE }} />
+          <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "#374151" }}>This course is free</span>
+        </label>
+        {!form.isFree && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+            <div>
+              <label style={{ ...labelSt }}>MRP (₹)</label>
+              <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: "0.625rem", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: "0.875rem" }}>₹</span>
+                <input
+                  type="number" min="0" step="0.01"
+                  value={form.mrpRupees}
+                  onChange={e => set({ mrpRupees: e.target.value })}
+                  placeholder="e.g. 999"
+                  style={{ ...inputSt, paddingLeft: "1.5rem" }}
+                  disabled={disabled}
+                />
+              </div>
+            </div>
+            <div>
+              <label style={{ ...labelSt }}>Selling Price (₹)</label>
+              <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: "0.625rem", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: "0.875rem" }}>₹</span>
+                <input
+                  type="number" min="0" step="0.01"
+                  value={form.sellingPriceRupees}
+                  onChange={e => set({ sellingPriceRupees: e.target.value })}
+                  placeholder="e.g. 799"
+                  style={{ ...inputSt, paddingLeft: "1.5rem" }}
+                  disabled={disabled}
+                />
+              </div>
+            </div>
+            {(() => {
+              const mrp = parsePaiseFromRupees(form.mrpRupees);
+              const sp  = parsePaiseFromRupees(form.sellingPriceRupees);
+              const disc = calcDiscountPercent(mrp, sp);
+              if (!disc || disc <= 0) return null;
+              return (
+                <div style={{ gridColumn: "1/-1", display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "3px 10px", borderRadius: "12px", background: "#dcfce7", color: "#15803d", fontSize: "0.75rem", fontWeight: 700 }}>
+                  {disc}% off — saves ₹{Math.round((mrp! - sp!) / 100)}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+        {form.isFree && (
+          <div style={{ fontSize: "0.75rem", color: "#6d28d9", background: "#ede9fe", padding: "0.3rem 0.625rem", borderRadius: "5px", display: "inline-block" }}>
+            This course will be listed as Free to students
+          </div>
+        )}
+      </div>
+
       {/* XP Redemption */}
       <div style={{ padding: "0.875rem", background: "#f0f9ff", borderRadius: "8px", border: "1px solid #bae6fd" }}>
         <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", marginBottom: form.xpRedemptionEnabled ? "0.75rem" : 0 }}>
@@ -407,13 +475,21 @@ export default function CoursesPage() {
   async function handleSave() {
     if (!form.name.trim()) { setFormError("Course name is required"); return; }
     if (!hasAnyType(form)) { setFormError("Select at least one product type"); return; }
+
+    // Convert pricing from rupees → paise
+    const mrpPaise = parsePaiseFromRupees(form.mrpRupees);
+    const sellingPricePaise = parsePaiseFromRupees(form.sellingPriceRupees);
+    const pricingErr = validateCoursePricing(form.isFree, mrpPaise, sellingPricePaise);
+    if (pricingErr) { setFormError(pricingErr); return; }
+
     setSaving(true); setFormError(null);
 
     const isEdit = modalMode === "edit" && editTarget;
     const url    = isEdit ? `/api/courses/${editTarget!.id}` : "/api/courses";
     const method = isEdit ? "PUT" : "POST";
 
-    const res  = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const payload = { ...form, mrpPaise, sellingPricePaise };
+    const res  = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     const json = await res.json();
     setSaving(false);
 
@@ -540,7 +616,7 @@ export default function CoursesPage() {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#f8fafc" }}>
-              {["", "Course Name", "Type", "Product Types", "Videos", "Live Classes", "Status", "Actions"].map(h => (
+              {["", "Course Name", "Type", "Product Types", "Price", "Videos", "Live Classes", "Status", "Actions"].map(h => (
                 <th key={h} style={{ padding: "0.625rem 1rem", textAlign: "left", fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "2px solid #e2e8f0", whiteSpace: "nowrap" }}>{h}</th>
               ))}
             </tr>
@@ -549,7 +625,7 @@ export default function CoursesPage() {
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i}>
-                  {Array.from({ length: 8 }).map((_, j) => (
+                  {Array.from({ length: 9 }).map((_, j) => (
                     <td key={j} style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
                       <div style={{ height: 16, borderRadius: 4, background: `linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%)`, backgroundSize: "200% 100%", animation: "shimmer 1.5s infinite", width: j === 0 ? "60%" : j === 1 ? "80%" : "40%" }} />
                     </td>
@@ -558,7 +634,7 @@ export default function CoursesPage() {
               ))
             ) : courses.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ padding: "4rem", textAlign: "center", color: "#94a3b8" }}>
+                <td colSpan={9} style={{ padding: "4rem", textAlign: "center", color: "#94a3b8" }}>
                   {search ? `No courses matching "${search}"` : "No courses yet. Create the first one."}
                 </td>
               </tr>
@@ -599,6 +675,27 @@ export default function CoursesPage() {
                 </td>
                 <td style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9" }}>
                   <TypeBadges course={course} />
+                </td>
+                <td style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9", whiteSpace: "nowrap" }}>
+                  {course.isFree ? (
+                    <span style={{ padding: "2px 8px", borderRadius: "10px", fontSize: "0.72rem", fontWeight: 700, background: "#dcfce7", color: "#15803d" }}>Free</span>
+                  ) : course.sellingPricePaise != null ? (
+                    <div>
+                      <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "#0f172a" }}>₹{Math.round(course.sellingPricePaise / 100)}</span>
+                      {course.mrpPaise != null && course.mrpPaise > course.sellingPricePaise && (
+                        <>
+                          <span style={{ marginLeft: "0.3rem", textDecoration: "line-through", color: "#94a3b8", fontSize: "0.75rem" }}>₹{Math.round(course.mrpPaise / 100)}</span>
+                          <span style={{ marginLeft: "0.3rem", padding: "1px 5px", borderRadius: "6px", fontSize: "0.68rem", fontWeight: 700, background: "#dcfce7", color: "#15803d" }}>
+                            {calcDiscountPercent(course.mrpPaise, course.sellingPricePaise)}% off
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  ) : course.mrpPaise != null ? (
+                    <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "#0f172a" }}>₹{Math.round(course.mrpPaise / 100)}</span>
+                  ) : (
+                    <span style={{ color: "#94a3b8", fontSize: "0.8125rem" }}>—</span>
+                  )}
                 </td>
                 <td style={{ padding: "0.875rem 1rem", borderBottom: "1px solid #f1f5f9", fontSize: "0.875rem", color: "#475569" }}>
                   {course._count ? (

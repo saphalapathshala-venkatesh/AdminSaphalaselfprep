@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
+import { parsePaiseFromRupees, validateCoursePricing, calcDiscountPercent } from "@/lib/pricing";
 
 function parseProductTypes(body: any) {
   return {
@@ -96,6 +97,13 @@ export async function POST(req: NextRequest) {
     const productCategory = body.productCategory && VALID_PRODUCT_CATEGORIES.includes(body.productCategory)
       ? body.productCategory : null;
 
+    // Pricing
+    const isFree = Boolean(body.isFree);
+    const mrpPaise = isFree ? null : (body.mrpPaise !== undefined && body.mrpPaise !== null ? (parseInt(String(body.mrpPaise)) || null) : null);
+    const sellingPricePaise = isFree ? null : (body.sellingPricePaise !== undefined && body.sellingPricePaise !== null ? (parseInt(String(body.sellingPricePaise)) || null) : null);
+    const pricingError = validateCoursePricing(isFree, mrpPaise, sellingPricePaise);
+    if (pricingError) return NextResponse.json({ error: pricingError }, { status: 400 });
+
     const course = await prisma.course.create({
       data: {
         tenantId:     "default",
@@ -107,6 +115,9 @@ export async function POST(req: NextRequest) {
         productCategory: productCategory as any,
         isActive:     isActive !== undefined ? Boolean(isActive) : true,
         featured:     Boolean(body.featured),
+        isFree,
+        mrpPaise,
+        sellingPricePaise,
         validityType:   body.validityType   || null,
         validityDays:   body.validityDays   ? Math.max(1, parseInt(body.validityDays) || 0)   : null,
         validityMonths: body.validityMonths ? Math.max(1, parseInt(body.validityMonths) || 0) : null,

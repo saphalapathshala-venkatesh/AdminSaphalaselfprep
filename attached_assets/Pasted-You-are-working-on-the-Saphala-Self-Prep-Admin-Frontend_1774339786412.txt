@@ -1,0 +1,135 @@
+You are working on the Saphala Self Prep Admin + Frontend apps.
+Implement course pricing support safely and cleanly.
+
+Goal
+
+On the Course create/edit page, add support for:
+
+MRP
+Selling Price
+auto-calculated Discount Percentage
+optional Free/Paid handling
+
+These values must be stored in DB and reflected properly on the frontend.
+
+Safety rules
+Do not break existing course creation/edit flows
+Do not remove existing columns
+Use additive schema changes only if fields are missing
+Keep admin as source of truth
+Do not hardcode pricing logic separately in many places
+Run typecheck and verify frontend rendering
+Step 1 — Schema
+
+Audit Course model first.
+
+If missing, add safe additive fields such as:
+
+mrp Decimal? or integer paise-based field depending on current pricing style
+sellingPrice Decimal?
+isFree Boolean @default(false)
+
+Do not remove old pricing fields if they already exist.
+If there is already a price field, preserve backward compatibility and map carefully.
+
+Step 2 — Shared pricing utility
+
+Create a reusable helper for pricing calculations.
+
+Example responsibilities:
+
+validate MRP and Selling Price
+ensure sellingPrice <= mrp
+compute discount percentage safely
+return display-friendly values
+
+Use this helper in admin and frontend/backend responses wherever possible.
+
+Step 3 — Admin course form
+
+Update course create/edit page to show:
+
+Is Free checkbox
+MRP input
+Selling Price input
+read-only auto-calculated discount percentage preview
+
+Behavior:
+
+if Is Free checked:
+disable or safely handle price inputs
+if paid:
+require valid MRP and Selling Price
+show live preview of:
+MRP
+Selling Price
+Discount %
+
+Validation:
+
+MRP cannot be negative
+Selling Price cannot be negative
+Selling Price cannot exceed MRP
+if MRP equals Selling Price, discount is 0
+round discount cleanly for display
+Step 4 — Backend/API
+
+Update relevant course create/update/read APIs so these values are persisted and returned.
+
+If there are public course APIs, include pricing data in response:
+
+mrp
+sellingPrice
+isFree
+computed discountPercent or return enough data for shared utility to compute consistently
+
+Preserve backward compatibility for existing consumers.
+
+Step 5 — Frontend reflection
+
+Update all relevant frontend surfaces where courses/products are shown:
+
+homepage featured courses
+course listing cards
+course detail page
+checkout summary
+package/combo cards if course pricing is displayed there
+
+Display:
+
+Selling Price prominently
+MRP as struck-through if higher
+Discount % badge if applicable
+Free label if course is free
+
+Do not over-redesign UI. Keep styling consistent with current Saphala frontend.
+
+Step 6 — Existing data handling
+
+If old courses do not yet have MRP/selling price:
+
+do not crash
+use safe fallback rendering
+preserve old behavior until edited or properly populated
+Step 7 — QA
+
+Test:
+
+create paid course with MRP and selling price
+verify discount auto-calculates
+edit course and verify values persist
+create free course
+verify frontend card/detail page reflects correct price state
+verify checkout uses correct selling price
+verify no type errors and no broken existing courses
+Deliverables
+
+At the end provide:
+
+schema changes
+files changed
+API changes
+admin UI updates
+frontend pages updated
+fallback behavior for old courses
+any remaining edge cases

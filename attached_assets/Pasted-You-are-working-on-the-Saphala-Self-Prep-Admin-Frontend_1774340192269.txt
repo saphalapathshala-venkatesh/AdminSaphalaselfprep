@@ -1,0 +1,148 @@
+You are working on the Saphala Self Prep Admin + Frontend apps.
+
+Implement a safe pricing ownership cleanup so that pricing is controlled only at the Course level, and pricing inputs are removed from Test Series creation/edit pages.
+
+Locked business rule
+Course is the commercial/sellable entity
+Test Series is an academic/content entity
+Test Series may be attached to and sold through a Course
+Pricing must not be separately maintained on Test Series
+Goal
+Keep pricing fields in Course create/edit
+Remove pricing fields from Test Series create/edit UI
+Ensure frontend and backend use Course pricing only
+Avoid redundancy, mismatch, and future entitlement/reporting issues
+Safety rules
+Do not break existing Test Series creation/edit flows
+Do not break existing Course creation/edit flows
+Prefer UI/API cleanup first; avoid destructive DB changes unless absolutely necessary
+Do not remove existing DB columns in a destructive way during this task
+Preserve backward compatibility for old Test Series records if price fields exist in DB
+Run typecheck and verify affected admin/frontend flows
+Step 1 — Audit existing pricing usage
+
+First audit:
+
+Course model pricing fields
+TestSeries model pricing fields
+Test Series admin form
+Course admin form
+frontend product/course display usage
+checkout/order creation pricing source
+any API returning Test Series price directly
+
+Identify all places where Test Series price/MRP is still being used.
+
+Step 2 — Course remains pricing source of truth
+
+Ensure Course create/edit supports and retains:
+
+MRP
+Selling Price
+Discount percentage preview/calculation
+Free/Paid logic if already present or being added
+
+All sellable pricing shown to users must come from Course-level pricing.
+
+Step 3 — Remove pricing fields from Test Series admin UI
+
+Update Test Series create/edit page:
+
+Remove these fields from UI:
+MRP
+Course Price / Price
+any discount-related pricing inputs
+Keep all academic fields intact:
+title
+description
+category
+test mappings
+publish/free controls if relevant
+schedule/config fields
+other non-pricing academic metadata
+Important
+
+Do not break form submission.
+If backend still expects old pricing fields, make it backward-compatible and stop sending them from UI.
+
+Step 4 — Backend/API cleanup
+
+Update Test Series create/update handlers so they no longer depend on pricing input from admin UI.
+
+Rules
+If old optional DB fields still exist on TestSeries, do not rely on them for active pricing
+Prefer ignoring them in write flows unless legacy compatibility requires pass-through
+Do not use TestSeries pricing as source for frontend purchase display or checkout
+
+If needed, add comments or helper logic making it explicit that:
+
+commercial pricing comes from Course
+Test Series pricing fields are legacy/deprecated if still present in schema
+Step 5 — Frontend pricing reflection
+
+Audit all frontend surfaces and ensure pricing shown for a Test-Series-based product comes from the parent Course, not TestSeries.
+
+Check at least:
+
+homepage cards
+course listing
+course detail page
+checkout summary
+order creation/payment flow
+entitlement display where relevant
+
+If a Course is a “Test Series only” product, it should still show Course pricing normally.
+
+Step 6 — Old data compatibility
+
+If old Test Series records still have MRP/price values in DB:
+
+do not crash
+do not display them as active pricing if Course pricing exists
+prefer Course pricing everywhere user-facing
+do not run destructive cleanup in this task
+
+This task is about ownership correction, not risky data deletion.
+
+Step 7 — UX consistency
+
+Where the admin configures a Course that includes only Test Series:
+
+pricing remains editable on Course page
+Test Series page stays academically focused
+no duplicate pricing inputs anywhere else
+
+This should make the product model clearer:
+
+Course = sellable wrapper
+Test Series = content module
+Step 8 — QA checklist
+
+Verify all of the following:
+
+Admin
+Test Series create page no longer shows MRP/price fields
+Test Series edit page no longer shows MRP/price fields
+Test Series save/update still works
+Course create/edit page still has pricing fields and works properly
+Frontend
+A Course containing Test Series only still shows correct pricing
+Checkout uses Course selling price
+No UI is showing Test Series legacy price as primary price
+Safety
+No type errors
+No broken admin forms
+No broken product detail pages or checkout flows
+Deliverables
+
+When done, provide:
+
+files changed
+whether any legacy TestSeries pricing fields still remain in DB
+where pricing source of truth now lives
+any frontend/API places updated to stop using TestSeries price
+any small follow-up recommendations
+Explicit constraint
+
+Do not do a destructive migration removing old TestSeries price columns in this task unless absolutely necessary and clearly justified.
+First make the system behavior correct and safe by removing the redundancy from UI and active logic.

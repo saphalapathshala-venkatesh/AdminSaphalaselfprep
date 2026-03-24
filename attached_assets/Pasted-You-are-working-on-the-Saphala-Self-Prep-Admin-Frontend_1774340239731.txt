@@ -1,0 +1,187 @@
+You are working on the Saphala Self Prep Admin + Frontend apps.
+
+Implement course pricing standardization in Indian Rupees (₹) across the entire system, while keeping the previously defined rule:
+
+Course = pricing owner
+Test Series = no pricing fields
+🔒 Locked Currency Rules (VERY IMPORTANT)
+1. Currency Standard
+All prices must be stored and displayed in Indian Rupees (₹)
+Default display format:
+₹199
+₹499
+Only show decimals when necessary:
+₹199.67 (for GST, discount edge cases, etc.)
+2. Storage Strategy (CRITICAL — Follow Exactly)
+Prisma Schema Rule
+
+Store values in Rupees with paise precision (Decimal)
+
+Add / Update fields in Course model:
+mrp           Decimal? @db.Decimal(10, 2)
+sellingPrice  Decimal? @db.Decimal(10, 2)
+isFree        Boolean  @default(false)
+Why Decimal (NOT integer paise)?
+Needed for:
+GST calculations
+discount rounding
+future fractional pricing
+Prevent floating point errors
+3. Display Rule
+Default UI
+If .00 → show as integer:
+199.00 → ₹199
+If decimal exists → show:
+199.67 → ₹199.67
+Never show:
+₹199.0
+₹199.000
+🎯 Goal
+Keep pricing only in Course
+Remove pricing from Test Series UI
+Store prices in ₹ with Decimal precision
+Ensure all frontend displays use ₹ format consistently
+Ensure checkout uses correct rupee values
+🛠️ Implementation
+Step 1 — Prisma Schema (Additive)
+
+Update Course model:
+
+mrp           Decimal? @db.Decimal(10, 2)
+sellingPrice  Decimal? @db.Decimal(10, 2)
+isFree        Boolean  @default(false)
+Important
+Do NOT remove existing fields unless 100% safe
+If old fields exist:
+map them safely
+do not break old records
+Step 2 — Pricing Utility (MANDATORY)
+
+Create shared utility:
+
+Responsibilities:
+validate prices
+calculate discount
+format rupee display
+Functions:
+calculateDiscount(mrp, sellingPrice)
+formatRupee(value)
+validatePricing(mrp, sellingPrice)
+formatRupee rules:
+strip .00
+keep decimals only when needed
+always prefix with ₹
+Step 3 — Admin Course Form
+
+Add fields:
+
+Is Free
+MRP (₹)
+Selling Price (₹)
+Discount % (auto-calculated, read-only)
+Behavior
+live discount calculation
+show preview:
+₹999 → ₹499 (50% OFF)
+Validation
+MRP ≥ Selling Price
+Selling Price ≥ 0
+no negative values
+Step 4 — Remove Pricing from Test Series
+Remove from UI:
+MRP
+Price
+Discount fields
+Keep:
+all academic fields
+Backend:
+ignore TestSeries pricing
+do not use it in frontend
+Step 5 — API Updates
+
+Ensure course APIs return:
+
+{
+  "mrp": 999,
+  "sellingPrice": 499,
+  "isFree": false,
+  "discountPercent": 50
+}
+
+Use shared utility for consistency.
+
+Step 6 — Frontend Display (VERY IMPORTANT)
+
+Update everywhere pricing is shown:
+
+Apply to:
+homepage cards
+course listing
+course detail page
+checkout
+combos/packages
+Display rules:
+Paid course
+₹499   ₹999 (struck)
+50% OFF
+Free course
+FREE
+Step 7 — Checkout & Payment
+
+Ensure:
+
+checkout uses sellingPrice only
+value passed to payment gateway is correct
+no floating point issues
+Step 8 — Old Data Handling
+
+If old courses:
+
+have no pricing → do not crash
+fallback safely
+allow editing to upgrade to new pricing
+Step 9 — QA Checklist
+
+Test:
+
+Admin
+create course with ₹ pricing
+decimal price test (₹199.67)
+free course
+edit course
+Frontend
+card shows ₹ correctly
+decimal shows only when needed
+discount correct
+Checkout
+amount matches sellingPrice
+no rounding errors
+Test Series
+no price fields visible
+no errors
+⚠️ Critical Constraints
+
+Do NOT:
+
+use float/double
+store paise as separate field
+mix integer and decimal inconsistently
+hardcode ₹ formatting in multiple places
+🎯 Final Outcome
+
+After this:
+
+₹ is the only currency standard
+prices are stored safely using Decimal
+decimals appear only when needed
+Course controls pricing
+Test Series is clean (no pricing)
+frontend is consistent everywhere
+🧠 Strategic Note
+
+This decision will:
+
+prevent future GST/discount bugs
+keep payment flows accurate
+make UI clean and professional
+avoid rounding issues at scale

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
+import { validateCoursePricing, calcDiscountPercent } from "@/lib/pricing";
 
 function validateProductTypes(body: any, existing?: any): string | null {
   const hasHtml      = body.hasHtmlCourse      !== undefined ? Boolean(body.hasHtmlCourse)      : existing?.hasHtmlCourse;
@@ -26,7 +27,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     include: { _count: { select: { videos: true, liveClasses: true } } },
   });
   if (!course) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json({ data: course });
+  const discountPercent = calcDiscountPercent(course.mrpPaise, course.sellingPricePaise);
+  return NextResponse.json({ data: { ...course, discountPercent } });
 }
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
@@ -74,6 +76,21 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         ? body.productCategory : null;
     }
 
+    // Pricing
+    let isFree = existing.isFree;
+    let mrpPaise = existing.mrpPaise;
+    let sellingPricePaise = existing.sellingPricePaise;
+    if (body.isFree !== undefined) {
+      isFree = Boolean(body.isFree);
+      if (isFree) { mrpPaise = null; sellingPricePaise = null; }
+    }
+    if (!isFree) {
+      if (body.mrpPaise !== undefined) mrpPaise = body.mrpPaise !== null ? (parseInt(String(body.mrpPaise)) || null) : null;
+      if (body.sellingPricePaise !== undefined) sellingPricePaise = body.sellingPricePaise !== null ? (parseInt(String(body.sellingPricePaise)) || null) : null;
+    }
+    const pricingError = validateCoursePricing(isFree, mrpPaise, sellingPricePaise);
+    if (pricingError) return NextResponse.json({ error: pricingError }, { status: 400 });
+
     const updated = await prisma.course.update({
       where: { id: params.id },
       data: {
@@ -85,6 +102,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         productCategory: productCategory as any,
         isActive:       body.isActive      !== undefined ? Boolean(body.isActive)     : existing.isActive,
         featured:       body.featured      !== undefined ? Boolean(body.featured)      : existing.featured,
+        isFree,
+        mrpPaise,
+        sellingPricePaise,
         hasHtmlCourse:     body.hasHtmlCourse     !== undefined ? Boolean(body.hasHtmlCourse)     : existing.hasHtmlCourse,
         hasVideoCourse:    body.hasVideoCourse    !== undefined ? Boolean(body.hasVideoCourse)    : existing.hasVideoCourse,
         hasPdfCourse:      body.hasPdfCourse      !== undefined ? Boolean(body.hasPdfCourse)      : existing.hasPdfCourse,
@@ -101,12 +121,13 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         validUntil:     body.validUntil     !== undefined ? (body.validUntil ? new Date(body.validUntil) : null) : existing.validUntil,
       },
     });
+    const discountPercent = calcDiscountPercent(updated.mrpPaise, updated.sellingPricePaise);
 
     writeAuditLog({
       actorId: user.id, action: "COURSE_UPDATE", entityType: "Course", entityId: params.id,
       before: { name: existing.name }, after: { name: updated.name },
     });
-    return NextResponse.json({ data: updated });
+    return NextResponse.json({ data: { ...updated, discountPercent } });
   } catch (err) {
     console.error("Course PUT error:", err);
     return NextResponse.json({ error: "Failed to update" }, { status: 500 });
