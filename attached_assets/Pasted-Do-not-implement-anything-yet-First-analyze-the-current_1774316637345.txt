@@ -1,0 +1,71 @@
+Do not implement anything yet.
+
+First analyze the current taxonomy architecture in the Saphala Admin app and propose the best way to simplify it without removing any level.
+
+Current pain:
+- Category exists
+- Subject exists under Category
+- Topic exists under Subject
+- Subtopic exists under Topic
+
+But in practice this creates heavy duplication:
+- the same Subject has to be created under many Categories
+- the same Topic has to be created again under many Categories
+- the same Subtopic has to be created again under many Categories
+This is becoming very time-consuming and operationally painful.
+
+Desired direction:
+- Do NOT remove any taxonomy level
+- Keep Category in the system
+- But simplify taxonomy management so filtering and content association work mainly through:
+  - Subject
+  - Topic
+  - Subtopic
+- When a Category is selected, it should still throw/show the relevant Subjects
+- All unique existing Subjects across different Categories must continue to exist
+- Avoid forcing repetitive recreation of the same Subject/Topic/Subtopic under multiple Categories
+
+Your task right now is ANALYSIS ONLY.
+
+Please do the following:
+
+1. Audit the current taxonomy schema and UI flow
+- Read Prisma schema and admin taxonomy-related pages/APIs
+- Understand exactly how Category, Subject, Topic, and Subtopic are related today
+- Identify where duplication is being forced by the current model
+
+2. Propose the best 2 or 3 architecture options to solve this headache
+Examples of the kind of direction to evaluate:
+- shared/global Subject table with Category mapping
+- shared/global Topic/Subtopic with mapping tables
+- Category retained mainly as a grouping/filter layer
+- content filtered by Subject/Topic/Subtopic rather than requiring duplicate copies under each Category
+But do not assume the final answer — analyze properly from the current codebase
+
+3. For each option, explain:
+- schema impact
+- admin UI impact
+- filtering impact
+- migration complexity
+- backward compatibility risk
+- whether existing content/question links would break
+- long-term maintainability
+
+4. Explicitly answer this question:
+Can we make Subject/Topic/Subtopic globally unique and then map them to one or more Categories, while still keeping Category in the system and making category selection show the mapped Subjects?
+
+5. Recommend the safest and cleanest option for Saphala specifically
+- considering current DB
+- existing admin content
+- future scaling
+- minimum operational headache
+
+6. Do NOT write implementation code yet
+7. Do NOT generate a final migration prompt yet
+8. Just give a structured recommendation with pros/cons and the best proposed path
+
+Important:
+- Think from an admin-operations perspective first
+- Prevent future duplication headache
+- Preserve existing data as much as possible
+- Keep the taxonomy clean and exam-practical
