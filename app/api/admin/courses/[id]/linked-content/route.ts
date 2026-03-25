@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
-// GET /api/courses/[id]/linked-content — list all linked content for a course
+// GET /api/admin/courses/[id]/linked-content — list all linked content for a course
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getSessionUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-// POST /api/courses/[id]/linked-content — add items to a course
+// POST /api/admin/courses/[id]/linked-content — add items to a course
 // Body: { items: [{ contentType, sourceId, titleOverride? }] }
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getSessionUserFromRequest(req);

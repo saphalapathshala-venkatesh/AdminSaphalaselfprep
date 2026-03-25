@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
-// PATCH /api/courses/[id]/linked-content/reorder
+// PATCH /api/admin/courses/[id]/linked-content/reorder
 // Body: { orderedIds: string[] }
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getSessionUserFromRequest(req);

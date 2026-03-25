@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
-// DELETE /api/courses/[id]/linked-content/[linkedItemId]
+// DELETE /api/admin/courses/[id]/linked-content/[linkedItemId]
 export async function DELETE(req: NextRequest, { params }: { params: { id: string; linkedItemId: string } }) {
   const user = await getSessionUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

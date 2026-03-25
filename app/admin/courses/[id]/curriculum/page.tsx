@@ -87,7 +87,7 @@ export default function CurriculumPage() {
   const loadLinked = useCallback(async () => {
     setLinkedLoading(true);
     try {
-      const r = await fetch(`/api/courses/${courseId}/linked-content`);
+      const r = await fetch(`/api/admin/courses/${courseId}/linked-content`);
       if (r.ok) { const d = await r.json(); setLinkedRows(d.items || []); }
     } catch { /* ignore */ }
     finally { setLinkedLoading(false); }
@@ -134,7 +134,7 @@ export default function CurriculumPage() {
   // ─── Linked content actions ─────────────────────────────────
 
   async function removeLinked(rowId: string) {
-    await fetch(`/api/courses/${courseId}/linked-content/${rowId}`, { method: "DELETE" }).catch(() => {});
+    await fetch(`/api/admin/courses/${courseId}/linked-content/${rowId}`, { method: "DELETE" }).catch(() => {});
     await loadLinked();
   }
 
@@ -143,7 +143,7 @@ export default function CurriculumPage() {
     const next = [...linkedRows];
     [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
     setLinkedRows(next);
-    await fetch(`/api/courses/${courseId}/linked-content/reorder`, {
+    await fetch(`/api/admin/courses/${courseId}/linked-content/reorder`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderedIds: next.map(r => r.id) }),
@@ -155,7 +155,7 @@ export default function CurriculumPage() {
     const next = [...linkedRows];
     [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
     setLinkedRows(next);
-    await fetch(`/api/courses/${courseId}/linked-content/reorder`, {
+    await fetch(`/api/admin/courses/${courseId}/linked-content/reorder`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderedIds: next.map(r => r.id) }),

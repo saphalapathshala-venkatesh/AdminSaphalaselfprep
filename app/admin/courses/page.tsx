@@ -523,7 +523,7 @@ export default function CoursesPage() {
     setModalMode("edit");
     // Load existing linked items
     try {
-      const r = await fetch(`/api/courses/${course.id}/linked-content`);
+      const r = await fetch(`/api/admin/courses/${course.id}/linked-content`);
       if (r.ok) {
         const d = await r.json();
         setLinkedItems((d.items || []).map((i: any) => ({
@@ -549,7 +549,7 @@ export default function CoursesPage() {
     try {
       const p = new URLSearchParams({ type: contentType });
       if (categoryId) p.set("categoryId", categoryId);
-      const r = await fetch(`/api/courses/reusable-content?${p}`);
+      const r = await fetch(`/api/admin/courses/reusable-content?${p}`);
       if (r.ok) { const d = await r.json(); setPickerItems(d.items || []); }
     } catch { /* ignore */ }
     finally { setPickerLoading(false); }
@@ -560,7 +560,7 @@ export default function CoursesPage() {
     try {
       const p = new URLSearchParams({ type: contentType, search });
       if (categoryId) p.set("categoryId", categoryId);
-      const r = await fetch(`/api/courses/reusable-content?${p}`);
+      const r = await fetch(`/api/admin/courses/reusable-content?${p}`);
       if (r.ok) { const d = await r.json(); setPickerItems(d.items || []); }
     } catch { /* ignore */ }
     finally { setPickerLoading(false); }
@@ -626,13 +626,13 @@ export default function CoursesPage() {
       // DELETE removed items
       if (removedLinkedIds.length > 0) {
         await Promise.all(
-          removedLinkedIds.map(rid => fetch(`/api/courses/${courseId}/linked-content/${rid}`, { method: "DELETE" }).catch(() => {}))
+          removedLinkedIds.map(rid => fetch(`/api/admin/courses/${courseId}/linked-content/${rid}`, { method: "DELETE" }).catch(() => {}))
         );
       }
       // POST new items (those without a rowId = freshly added)
       const newItems = linkedItems.filter(i => !i.rowId);
       if (newItems.length > 0) {
-        await fetch(`/api/courses/${courseId}/linked-content`, {
+        await fetch(`/api/admin/courses/${courseId}/linked-content`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ items: newItems.map(i => ({ contentType: i.contentType, sourceId: i.sourceId })) }),
@@ -641,7 +641,7 @@ export default function CoursesPage() {
       // PATCH reorder: re-fetch to get fresh IDs (includes newly created rows), then sort by UI order
       if (linkedItems.length > 1) {
         try {
-          const lr = await fetch(`/api/courses/${courseId}/linked-content`);
+          const lr = await fetch(`/api/admin/courses/${courseId}/linked-content`);
           if (lr.ok) {
             const ld = await lr.json();
             const orderedIds = (ld.items as { id: string; sourceId: string; contentType: string }[])
@@ -652,7 +652,7 @@ export default function CoursesPage() {
               })
               .map(i => i.id);
             if (orderedIds.length > 1) {
-              await fetch(`/api/courses/${courseId}/linked-content/reorder`, {
+              await fetch(`/api/admin/courses/${courseId}/linked-content/reorder`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ orderedIds }),
