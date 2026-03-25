@@ -100,23 +100,39 @@ if (!remoteUrl) {
 }
 ok(`origin → ${remoteUrl}`);
 
-// 3. Check for changes ────────────────────────────────────────────────────────
+// 3. Check for changes + unpushed commits ────────────────────────────────────
 title("STEP 3 — Changed files");
 const statusRaw = capture("git status --porcelain");
-if (!statusRaw) {
-  console.log(`${C.yellow}  Nothing to commit — working tree is clean.${C.reset}\n`);
-  process.exit(0);
-}
 
-const lines = statusRaw.split("\n").filter(Boolean);
-console.log(`  ${C.bold}${lines.length} file(s) to be committed:${C.reset}`);
-lines.forEach(line => {
-  const status = line.slice(0, 2).trim();
-  const file   = line.slice(3);
-  const colour = status === "??" ? C.gray : status.includes("D") ? C.red : status.includes("A") ? C.green : C.yellow;
-  console.log(`    ${colour}${status.padEnd(2)}${C.reset}  ${file}`);
-});
-console.log();
+// Count commits ahead of origin/main
+const unpushedCount = parseInt(capture("git rev-list --count origin/main..HEAD 2>/dev/null || echo 0"), 10) || 0;
+
+let lines = [];
+let skipCommit = false;
+
+if (!statusRaw) {
+  if (unpushedCount > 0) {
+    warn(`Working tree is clean but ${unpushedCount} local commit(s) are not yet pushed.`);
+    info("Skipping commit step — will pull and push existing commits.");
+    skipCommit = true;
+  } else {
+    console.log(`${C.yellow}  Nothing to commit and nothing to push — already up to date.${C.reset}\n`);
+    process.exit(0);
+  }
+} else {
+  lines = statusRaw.split("\n").filter(Boolean);
+  console.log(`  ${C.bold}${lines.length} file(s) to be committed:${C.reset}`);
+  lines.forEach(line => {
+    const status = line.slice(0, 2).trim();
+    const file   = line.slice(3);
+    const colour = status === "??" ? C.gray : status.includes("D") ? C.red : status.includes("A") ? C.green : C.yellow;
+    console.log(`    ${colour}${status.padEnd(2)}${C.reset}  ${file}`);
+  });
+  if (unpushedCount > 0) {
+    info(`(+ ${unpushedCount} previously committed but unpushed commit(s) will also be pushed)`);
+  }
+  console.log();
+}
 
 // 4. TypeScript check ─────────────────────────────────────────────────────────
 title("STEP 4 — TypeScript check");
@@ -159,23 +175,28 @@ if (skipPrisma) {
 
 // 6. Commit ───────────────────────────────────────────────────────────────────
 title("STEP 6 — Committing");
-const now = new Date();
-const ts  = now.toISOString().replace("T", " ").slice(0, 16); // "YYYY-MM-DD HH:MM"
-const summary = summaryArg || `update ${lines.length} file(s)`;
-const commitMsg = `[${ts}] ${summary}`;
+let commitMsg = "(none — pushing existing commits)";
+if (skipCommit) {
+  info("Working tree is clean — skipping commit, will push existing unpushed commits.");
+} else {
+  const now = new Date();
+  const ts  = now.toISOString().replace("T", " ").slice(0, 16); // "YYYY-MM-DD HH:MM"
+  const summary = summaryArg || `update ${lines.length} file(s)`;
+  commitMsg = `[${ts}] ${summary}`;
 
-info("Running: git add . …");
-run("git add .");
+  info("Running: git add . …");
+  run("git add .");
 
-info(`Running: git commit -m "${commitMsg}" …`);
-const commitOut = capture(`git commit -m "${commitMsg.replace(/"/g, '\\"')}"`);
-if (!commitOut) {
-  // git commit exits 1 if nothing to commit after add (edge case: only untracked gitignored files)
-  warn("Nothing committed (all changes may be gitignored). Exiting.");
-  process.exit(0);
+  info(`Running: git commit -m "${commitMsg}" …`);
+  const commitOut = capture(`git commit -m "${commitMsg.replace(/"/g, '\\"')}"`);
+  if (!commitOut) {
+    // git commit exits 1 if nothing to commit after add (edge case: only untracked gitignored files)
+    warn("Nothing committed (all changes may be gitignored). Exiting.");
+    process.exit(0);
+  }
+  console.log(`\n${C.gray}${commitOut}${C.reset}\n`);
+  ok(`Committed: "${commitMsg}"`);
 }
-console.log(`\n${C.gray}${commitOut}${C.reset}\n`);
-ok(`Committed: "${commitMsg}"`);
 
 // 7. Pull --rebase ────────────────────────────────────────────────────────────
 title("STEP 7 — Pull --rebase origin main");
@@ -210,6 +231,10 @@ if (pushStatus !== 0) {
 // ─── Done ─────────────────────────────────────────────────────────────────────
 sep();
 console.log(`\n${C.bold}${C.green}✅  DONE — pushed to origin/main${C.reset}`);
-console.log(`   Commit: ${C.bold}${commitMsg}${C.reset}`);
-console.log(`   Files:  ${lines.length} changed`);
+if (!skipCommit) {
+  console.log(`   Commit: ${C.bold}${commitMsg}${C.reset}`);
+  console.log(`   Files:  ${lines.length} changed`);
+} else {
+  console.log(`   Pushed: ${unpushedCount} existing commit(s)`);
+}
 console.log(`   Remote: ${remoteUrl}\n`);
