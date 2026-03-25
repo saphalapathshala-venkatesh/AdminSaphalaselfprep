@@ -1182,6 +1182,35 @@ model LiveClass {
   @@index([tenantId])
 }
 
+// COURSE LINKED CONTENT
+// Links existing standalone content collections to a course by reference (no duplication).
+// One course can reference many test series, ebooks, PDF assets, videos, flashcard decks, etc.
+// sourceId points to the relevant record in the source table for each contentType.
+
+enum CourseLinkedContentType {
+  TEST_SERIES
+  PDF
+  EBOOK
+  VIDEO
+  FLASHCARD_DECK
+  LIVE_CLASS
+  COURSE
+}
+
+model CourseLinkedContent {
+  id            String                  @id @default(cuid())
+  courseId      String
+  contentType   CourseLinkedContentType
+  sourceId      String
+  titleOverride String?
+  sortOrder     Int                     @default(0)
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+
+  @@unique([courseId, contentType, sourceId])
+  @@index([courseId, sortOrder])
+}
+
 // COURSE CONTENT BUILDER
 // Structured folder tree + content mappings for a specific course.
 // Folders are neutral containers; items are mappings only (never delete source content).

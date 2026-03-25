@@ -1,0 +1,224 @@
+We need to enhance the Admin Saphala Self Prep course creation/edit workflow so that a new course can include manually selected existing products/components, but NEVER auto-attach all items of a checked type.
+
+GOAL
+Add a clean “reuse existing content” system in Admin Course Create/Edit and Curriculum Builder.
+
+CORE RULE
+Checking a product type checkbox (Test Series / PDF Course / E-Book Course / Video Course / Flashcards / etc.) must ONLY enable that type for the course.
+It must NOT automatically attach every existing item of that type.
+Instead, once enabled, admin should get a category-filtered selector UI and manually choose exactly which existing items to include in the new course.
+
+DESIRED UX
+
+1) In Course Create/Edit page:
+Keep existing basic fields and product type checkboxes.
+
+When admin checks a type like:
+- Test Series
+- PDF Course
+- E-Book Course
+- Video Course
+- Flashcards
+
+show a button or selector UI for that type:
+- Select Test Series
+- Select PDF Courses
+- Select E-Book Courses
+- Select Video Courses
+- Select Flashcard Decks
+
+2) Filtering behavior:
+The selectable list must be prefiltered by the currently selected course category.
+Example:
+If current course category = APPSC, then “Select Test Series” should show only APPSC test series by default.
+Do not show AP Police / TG Police / SSC etc unless we later add an explicit “show all categories” option.
+Default = same-category only.
+
+3) Selector behavior:
+Each selector should open a modal/sheet/dialog with:
+- search box
+- optional secondary filters like subject/status if easy
+- list of matching items
+- checkbox beside each item
+- confirm/add selected button
+
+4) Selected items area:
+Below the selectors, show a “Selected Included Products” area with all currently attached reusable items.
+For each selected item show:
+- title
+- type
+- category
+- maybe count metadata if available (example number of tests for test series)
+- remove button
+- reorder handle / sort controls
+
+5) Curriculum Builder integration:
+On the Curriculum Builder page for a course, allow adding existing reusable components too.
+At minimum, after this feature, selected linked components must be visible inside the curriculum or course structure in a clear way.
+
+IMPLEMENTATION APPROACH
+
+IMPORTANT ARCHITECTURE DECISION
+Do NOT physically duplicate content by default.
+Use LINKING, not cloning.
+
+We need a reusable mapping table so one course can reference:
+- existing test series
+- existing PDF assets / PDF course units
+- existing E-Book/HTML content
+- existing video collections or video items
+- existing flashcard decks
+- optionally existing full courses later
+
+RECOMMENDED DB MODEL
+Add a new model similar to:
+
+CourseLinkedContent
+- id
+- courseId
+- contentType enum
+- sourceId
+- sortOrder
+- titleOverride nullable
+- createdAt
+- updatedAt
+
+Create enum CourseLinkedContentType with values like:
+- TEST_SERIES
+- PDF
+- EBOOK
+- VIDEO
+- FLASHCARD_DECK
+- LIVE_CLASS
+- COURSE
+
+Notes:
+- Keep it generic so we can extend later.
+- This is LINKING only, not cloning.
+- sourceId should point to the record ID in the source table depending on contentType.
+
+BACKEND REQUIREMENTS
+
+1) Add Prisma schema for the new linking table + enum.
+2) Push schema safely without disturbing existing production logic.
+3) Build admin APIs:
+
+A. GET available items by type and category
+Possible route pattern:
+GET /api/admin/courses/reusable-content?type=TEST_SERIES&categoryId=...
+Should return only matching items for that type.
+
+Support at least:
+- TEST_SERIES
+- PDF
+- EBOOK
+- VIDEO
+- FLASHCARD_DECK
+
+B. GET linked items for a course
+GET /api/admin/courses/[id]/linked-content
+
+C. POST add linked items to a course
+POST /api/admin/courses/[id]/linked-content
+
+Body example:
+{
+  items: [
+    { contentType: "TEST_SERIES", sourceId: "..." },
+    { contentType: "PDF", sourceId: "..." }
+  ]
+}
+
+Must avoid duplicates.
+
+D. DELETE linked item
+DELETE /api/admin/courses/[id]/linked-content/[linkedItemId]
+
+E. PATCH reorder linked items
+PATCH /api/admin/courses/[id]/linked-content/reorder
+
+4) Course edit GET route should also return linked content summary if helpful.
+
+5) Validation:
+- Do not allow duplicate link rows for same courseId + contentType + sourceId
+- Enforce category filtering at API level too where practical
+- If categoryId is missing on course, show empty selector state telling admin to choose category first
+
+FRONTEND REQUIREMENTS
+
+In Admin Course Create/Edit page:
+
+1) Keep current product type checkboxes.
+2) When a type is checked, reveal a selector button for that type.
+Example:
+[x] Test Series       [Select Test Series]
+[x] PDF Course        [Select PDF Courses]
+
+3) Clicking selector opens modal/dialog:
+- fetch category-filtered items from API
+- search input client-side or server-side
+- multi-select items
+- Add Selected button
+
+4) After adding, show all selected linked items in “Selected Included Products”
+with:
+- title
+- badge for type
+- remove button
+- move up / move down or drag reorder
+
+5) If category changes:
+Do NOT silently delete already selected items.
+Instead:
+- show warning if existing linked items belong to a different category
+- keep current selections unless admin removes them
+This avoids accidental data loss.
+
+6) Empty states:
+- if no category selected: “Select a category first to choose reusable content.”
+- if no content found: “No matching Test Series found for this category.”
+
+CURRICULUM BUILDER PAGE
+Enhance the Curriculum Builder so linked content is visible and manageable.
+At minimum:
+- show a section like “Linked Existing Content”
+- list linked items in order
+- allow remove/reorder
+If easy, allow “Add Existing Content” from here too using same modal pattern.
+
+DATA SOURCES / MAPPING NOTES
+Map based on current actual schema/codebase. Before implementing, inspect existing models and routes to identify:
+- Test Series model/table
+- PDF content model/table
+- E-Book/HTML content model/table
+- Video model/table
+- FlashcardDeck model/table
+
+Do not guess names blindly. Read current codebase and wire correctly.
+
+NON-GOALS FOR THIS TASK
+- Do not build cloning/duplication yet
+- Do not redesign the whole curriculum system
+- Do not break existing standalone course creation
+- Do not auto-import all content from checked type
+- Do not add category-agnostic bulk attachment behavior
+
+EXPECTED OUTCOME
+Admin can create a new course, choose category APPSC, check “Test Series”, click “Select Test Series”, see only APPSC test series, manually choose specific ones, and attach only those selected series to the new course.
+Same pattern should work for PDF / E-Book / Video / Flashcard types.
+
+PLEASE IMPLEMENT IN THIS ORDER
+1. Inspect current schema/models/routes/UI for existing course creation and curriculum builder
+2. Add Prisma model + enum for linked reusable content
+3. Build reusable-content APIs
+4. Build course edit/create UI selectors and selected-items area
+5. Add remove/reorder
+6. Reflect linked items inside curriculum builder
+7. Run typecheck and fix all TS/runtime issues
+8. Summarize exactly what was implemented, what tables/routes were added, and any follow-up suggestions
+
+IMPORTANT
+Be careful and production-safe.
+Do not disturb unrelated course logic.
+Do not invent mismatched schema/table names.
+Read first, then implement based on the actual codebase.

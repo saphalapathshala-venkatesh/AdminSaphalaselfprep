@@ -54,6 +54,39 @@ type Course = ProductTypes & {
 type TaxOption = { id: string; name: string };
 type ExamOption = { id: string; name: string; categoryId: string };
 
+type LinkedItem = {
+  rowId?: string;
+  tempId: string;
+  contentType: string;
+  sourceId: string;
+  title: string;
+};
+
+type PickerItem = {
+  id: string;
+  title: string;
+  meta: Record<string, unknown>;
+};
+
+const LINKED_TYPE_CONFIG: Record<string, { label: string; short: string; bg: string; color: string; courseKey?: keyof ProductTypes }> = {
+  TEST_SERIES:    { label: "Test Series",     short: "Tests",  bg: "#dcfce7", color: "#15803d", courseKey: "hasTestSeries"      },
+  PDF:            { label: "PDF Course",       short: "PDF",    bg: "#fef3c7", color: "#b45309", courseKey: "hasPdfCourse"       },
+  EBOOK:          { label: "E-Book Course",    short: "E-Book", bg: "#dbeafe", color: "#1d4ed8", courseKey: "hasHtmlCourse"      },
+  VIDEO:          { label: "Video Course",     short: "Video",  bg: "#f3e8ff", color: "#7c3aed", courseKey: "hasVideoCourse"     },
+  FLASHCARD_DECK: { label: "Flashcard Deck",   short: "Flash",  bg: "#fce7f3", color: "#9d174d", courseKey: "hasFlashcardDecks" },
+  LIVE_CLASS:     { label: "Live Class",       short: "Live",   bg: "#e0f2fe", color: "#0284c7"                                  },
+};
+
+function linkedTypesForForm(form: ProductTypes): string[] {
+  const out: string[] = [];
+  if (form.hasTestSeries)     out.push("TEST_SERIES");
+  if (form.hasPdfCourse)      out.push("PDF");
+  if (form.hasHtmlCourse)     out.push("EBOOK");
+  if (form.hasVideoCourse)    out.push("VIDEO");
+  if (form.hasFlashcardDecks) out.push("FLASHCARD_DECK");
+  return out;
+}
+
 type FormData = {
   name: string; description: string; courseType: CourseType;
   productCategory: string;
@@ -433,6 +466,19 @@ export default function CoursesPage() {
   const [categories, setCategories] = useState<TaxOption[]>([]);
   const [exams, setExams] = useState<ExamOption[]>([]);
 
+  // ── Linked content state ─────────────────────────────────────────────────────
+  const [linkedItems, setLinkedItems] = useState<LinkedItem[]>([]);
+  const [removedLinkedIds, setRemovedLinkedIds] = useState<string[]>([]);
+
+  // Picker modal
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerType, setPickerType] = useState<string>("");
+  const [pickerItems, setPickerItems] = useState<PickerItem[]>([]);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState("");
+  const [pickerSelected, setPickerSelected] = useState<Set<string>>(new Set());
+  const [pickerCategoryId, setPickerCategoryId] = useState<string>("");
+
   const pageSize = 20;
 
   const showToast = (msg: string, ok = true) => { setToast({ msg, ok }); setTimeout(() => setToast(null), 3200); };
@@ -460,15 +506,91 @@ export default function CoursesPage() {
     setForm(defaultForm());
     setFormError(null);
     setEditTarget(null);
+    setLinkedItems([]);
+    setRemovedLinkedIds([]);
     setModalMode("create");
   }
 
   // ─── Edit ────────────────────────────────────────────────────────────────────
-  function openEdit(course: Course) {
+  async function openEdit(course: Course) {
     setForm(courseToForm(course));
     setFormError(null);
     setEditTarget(course);
+    setLinkedItems([]);
+    setRemovedLinkedIds([]);
     setModalMode("edit");
+    // Load existing linked items
+    try {
+      const r = await fetch(`/api/courses/${course.id}/linked-content`);
+      if (r.ok) {
+        const d = await r.json();
+        setLinkedItems((d.items || []).map((i: any) => ({
+          rowId: i.id,
+          tempId: i.id,
+          contentType: i.contentType,
+          sourceId: i.sourceId,
+          title: i.titleSnapshot,
+        })));
+      }
+    } catch { /* ignore */ }
+  }
+
+  // ─── Linked content handlers ─────────────────────────────────────────────────
+  async function openPicker(contentType: string, categoryId: string) {
+    setPickerType(contentType);
+    setPickerCategoryId(categoryId);
+    setPickerSearch("");
+    setPickerSelected(new Set());
+    setPickerItems([]);
+    setPickerOpen(true);
+    setPickerLoading(true);
+    try {
+      const p = new URLSearchParams({ type: contentType });
+      if (categoryId) p.set("categoryId", categoryId);
+      const r = await fetch(`/api/courses/reusable-content?${p}`);
+      if (r.ok) { const d = await r.json(); setPickerItems(d.items || []); }
+    } catch { /* ignore */ }
+    finally { setPickerLoading(false); }
+  }
+
+  async function reloadPickerWithSearch(contentType: string, categoryId: string, search: string) {
+    setPickerLoading(true);
+    try {
+      const p = new URLSearchParams({ type: contentType, search });
+      if (categoryId) p.set("categoryId", categoryId);
+      const r = await fetch(`/api/courses/reusable-content?${p}`);
+      if (r.ok) { const d = await r.json(); setPickerItems(d.items || []); }
+    } catch { /* ignore */ }
+    finally { setPickerLoading(false); }
+  }
+
+  function confirmPickerSelection() {
+    const alreadyLinked = new Set(linkedItems.map(i => `${i.contentType}::${i.sourceId}`));
+    const newItems: LinkedItem[] = pickerItems
+      .filter(i => pickerSelected.has(i.id) && !alreadyLinked.has(`${pickerType}::${i.id}`))
+      .map(i => ({
+        tempId: `temp_${Date.now()}_${i.id}`,
+        contentType: pickerType,
+        sourceId: i.id,
+        title: i.title,
+      }));
+    setLinkedItems(prev => [...prev, ...newItems]);
+    setPickerOpen(false);
+  }
+
+  function removeLinkedItem(tempId: string) {
+    const item = linkedItems.find(i => i.tempId === tempId);
+    if (item?.rowId) setRemovedLinkedIds(prev => [...prev, item.rowId!]);
+    setLinkedItems(prev => prev.filter(i => i.tempId !== tempId));
+  }
+
+  function moveLinkedUp(idx: number) {
+    if (idx === 0) return;
+    setLinkedItems(prev => { const a = [...prev]; [a[idx-1], a[idx]] = [a[idx], a[idx-1]]; return a; });
+  }
+
+  function moveLinkedDown(idx: number) {
+    setLinkedItems(prev => { if (idx >= prev.length - 1) return prev; const a = [...prev]; [a[idx], a[idx+1]] = [a[idx+1], a[idx]]; return a; });
   }
 
   // ─── Save (create or edit) ────────────────────────────────────────────────────
@@ -491,10 +613,51 @@ export default function CoursesPage() {
     const payload = { ...form, mrp, sellingPrice };
     const res  = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     const json = await res.json();
+
+    if (!res.ok) { setSaving(false); setFormError(json.error || "Failed to save"); return; }
+
+    const courseId = isEdit ? editTarget!.id : (json.data?.id || json.id);
+
+    // Sync linked content
+    if (courseId) {
+      // DELETE removed items
+      await Promise.all(
+        removedLinkedIds.map(rid => fetch(`/api/courses/${courseId}/linked-content/${rid}`, { method: "DELETE" }).catch(() => {}))
+      );
+      // POST new items (those without a rowId = freshly added)
+      const newItems = linkedItems.filter(i => !i.rowId);
+      if (newItems.length > 0) {
+        await fetch(`/api/courses/${courseId}/linked-content`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: newItems.map(i => ({ contentType: i.contentType, sourceId: i.sourceId })) }),
+        }).catch(() => {});
+      }
+      // PATCH reorder: all remaining items (existing + new) in the UI order
+      // We re-fetch the current linked content to get fresh IDs after POST
+      try {
+        const lr = await fetch(`/api/courses/${courseId}/linked-content`);
+        if (lr.ok) {
+          const ld = await lr.json();
+          const orderedIds = (ld.items as { id: string; sourceId: string; contentType: string }[])
+            .sort((a, b) => {
+              const ai = linkedItems.findIndex(x => x.sourceId === a.sourceId && x.contentType === a.contentType);
+              const bi = linkedItems.findIndex(x => x.sourceId === b.sourceId && x.contentType === b.contentType);
+              return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
+            })
+            .map(i => i.id);
+          if (orderedIds.length > 1) {
+            await fetch(`/api/courses/${courseId}/linked-content/reorder`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ orderedIds }),
+            }).catch(() => {});
+          }
+        }
+      } catch { /* non-fatal */ }
+    }
+
     setSaving(false);
-
-    if (!res.ok) { setFormError(json.error || "Failed to save"); return; }
-
     setModalMode(null);
     showToast(isEdit ? "Course updated" : "Course created");
     load();
@@ -531,6 +694,99 @@ export default function CoursesPage() {
         </div>
       )}
 
+      {/* ── Content Picker Modal ─────────────────────────────────────────────── */}
+      {pickerOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
+          <div style={{ background: "#fff", borderRadius: "14px", width: "100%", maxWidth: 580, maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,0.25)" }}>
+            {/* Header */}
+            <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "1rem", color: "#0f172a" }}>
+                  Select {LINKED_TYPE_CONFIG[pickerType]?.label ?? pickerType}
+                </div>
+                <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "1px" }}>
+                  {pickerCategoryId ? "Showing items for the selected category." : "No category filter — showing all."}
+                </div>
+              </div>
+              <button onClick={() => setPickerOpen(false)} style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", fontSize: "1rem", color: "#64748b" }}>×</button>
+            </div>
+
+            {/* Search */}
+            <div style={{ padding: "0.75rem 1.25rem", borderBottom: "1px solid #f1f5f9", flexShrink: 0 }}>
+              <input
+                value={pickerSearch}
+                onChange={e => {
+                  setPickerSearch(e.target.value);
+                  reloadPickerWithSearch(pickerType, pickerCategoryId, e.target.value);
+                }}
+                placeholder={`Search ${LINKED_TYPE_CONFIG[pickerType]?.label ?? pickerType}…`}
+                style={{ width: "100%", padding: "0.4rem 0.75rem", border: "1px solid #e2e8f0", borderRadius: "7px", fontSize: "0.875rem", outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
+
+            {/* Item list */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "0.5rem 0" }}>
+              {pickerLoading && (
+                <div style={{ padding: "2rem", textAlign: "center", color: "#94a3b8", fontSize: "0.875rem" }}>Loading…</div>
+              )}
+              {!pickerLoading && pickerItems.length === 0 && (
+                <div style={{ padding: "2rem", textAlign: "center", color: "#94a3b8", fontSize: "0.875rem" }}>
+                  {pickerSearch ? `No results for "${pickerSearch}"` : `No ${LINKED_TYPE_CONFIG[pickerType]?.label ?? pickerType} found for this category.`}
+                </div>
+              )}
+              {!pickerLoading && pickerItems.map(item => {
+                const alreadyLinked = linkedItems.some(l => l.sourceId === item.id && l.contentType === pickerType);
+                const selected = pickerSelected.has(item.id);
+                return (
+                  <label key={item.id} style={{ display: "flex", alignItems: "center", gap: "0.625rem", padding: "0.5rem 1.25rem", cursor: alreadyLinked ? "not-allowed" : "pointer", background: selected ? "#f5f3ff" : "transparent", opacity: alreadyLinked ? 0.5 : 1 }}>
+                    <input
+                      type="checkbox"
+                      disabled={alreadyLinked}
+                      checked={selected}
+                      onChange={e => {
+                        setPickerSelected(prev => {
+                          const next = new Set(prev);
+                          if (e.target.checked) next.add(item.id); else next.delete(item.id);
+                          return next;
+                        });
+                      }}
+                      style={{ width: 15, height: 15, accentColor: PURPLE, flexShrink: 0 }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "0.875rem", fontWeight: 500, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</div>
+                      <div style={{ fontSize: "0.72rem", color: "#94a3b8", marginTop: "1px" }}>
+                        {Object.entries(item.meta)
+                          .filter(([k]) => !["categoryId"].includes(k))
+                          .map(([k, v]) => `${k}: ${v}`)
+                          .join(" · ")}
+                        {alreadyLinked && " · Already linked"}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: "0.875rem 1.25rem", borderTop: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+              <span style={{ fontSize: "0.8125rem", color: "#64748b" }}>
+                {pickerSelected.size > 0 ? `${pickerSelected.size} selected` : "Select items to add"}
+              </span>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <button onClick={() => setPickerOpen(false)} style={{ padding: "0.4rem 1rem", borderRadius: "7px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}>Cancel</button>
+                <button
+                  onClick={confirmPickerSelection}
+                  disabled={pickerSelected.size === 0}
+                  style={{ padding: "0.4rem 1.25rem", borderRadius: "7px", border: "none", background: pickerSelected.size === 0 ? "#e2e8f0" : PURPLE, color: pickerSelected.size === 0 ? "#94a3b8" : "#fff", cursor: pickerSelected.size === 0 ? "not-allowed" : "pointer", fontWeight: 700, fontSize: "0.875rem" }}
+                >
+                  Add Selected ({pickerSelected.size})
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Create/Edit modal ────────────────────────────────────────────────── */}
       {modalMode && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 8000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "3vh 1rem 2rem", overflowY: "auto" }}>
@@ -543,6 +799,80 @@ export default function CoursesPage() {
             </div>
             <div style={{ padding: "1.5rem" }}>
               <CourseForm form={form} onChange={setForm} error={formError} isEdit={modalMode === "edit"} categories={categories} exams={exams} disabled={saving} />
+
+              {/* ── Linked Content Section ─────────────────────────────── */}
+              {hasAnyType(form) && (
+                <div style={{ marginTop: "1.25rem", padding: "1rem", background: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                  <div style={{ fontWeight: 700, fontSize: "0.875rem", color: "#374151", marginBottom: "0.625rem" }}>
+                    📎 Attach Existing Content
+                    <span style={{ marginLeft: "0.5rem", fontSize: "0.73rem", fontWeight: 400, color: "#94a3b8" }}>link existing items — no duplication</span>
+                  </div>
+
+                  {/* Selector buttons per enabled type */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: linkedItems.length > 0 ? "0.875rem" : 0 }}>
+                    {linkedTypesForForm(form).map(type => {
+                      const cfg = LINKED_TYPE_CONFIG[type];
+                      return (
+                        <button
+                          key={type}
+                          disabled={saving}
+                          onClick={() => {
+                            if (!form.categoryId) {
+                              setFormError("Select a category first to filter content by category.");
+                              return;
+                            }
+                            openPicker(type, form.categoryId);
+                          }}
+                          style={{ display: "flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.75rem", borderRadius: "7px", border: `1.5px solid ${cfg.color}`, background: cfg.bg, color: cfg.color, fontWeight: 700, fontSize: "0.8rem", cursor: saving ? "not-allowed" : "pointer" }}
+                        >
+                          + Select {cfg.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Category warning if not set */}
+                  {!form.categoryId && (
+                    <div style={{ fontSize: "0.78rem", color: "#92400e", background: "#fef3c7", padding: "0.375rem 0.625rem", borderRadius: "6px", marginTop: "0.5rem" }}>
+                      ⚠ Select a category above to enable content selectors (items will be pre-filtered by category).
+                    </div>
+                  )}
+
+                  {/* Selected linked items */}
+                  {linkedItems.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: "0.78rem", fontWeight: 600, color: "#64748b", marginBottom: "0.375rem", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                        Selected Included Products ({linkedItems.length})
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                        {linkedItems.map((item, idx) => {
+                          const cfg = LINKED_TYPE_CONFIG[item.contentType] ?? { label: item.contentType, bg: "#f1f5f9", color: "#374151" };
+                          return (
+                            <div key={item.tempId} style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "7px", padding: "0.4rem 0.625rem" }}>
+                              <span style={{ padding: "2px 8px", borderRadius: "8px", fontSize: "0.68rem", fontWeight: 700, background: cfg.bg, color: cfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>
+                                {cfg.short ?? cfg.label}
+                              </span>
+                              <span style={{ flex: 1, fontSize: "0.8125rem", color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</span>
+                              {!item.rowId && <span style={{ fontSize: "0.68rem", color: "#15803d", fontWeight: 700, flexShrink: 0 }}>NEW</span>}
+                              <div style={{ display: "flex", gap: "0.25rem", flexShrink: 0 }}>
+                                <button onClick={() => moveLinkedUp(idx)} disabled={idx === 0 || saving} title="Move up" style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", color: "#64748b", fontSize: "0.7rem", opacity: idx === 0 ? 0.3 : 1 }}>↑</button>
+                                <button onClick={() => moveLinkedDown(idx)} disabled={idx === linkedItems.length - 1 || saving} title="Move down" style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", color: "#64748b", fontSize: "0.7rem", opacity: idx === linkedItems.length - 1 ? 0.3 : 1 }}>↓</button>
+                                <button onClick={() => removeLinkedItem(item.tempId)} disabled={saving} title="Remove" style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #fca5a5", background: "#fff5f5", cursor: "pointer", color: "#dc2626", fontSize: "0.8rem" }}>×</button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {linkedItems.length === 0 && form.categoryId && (
+                    <div style={{ fontSize: "0.78rem", color: "#94a3b8", marginTop: "0.375rem" }}>
+                      No items linked yet. Click a selector above to browse and attach existing content.
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div style={{ padding: "1rem 1.5rem", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "flex-end", gap: "0.625rem" }}>
               <button onClick={() => setModalMode(null)} style={{ padding: "0.5rem 1.25rem", borderRadius: "7px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: "0.875rem", color: "#374151", fontWeight: 600 }}>Cancel</button>

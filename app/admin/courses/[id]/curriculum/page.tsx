@@ -60,6 +60,11 @@ export default function CurriculumPage() {
   const [confirmDelete, setConfirmDelete] = useState<{ type: string; id: string; name: string } | null>(null);
   const [unlockEditItem, setUnlockEditItem] = useState<{ id: string; lessonId: string; value: string } | null>(null);
 
+  // Linked content
+  type LinkedRow = { id: string; contentType: string; sourceId: string; sortOrder: number; titleSnapshot: string };
+  const [linkedRows, setLinkedRows] = useState<LinkedRow[]>([]);
+  const [linkedLoading, setLinkedLoading] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -79,7 +84,17 @@ export default function CurriculumPage() {
     }
   }, [courseId]);
 
+  const loadLinked = useCallback(async () => {
+    setLinkedLoading(true);
+    try {
+      const r = await fetch(`/api/courses/${courseId}/linked-content`);
+      if (r.ok) { const d = await r.json(); setLinkedRows(d.items || []); }
+    } catch { /* ignore */ }
+    finally { setLinkedLoading(false); }
+  }, [courseId]);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadLinked(); }, [loadLinked]);
 
   const loadSubjects = useCallback(async () => {
     if (!course?.categoryId) return;
@@ -115,6 +130,37 @@ export default function CurriculumPage() {
   }, [addItemPanel, addItemType, candidateSearch]);
 
   useEffect(() => { if (addItemPanel && addItemType) loadCandidates(); }, [addItemPanel, addItemType, candidateSearch, loadCandidates]);
+
+  // ─── Linked content actions ─────────────────────────────────
+
+  async function removeLinked(rowId: string) {
+    await fetch(`/api/courses/${courseId}/linked-content/${rowId}`, { method: "DELETE" }).catch(() => {});
+    await loadLinked();
+  }
+
+  async function moveLinkedRowUp(idx: number) {
+    if (idx === 0) return;
+    const next = [...linkedRows];
+    [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+    setLinkedRows(next);
+    await fetch(`/api/courses/${courseId}/linked-content/reorder`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderedIds: next.map(r => r.id) }),
+    }).catch(() => {});
+  }
+
+  async function moveLinkedRowDown(idx: number) {
+    if (idx >= linkedRows.length - 1) return;
+    const next = [...linkedRows];
+    [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+    setLinkedRows(next);
+    await fetch(`/api/courses/${courseId}/linked-content/reorder`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderedIds: next.map(r => r.id) }),
+    }).catch(() => {});
+  }
 
   // ─── Actions ──────────────────────────────────────────────
 
@@ -573,6 +619,69 @@ export default function CurriculumPage() {
             </div>
           );
         })}
+
+        {/* ── Linked Existing Content Panel ─────────────────────────────── */}
+        <div style={{ marginTop: "1.75rem", background: "#fff", borderRadius: 14, border: "1px solid #e2e8f0", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+          <div style={{ padding: "1rem 1.25rem", borderBottom: linkedRows.length > 0 ? "1px solid #e2e8f0" : "none", display: "flex", alignItems: "center", gap: "0.625rem" }}>
+            <div style={{ fontSize: "1.25rem" }}>📎</div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: "1rem", color: "#0f172a" }}>Linked Existing Content</div>
+              <div style={{ fontSize: "0.72rem", color: "#94a3b8", marginTop: 1 }}>
+                Standalone products linked to this course (no duplication — managed from the course edit page).
+              </div>
+            </div>
+            <div style={{ marginLeft: "auto", fontSize: "0.78rem", color: "#64748b", fontWeight: 600, background: "#f1f5f9", padding: "3px 10px", borderRadius: 99 }}>
+              {linkedLoading ? "…" : `${linkedRows.length} items`}
+            </div>
+          </div>
+
+          {linkedLoading && (
+            <div style={{ padding: "1.5rem", textAlign: "center", color: "#94a3b8", fontSize: "0.875rem" }}>Loading…</div>
+          )}
+
+          {!linkedLoading && linkedRows.length === 0 && (
+            <div style={{ padding: "1.5rem 1.25rem", color: "#94a3b8", fontSize: "0.875rem" }}>
+              No linked content yet. Open <strong>Course Edit</strong> to attach existing Test Series, PDFs, E-Books, Videos, Flashcard Decks, or Live Classes.
+            </div>
+          )}
+
+          {!linkedLoading && linkedRows.length > 0 && (
+            <div style={{ padding: "0.625rem 1.25rem 1rem" }}>
+              {(() => {
+                const TYPE_CFG: Record<string, { label: string; short: string; bg: string; color: string }> = {
+                  TEST_SERIES:    { label: "Test Series",   short: "Tests",  bg: "#dcfce7", color: "#15803d" },
+                  PDF:            { label: "PDF",           short: "PDF",    bg: "#fef3c7", color: "#b45309" },
+                  EBOOK:          { label: "E-Book",        short: "E-Book", bg: "#dbeafe", color: "#1d4ed8" },
+                  VIDEO:          { label: "Video",         short: "Video",  bg: "#f3e8ff", color: "#7c3aed" },
+                  FLASHCARD_DECK: { label: "Flashcards",    short: "Flash",  bg: "#fce7f3", color: "#9d174d" },
+                  LIVE_CLASS:     { label: "Live Class",    short: "Live",   bg: "#e0f2fe", color: "#0284c7" },
+                };
+                return (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", marginTop: "0.5rem" }}>
+                    {linkedRows.map((row, idx) => {
+                      const cfg = TYPE_CFG[row.contentType] ?? { label: row.contentType, short: row.contentType, bg: "#f1f5f9", color: "#374151" };
+                      return (
+                        <div key={row.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.4rem 0.625rem", border: "1px solid #f1f5f9", borderRadius: 8, background: "#fafbfc" }}>
+                          <span style={{ padding: "2px 8px", borderRadius: 8, fontSize: "0.68rem", fontWeight: 700, background: cfg.bg, color: cfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>
+                            {cfg.short}
+                          </span>
+                          <span style={{ flex: 1, fontSize: "0.825rem", color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {row.titleSnapshot}
+                          </span>
+                          <div style={{ display: "flex", gap: "0.25rem", flexShrink: 0 }}>
+                            <button onClick={() => moveLinkedRowUp(idx)} disabled={idx === 0} title="Move up" style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", color: "#64748b", fontSize: "0.7rem", opacity: idx === 0 ? 0.3 : 1 }}>↑</button>
+                            <button onClick={() => moveLinkedRowDown(idx)} disabled={idx === linkedRows.length - 1} title="Move down" style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", color: "#64748b", fontSize: "0.7rem", opacity: idx === linkedRows.length - 1 ? 0.3 : 1 }}>↓</button>
+                            <button onClick={() => removeLinked(row.id)} title="Unlink" style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #fca5a5", background: "#fff5f5", cursor: "pointer", color: "#dc2626", fontSize: "0.8rem" }}>×</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Add Subject Panel ── */}
