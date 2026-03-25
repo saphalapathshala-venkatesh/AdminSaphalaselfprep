@@ -84,6 +84,8 @@ function linkedTypesForForm(form: ProductTypes): string[] {
   if (form.hasHtmlCourse)     out.push("EBOOK");
   if (form.hasVideoCourse)    out.push("VIDEO");
   if (form.hasFlashcardDecks) out.push("FLASHCARD_DECK");
+  // LIVE_CLASS has no course-type checkbox — always available
+  out.push("LIVE_CLASS");
   return out;
 }
 
@@ -618,12 +620,15 @@ export default function CoursesPage() {
 
     const courseId = isEdit ? editTarget!.id : (json.data?.id || json.id);
 
-    // Sync linked content
-    if (courseId) {
+    // Sync linked content — only when there is something to sync
+    const hasLinkedChanges = removedLinkedIds.length > 0 || linkedItems.length > 0;
+    if (courseId && hasLinkedChanges) {
       // DELETE removed items
-      await Promise.all(
-        removedLinkedIds.map(rid => fetch(`/api/courses/${courseId}/linked-content/${rid}`, { method: "DELETE" }).catch(() => {}))
-      );
+      if (removedLinkedIds.length > 0) {
+        await Promise.all(
+          removedLinkedIds.map(rid => fetch(`/api/courses/${courseId}/linked-content/${rid}`, { method: "DELETE" }).catch(() => {}))
+        );
+      }
       // POST new items (those without a rowId = freshly added)
       const newItems = linkedItems.filter(i => !i.rowId);
       if (newItems.length > 0) {
@@ -633,28 +638,29 @@ export default function CoursesPage() {
           body: JSON.stringify({ items: newItems.map(i => ({ contentType: i.contentType, sourceId: i.sourceId })) }),
         }).catch(() => {});
       }
-      // PATCH reorder: all remaining items (existing + new) in the UI order
-      // We re-fetch the current linked content to get fresh IDs after POST
-      try {
-        const lr = await fetch(`/api/courses/${courseId}/linked-content`);
-        if (lr.ok) {
-          const ld = await lr.json();
-          const orderedIds = (ld.items as { id: string; sourceId: string; contentType: string }[])
-            .sort((a, b) => {
-              const ai = linkedItems.findIndex(x => x.sourceId === a.sourceId && x.contentType === a.contentType);
-              const bi = linkedItems.findIndex(x => x.sourceId === b.sourceId && x.contentType === b.contentType);
-              return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
-            })
-            .map(i => i.id);
-          if (orderedIds.length > 1) {
-            await fetch(`/api/courses/${courseId}/linked-content/reorder`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ orderedIds }),
-            }).catch(() => {});
+      // PATCH reorder: re-fetch to get fresh IDs (includes newly created rows), then sort by UI order
+      if (linkedItems.length > 1) {
+        try {
+          const lr = await fetch(`/api/courses/${courseId}/linked-content`);
+          if (lr.ok) {
+            const ld = await lr.json();
+            const orderedIds = (ld.items as { id: string; sourceId: string; contentType: string }[])
+              .sort((a, b) => {
+                const ai = linkedItems.findIndex(x => x.sourceId === a.sourceId && x.contentType === a.contentType);
+                const bi = linkedItems.findIndex(x => x.sourceId === b.sourceId && x.contentType === b.contentType);
+                return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
+              })
+              .map(i => i.id);
+            if (orderedIds.length > 1) {
+              await fetch(`/api/courses/${courseId}/linked-content/reorder`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ orderedIds }),
+              }).catch(() => {});
+            }
           }
-        }
-      } catch { /* non-fatal */ }
+        } catch { /* non-fatal */ }
+      }
     }
 
     setSaving(false);
@@ -812,20 +818,16 @@ export default function CoursesPage() {
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: linkedItems.length > 0 ? "0.875rem" : 0 }}>
                     {linkedTypesForForm(form).map(type => {
                       const cfg = LINKED_TYPE_CONFIG[type];
+                      const btnDisabled = saving || !form.categoryId;
                       return (
                         <button
                           key={type}
-                          disabled={saving}
-                          onClick={() => {
-                            if (!form.categoryId) {
-                              setFormError("Select a category first to filter content by category.");
-                              return;
-                            }
-                            openPicker(type, form.categoryId);
-                          }}
-                          style={{ display: "flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.75rem", borderRadius: "7px", border: `1.5px solid ${cfg.color}`, background: cfg.bg, color: cfg.color, fontWeight: 700, fontSize: "0.8rem", cursor: saving ? "not-allowed" : "pointer" }}
+                          disabled={btnDisabled}
+                          onClick={() => openPicker(type, form.categoryId)}
+                          title={!form.categoryId ? "Select a category first to enable this selector" : `Browse and select ${cfg.label}`}
+                          style={{ display: "flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.75rem", borderRadius: "7px", border: `1.5px solid ${btnDisabled ? "#d1d5db" : cfg.color}`, background: btnDisabled ? "#f8fafc" : cfg.bg, color: btnDisabled ? "#9ca3af" : cfg.color, fontWeight: 700, fontSize: "0.8rem", cursor: btnDisabled ? "not-allowed" : "pointer", opacity: btnDisabled ? 0.6 : 1 }}
                         >
-                          + Select {cfg.label}
+                          + {cfg.label}
                         </button>
                       );
                     })}
@@ -834,7 +836,7 @@ export default function CoursesPage() {
                   {/* Category warning if not set */}
                   {!form.categoryId && (
                     <div style={{ fontSize: "0.78rem", color: "#92400e", background: "#fef3c7", padding: "0.375rem 0.625rem", borderRadius: "6px", marginTop: "0.5rem" }}>
-                      ⚠ Select a category above to enable content selectors (items will be pre-filtered by category).
+                      ⚠ Set a category above — selectors are disabled until a category is chosen (results are filtered by category).
                     </div>
                   )}
 
