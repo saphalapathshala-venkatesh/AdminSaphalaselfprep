@@ -1618,32 +1618,37 @@ model LearnerAnnotation {
 }
 
 // DOUBTS MODULE
+// DB columns: id, userId, videoId, title, body, status, createdAt, updatedAt
+// New nullable columns being added: courseId, answer, answeredById
+// videoId made nullable (was NOT NULL in legacy schema)
+// title made nullable (was NOT NULL in legacy schema)
 enum DoubtStatus {
   OPEN
   ANSWERED
+  ADDRESSED  // legacy value from student frontend — kept for DB compatibility
   CLOSED
 }
 
 model Doubt {
-  id             String      @id @default(cuid())
-  tenantId       String      @default("default")
-  studentId      String
-  student        User        @relation("DoubtStudent", fields: [studentId], references: [id], onDelete: Cascade)
-  videoId        String?
-  video          Video?      @relation(fields: [videoId], references: [id], onDelete: SetNull)
-  courseId       String?
-  course         Course?     @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  question       String
-  answer         String?
-  status         DoubtStatus @default(OPEN)
-  answeredById   String?
-  answeredBy     User?       @relation("DoubtAnsweredBy", fields: [answeredById], references: [id], onDelete: SetNull)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  id           String      @id @default(cuid())
+  // userId is the DB column name (student who asked); Prisma relation field is "student"
+  userId       String
+  student      User        @relation("DoubtStudent", fields: [userId], references: [id], onDelete: Cascade)
+  videoId      String?     // nullable — was NOT NULL in legacy DB, dropped constraint
+  video        Video?      @relation(fields: [videoId], references: [id], onDelete: SetNull)
+  courseId     String?     // new nullable column
+  course       Course?     @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  title        String?     // optional subject/title for the doubt (was NOT NULL in legacy DB)
+  body         String      // the full question text (DB column name is "body")
+  answer       String?     // new nullable column — admin reply
+  status       DoubtStatus @default(OPEN)
+  answeredById String?     // new nullable column
+  answeredBy   User?       @relation("DoubtAnsweredBy", fields: [answeredById], references: [id], onDelete: SetNull)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   @@index([status])
-  @@index([studentId])
+  @@index([userId])
   @@index([videoId])
   @@index([courseId])
-  @@index([tenantId, status])
 }

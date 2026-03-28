@@ -1,0 +1,113 @@
+We need a clean, production-safe fix for the Admin Doubts module in the Saphala Admin app. Do NOT make random schema changes. First inspect the current Prisma schema, the existing doubts API routes, the admin doubts page, and the student/frontend doubt submission flow assumptions. Then implement a safe end-to-end fix so that doubts submitted from the student frontend are correctly visible in admin without breaking existing data.
+
+GOAL
+Fix the entire doubts flow in admin properly:
+1. Admin doubts list must load without 500 errors
+2. Only admins can access admin doubts APIs/pages
+3. Doubt records created by student frontend must be readable in admin
+4. Remove fragile field selections / relation mismatches
+5. Keep code production-safe, minimal, and aligned with the live DB/schema
+6. Do not trust studentId from frontend for future-proofing
+7. Add good server-side logging for debugging
+8. Do not introduce unnecessary complexity
+
+TASKS
+
+A) AUDIT FIRST
+1. Inspect Prisma schema for:
+   - Doubt model
+   - User model
+   - Course model
+   - Video model
+   - any answeredBy / student relations
+2. Inspect current admin route:
+   - /api/admin/doubts
+3. Inspect student/admin doubt create route(s):
+   - any /api/doubts or equivalent route
+4. Inspect admin page:
+   - /admin/doubts
+5. Confirm exact field names actually present in schema, especially:
+   - Course.title vs Course.name
+   - student relation name
+   - answeredBy relation name
+   - User.mobile existence
+   - status enum/string values
+6. Identify any schema-vs-query mismatch causing the current 500 error
+
+B) FIX ADMIN DOUBTS API
+Update the admin doubts API to be robust and schema-aligned:
+1. Require authenticated admin user
+   - 401 if no session
+   - 403 if logged in but not ADMIN
+2. Keep pagination, search, status, videoId, courseId filters
+3. Build where clause safely
+4. Use only schema-valid include/select fields
+5. Remove any invalid field selections causing Prisma runtime errors
+6. If Course uses title, use title; if it uses name, use name; use actual schema, not assumptions
+7. Return stable JSON shape:
+   {
+     data: items,
+     pagination: { page, pageSize, total, totalPages }
+   }
+8. Add clear server logging in catch block with enough detail to debug safely
+9. Ensure route never crashes due to bad query param parsing
+
+C) FIX DOUBT CREATION SAFETY
+Wherever doubt creation happens in admin-side/shared route:
+1. Do NOT trust studentId from request body if the route is meant for authenticated student submission
+2. Use logged-in session user id as studentId when appropriate
+3. Validate question properly
+4. Keep videoId/courseId nullable if allowed by schema
+5. Ensure created doubt includes safe relation data for response
+6. Await audit log writes if needed or safely handle them so they do not fail silently
+7. Keep tenantId handling consistent with existing architecture; do not hardcode differently from current app conventions unless absolutely necessary
+
+D) FIX ADMIN PAGE
+1. Ensure /admin/doubts fetches from the corrected API
+2. Handle loading, empty state, and API error states cleanly
+3. Show total doubts and list correctly
+4. Avoid crashing UI if optional related entities are null
+5. If API fails, show a useful admin-facing error message instead of silent empty list
+6. Keep current UI styling unless a small fix is required
+
+E) ADD DEBUGGING WITHOUT MESS
+1. Improve server logs for doubts GET/POST failures
+2. Log only safe metadata, not sensitive secrets
+3. Include enough info to know whether failure is due to:
+   - Prisma field mismatch
+   - missing relation
+   - auth/role issue
+   - bad filters
+4. Do not leave noisy console spam all over the app
+
+F) DO NOT DO THESE
+1. Do NOT create new tables/models unless absolutely required
+2. Do NOT rename schema fields unless unavoidable
+3. Do NOT break existing frontend doubt submission
+4. Do NOT assume Course.name if schema has Course.title
+5. Do NOT expose admin doubts API to students
+6. Do NOT rely on frontend-passed studentId for authenticated student doubt creation
+7. Do NOT make unrelated refactors
+
+G) DELIVERABLES
+After making changes, provide:
+1. Exact root cause of the 500
+2. Files changed
+3. What was fixed in each file
+4. Any schema drift discovered
+5. Any follow-up required, if any
+
+H) VALIDATION
+Before finishing, test/verify these scenarios:
+1. Student submits doubt successfully
+2. Record is actually saved in DB
+3. Admin opens /admin/doubts and list loads without 500
+4. Non-admin hitting /api/admin/doubts gets 403
+5. Admin filters/search/pagination still work
+6. Null course/video relations do not break the page
+
+Important:
+- This must be a precise production fix, not a patchwork guess
+- First inspect actual schema and code, then align the queries to reality
+- Keep the implementation minimal, clean, and safe
+- If the 500 is due to invalid include/select fields, fix them based on the real schema

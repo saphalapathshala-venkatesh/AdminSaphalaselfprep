@@ -6,10 +6,12 @@ const PURPLE = "#7c3aed";
 
 type Doubt = {
   id: string;
-  question: string;
+  title: string | null;
+  body: string;          // the question text — DB column is "body"
   answer: string | null;
-  status: "OPEN" | "ANSWERED" | "CLOSED";
+  status: "OPEN" | "ANSWERED" | "ADDRESSED" | "CLOSED";
   createdAt: string;
+  userId: string;
   student: { id: string; name: string | null; email: string | null; mobile: string | null };
   video: { id: string; title: string } | null;
   course: { id: string; name: string } | null;
@@ -17,9 +19,10 @@ type Doubt = {
 };
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  OPEN:     { bg: "#fff7ed", color: "#b45309" },
-  ANSWERED: { bg: "#dcfce7", color: "#15803d" },
-  CLOSED:   { bg: "#f1f5f9", color: "#64748b" },
+  OPEN:      { bg: "#fff7ed", color: "#b45309" },
+  ANSWERED:  { bg: "#dcfce7", color: "#15803d" },
+  ADDRESSED: { bg: "#eff6ff", color: "#1d4ed8" },
+  CLOSED:    { bg: "#f1f5f9", color: "#64748b" },
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -42,6 +45,7 @@ export default function DoubtsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [replyText, setReplyText] = useState<Record<string, string>>({});
@@ -56,12 +60,17 @@ export default function DoubtsPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     const p = new URLSearchParams({
       page: String(page), pageSize: String(pageSize), search,
       ...(statusFilter ? { status: statusFilter } : {}),
     });
     try {
       const res = await fetch(`/api/admin/doubts?${p}`);
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || `Server error (${res.status})`);
+      }
       const json = await res.json();
       const data: Doubt[] = json.data || [];
       setDoubts(data);
@@ -76,7 +85,8 @@ export default function DoubtsPage() {
         data.forEach(d => { if (!(d.id in next)) next[d.id] = d.status; });
         return next;
       });
-    } catch {
+    } catch (e: any) {
+      setError(e.message || "Failed to load doubts");
       setDoubts([]);
     }
     setLoading(false);
@@ -112,9 +122,8 @@ export default function DoubtsPage() {
   }
 
   const totalPages = Math.ceil(total / pageSize);
-
   const openCount = doubts.filter(d => d.status === "OPEN").length;
-  const answeredCount = doubts.filter(d => d.status === "ANSWERED").length;
+  const answeredCount = doubts.filter(d => d.status === "ANSWERED" || d.status === "ADDRESSED").length;
 
   return (
     <div>
@@ -131,8 +140,8 @@ export default function DoubtsPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "1rem", marginBottom: "1.5rem" }}>
         {[
-          { label: "Open", value: total && statusFilter === "" ? doubts.filter(d => d.status === "OPEN").length : (statusFilter === "OPEN" ? total : openCount), color: "#b45309", bg: "#fff7ed" },
-          { label: "Answered", value: statusFilter === "ANSWERED" ? total : answeredCount, color: "#15803d", bg: "#dcfce7" },
+          { label: "Open", value: statusFilter === "OPEN" ? total : openCount, color: "#b45309", bg: "#fff7ed" },
+          { label: "Answered", value: statusFilter === "ANSWERED" || statusFilter === "ADDRESSED" ? total : answeredCount, color: "#15803d", bg: "#dcfce7" },
           { label: "This Page", value: doubts.length, color: "#475569", bg: "#f1f5f9" },
         ].map(c => (
           <div key={c.label} style={{ background: c.bg, borderRadius: "10px", padding: "1rem 1.25rem", border: `1px solid ${c.color}22` }}>
@@ -154,12 +163,21 @@ export default function DoubtsPage() {
             <option value="">All statuses</option>
             <option value="OPEN">Open</option>
             <option value="ANSWERED">Answered</option>
+            <option value="ADDRESSED">Addressed</option>
             <option value="CLOSED">Closed</option>
           </select>
         </div>
 
         {loading ? (
           <div style={{ padding: "3rem", textAlign: "center", color: "#94a3b8" }}>Loading…</div>
+        ) : error ? (
+          <div style={{ padding: "3rem", textAlign: "center" }}>
+            <div style={{ color: "#dc2626", fontWeight: 600, marginBottom: "0.5rem" }}>Failed to load doubts</div>
+            <div style={{ color: "#94a3b8", fontSize: "0.875rem", marginBottom: "1rem" }}>{error}</div>
+            <button onClick={load} style={{ padding: "0.5rem 1.25rem", borderRadius: "6px", border: `1px solid ${PURPLE}`, color: PURPLE, background: "transparent", cursor: "pointer", fontWeight: 600 }}>
+              Retry
+            </button>
+          </div>
         ) : doubts.length === 0 ? (
           <div style={{ padding: "3rem", textAlign: "center", color: "#94a3b8" }}>
             No doubts found{statusFilter ? ` with status "${statusFilter}"` : ""}.
@@ -188,8 +206,11 @@ export default function DoubtsPage() {
                         <div style={{ fontSize: "0.78rem", color: "#64748b" }}>{d.student.email || d.student.mobile || "—"}</div>
                       </td>
                       <td style={{ ...tdStyle, maxWidth: 320 }}>
-                        <div style={{ color: "#0f172a", lineHeight: 1.4 }}>
-                          {d.question.length > 120 ? d.question.slice(0, 120) + "…" : d.question}
+                        {d.title && (
+                          <div style={{ fontWeight: 600, color: "#0f172a", marginBottom: "0.2rem", fontSize: "0.8125rem" }}>{d.title}</div>
+                        )}
+                        <div style={{ color: "#334155", lineHeight: 1.4 }}>
+                          {d.body.length > 120 ? d.body.slice(0, 120) + "…" : d.body}
                         </div>
                         {d.answer && (
                           <div style={{ marginTop: "0.25rem", fontSize: "0.78rem", color: "#64748b", fontStyle: "italic" }}>
@@ -229,7 +250,10 @@ export default function DoubtsPage() {
                           <div style={{ maxWidth: 720 }}>
                             <div style={{ marginBottom: "0.75rem" }}>
                               <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.25rem" }}>Full Question</div>
-                              <p style={{ margin: 0, lineHeight: 1.6, color: "#0f172a", whiteSpace: "pre-wrap" }}>{d.question}</p>
+                              {d.title && (
+                                <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: "0.35rem" }}>{d.title}</div>
+                              )}
+                              <p style={{ margin: 0, lineHeight: 1.6, color: "#0f172a", whiteSpace: "pre-wrap" }}>{d.body}</p>
                             </div>
                             <div style={{ marginBottom: "0.75rem" }}>
                               <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: "0.35rem" }}>
@@ -253,6 +277,7 @@ export default function DoubtsPage() {
                                 >
                                   <option value="OPEN">Open</option>
                                   <option value="ANSWERED">Answered</option>
+                                  <option value="ADDRESSED">Addressed</option>
                                   <option value="CLOSED">Closed</option>
                                 </select>
                               </div>

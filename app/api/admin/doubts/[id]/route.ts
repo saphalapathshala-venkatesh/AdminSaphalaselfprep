@@ -5,21 +5,28 @@ import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 
+const VALID_STATUSES = ["OPEN", "ANSWERED", "ADDRESSED", "CLOSED"];
+
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getSessionUserFromRequest(_req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const doubt = await prisma.doubt.findUnique({
-    where: { id: params.id },
-    include: {
-      student: { select: { id: true, name: true, email: true, mobile: true } },
-      video: { select: { id: true, title: true } },
-      course: { select: { id: true, name: true } },
-      answeredBy: { select: { id: true, name: true, email: true } },
-    },
-  });
-  if (!doubt) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json({ data: doubt });
+  try {
+    const doubt = await prisma.doubt.findUnique({
+      where: { id: params.id },
+      include: {
+        student: { select: { id: true, name: true, email: true, mobile: true } },
+        video: { select: { id: true, title: true } },
+        course: { select: { id: true, name: true } },
+        answeredBy: { select: { id: true, name: true, email: true } },
+      },
+    });
+    if (!doubt) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ data: doubt });
+  } catch (err) {
+    console.error("[Doubt GET] Error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -33,19 +40,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const body = await req.json();
     const { answer, status } = body;
 
-    const VALID_STATUSES = ["OPEN", "ANSWERED", "CLOSED"];
     if (status && !VALID_STATUSES.includes(status)) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
     const resolvedStatus = status || (answer?.trim() ? "ANSWERED" : existing.status);
+    const isBeingAnswered = resolvedStatus === "ANSWERED" && !existing.answeredById;
 
     const updated = await prisma.doubt.update({
       where: { id: params.id },
       data: {
         answer: answer !== undefined ? (answer?.trim() || null) : existing.answer,
         status: resolvedStatus as any,
-        answeredById: resolvedStatus === "ANSWERED" && !existing.answeredById ? user.id : existing.answeredById,
+        answeredById: isBeingAnswered ? user.id : existing.answeredById,
       },
       include: {
         student: { select: { id: true, name: true, email: true } },
@@ -57,12 +64,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     writeAuditLog({
       actorId: user.id, action: "DOUBT_UPDATE", entityType: "Doubt", entityId: params.id,
-      before: { status: existing.status },
+      before: { status: existing.status, hasAnswer: !!existing.answer },
       after: { status: updated.status, hasAnswer: !!updated.answer },
     });
     return NextResponse.json({ data: updated });
   } catch (err) {
-    console.error("Doubt PATCH error:", err);
+    console.error("[Doubt PATCH] Error:", err);
     return NextResponse.json({ error: "Failed to update doubt" }, { status: 500 });
   }
 }
@@ -82,7 +89,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     });
     return NextResponse.json({ data: { deleted: true } });
   } catch (err) {
-    console.error("Doubt DELETE error:", err);
+    console.error("[Doubt DELETE] Error:", err);
     return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
   }
 }
