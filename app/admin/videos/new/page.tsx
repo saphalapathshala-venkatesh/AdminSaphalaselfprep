@@ -12,6 +12,23 @@ const sectionStyle: React.CSSProperties = { background: "#fff", borderRadius: "1
 const sectionTitle: React.CSSProperties = { fontSize: "0.9375rem", fontWeight: 700, color: "#0f172a", marginBottom: "1.25rem", paddingBottom: "0.75rem", borderBottom: "1px solid #f1f5f9" };
 const rowStyle: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" };
 
+function parseDuration(val: string): number | null {
+  const s = val.trim();
+  if (!s) return null;
+  const parts = s.split(":");
+  if (parts.length < 2 || parts.length > 3) return null;
+  const nums = parts.map(Number);
+  if (nums.some((n) => isNaN(n) || !Number.isInteger(n) || n < 0)) return null;
+  if (parts.length === 2) {
+    const [mm, ss] = nums;
+    if (ss >= 60) return null;
+    return mm * 60 + ss;
+  }
+  const [hh, mm, ss] = nums;
+  if (mm >= 60 || ss >= 60) return null;
+  return hh * 3600 + mm * 60 + ss;
+}
+
 type SelectOption = { id: string; name: string };
 type TaxOption = { id: string; name: string };
 type ExamOption = { id: string; name: string; categoryId: string };
@@ -20,6 +37,7 @@ export default function NewVideoPage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const [durationError, setDurationError] = useState<string | null>(null);
   const [faculties, setFaculties] = useState<SelectOption[]>([]);
   const [courses, setCourses] = useState<SelectOption[]>([]);
   const [categories, setCategories] = useState<TaxOption[]>([]);
@@ -71,11 +89,17 @@ export default function NewVideoPage() {
     e.preventDefault();
     if (!form.title.trim()) { showToast("Title is required", false); return; }
 
+    const parsedDuration = form.durationSeconds.trim() ? parseDuration(form.durationSeconds) : null;
+    if (form.durationSeconds.trim() && parsedDuration === null) {
+      setDurationError("Use mm:ss or hh:mm:ss format, e.g. 28:17 or 1:05:30");
+      return;
+    }
+
     setSaving(true);
     const payload = {
       ...form,
       tags: form.tags ? form.tags.split(",").map(t => t.trim()).filter(Boolean) : [],
-      durationSeconds: form.durationSeconds ? parseInt(form.durationSeconds) : null,
+      durationSeconds: parsedDuration,
       lessonOrder: parseInt(form.lessonOrder) || 0,
       facultyId: form.facultyId || null,
       courseId: form.courseId || null,
@@ -231,8 +255,15 @@ export default function NewVideoPage() {
           </div>
           <div style={rowStyle}>
             <div>
-              <label style={labelStyle}>Duration (seconds)</label>
-              <input type="number" min="0" value={form.durationSeconds} onChange={e => set("durationSeconds", e.target.value)} placeholder="e.g. 3600" style={inputStyle} />
+              <label style={labelStyle}>Duration</label>
+              <input
+                type="text"
+                value={form.durationSeconds}
+                onChange={e => { set("durationSeconds", e.target.value); setDurationError(null); }}
+                placeholder="e.g. 28:17 or 1:05:30"
+                style={{ ...inputStyle, borderColor: durationError ? "#dc2626" : undefined }}
+              />
+              {durationError && <div style={{ marginTop: "0.25rem", fontSize: "0.75rem", color: "#dc2626" }}>{durationError}</div>}
             </div>
             <div>
               <label style={labelStyle}>Lesson Order</label>
