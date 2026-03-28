@@ -7,6 +7,7 @@ import { getSubjectColor } from "@/lib/subjectColors";
 import { ContentTypeIcon, contentTypeLabel } from "@/components/ui/ContentTypeIcon";
 import FlashcardPlayer from "@/components/ui/FlashcardPlayer";
 import EBookViewer from "@/components/ui/EBookViewer";
+import CourseVideoPlayer from "@/components/ui/CourseVideoPlayer";
 
 type LessonItem = { id: string; itemType: string; sourceId: string | null; titleSnapshot: string | null; sortOrder: number; unlockAt: string | null; effectiveUnlockAt: string | null; isLocked: boolean; externalUrl?: string | null; description?: string | null };
 type Lesson = { id: string; title: string; description: string | null; status: string; sortOrder: number; items: LessonItem[] };
@@ -28,6 +29,7 @@ export default function SubjectLearningPage() {
 
   const [flashcardItem, setFlashcardItem] = useState<LessonItem | null>(null);
   const [ebookItem, setEbookItem] = useState<LessonItem | null>(null);
+  const [videoItem, setVideoItem] = useState<LessonItem | null>(null);
   const [ebookHtml, setEbookHtml] = useState<string>("");
   const [ebookBlocks, setEbookBlocks] = useState<unknown>(null);
   const [ebookLoading, setEbookLoading] = useState(false);
@@ -183,6 +185,36 @@ export default function SubjectLearningPage() {
       {ebookLoading && (
         <div style={{ position: "fixed", inset: 0, zIndex: 9000, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ background: "#fff", borderRadius: 12, padding: "2rem 3rem", fontWeight: 700, color: "#374151" }}>Loading E-Book…</div>
+        </div>
+      )}
+
+      {/* Video Player Modal */}
+      {videoItem && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 9000, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem" }}
+          onClick={() => setVideoItem(null)}
+        >
+          <div
+            style={{ width: "100%", maxWidth: 860, borderRadius: 14, overflow: "hidden", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ background: "#0f172a", padding: "0.75rem 1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ color: "#fff", fontWeight: 700, fontSize: "0.9375rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {videoItem.titleSnapshot || "Video"}
+              </span>
+              <button
+                onClick={() => setVideoItem(null)}
+                style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: "1.25rem", lineHeight: 1, padding: "0 0.25rem" }}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <CourseVideoPlayer
+              videoId={videoItem.sourceId!}
+              title={undefined}
+            />
+          </div>
         </div>
       )}
       {/* ── Left Sidebar ── */}
@@ -384,6 +416,14 @@ export default function SubjectLearningPage() {
                           </div>
                         </div>
                         <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0, alignItems: "center" }}>
+                          {!isLocked && item.itemType === "VIDEO" && item.sourceId && (
+                            <button
+                              onClick={() => setVideoItem(item)}
+                              style={{ padding: "0.4rem 0.875rem", borderRadius: 9, background: "#7c3aed", color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: "0.8rem" }}
+                            >
+                              ▶ Play Video
+                            </button>
+                          )}
                           {!isLocked && item.itemType === "EXTERNAL_LINK" && (
                             <button
                               onClick={() => openExternalLink(item)}
@@ -440,7 +480,7 @@ export default function SubjectLearningPage() {
                           onContextMenu={(e) => e.preventDefault()}
                         >
                           <div style={{ fontSize: "0.8rem", color: "#94a3b8", fontStyle: "italic" }}>
-                            {item.itemType === "VIDEO" && "▶ Video content — opens in player"}
+                            {item.itemType === "VIDEO" && (item.sourceId ? "▶ Click Play Video to watch" : "⚠ No video source linked")}
                             {item.itemType === "HTML_PAGE" && "📖 E-Book — opens in protected viewer"}
                             {item.itemType === "PDF" && "📋 PDF Document — opens in protected PDF viewer"}
                             {item.itemType === "FLASHCARD_DECK" && "🃏 Flashcard Deck — opens in card player"}

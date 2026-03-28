@@ -1,0 +1,99 @@
+We are now implementing Bunny playback integration for the Saphala Self Prep system.
+
+Context:
+- Frontend video player shell is already built and working.
+- It currently uses a mock playback source.
+- Bunny Stream library has now been created and test video uploaded.
+- This task is to integrate real backend playback flow and wire frontend to it.
+- Do NOT rebuild the player component.
+- Do NOT do unrelated admin/video module redesign.
+
+Goal:
+Replace mock playback with a real backend-driven Bunny playback flow and test it in the frontend.
+
+What to do:
+
+1) Inspect current schema and video model first
+- Read the existing Video model and current video-related backend/frontend code
+- Check whether fields like bunnyLibraryId and bunnyVideoId already exist
+- If they exist, use them
+- If they do not exist, choose the cleanest minimal integration path
+- Do not make broad messy schema changes
+- If a schema change is necessary, keep it minimal and future-safe
+
+2) Build secure playback endpoint
+Create backend route:
+GET /api/videos/:id/playback
+
+This endpoint should:
+- validate access based on current session/user
+- fetch the internal video record
+- ensure the video is published/allowed
+- allow preview/free access if current product logic allows it
+- allow enrolled/purchased users for protected videos
+- deny unauthorized access cleanly
+- return JSON like:
+{
+  manifestUrl: string,
+  posterUrl?: string | null,
+  expiresAt?: string | null,
+  videoId: string
+}
+
+3) Create Bunny playback helper
+Centralize Bunny logic in one helper, for example:
+- lib/video/getBunnyPlaybackSource.ts
+or
+- lib/bunny/getSignedPlaybackUrl.ts
+
+This helper should:
+- accept internal video data
+- use Bunny library/video identifiers
+- generate the playback URL cleanly
+- be structured so token-auth mode can be added or completed cleanly
+- avoid scattering Bunny URL construction across the app
+
+4) Environment/config handling
+Inspect current environment variable conventions.
+Add clean env usage for Bunny, such as:
+- Bunny library id if globally needed
+- Bunny API/token settings as needed
+Do not hardcode secrets.
+Keep env usage centralized and safe.
+
+5) Frontend wiring
+Update the current student video page so that:
+- it fetches /api/videos/:id/playback
+- uses returned manifestUrl instead of getMockPlaybackSource()
+- preserves current CourseVideoPlayer contract
+- keeps loading/error states clean
+- does not break existing player structure
+
+6) Error handling
+Handle clearly:
+- 401/403 unauthorized
+- 404 missing video
+- video exists but playback URL unavailable
+- temporary playback fetch failure
+Show student-friendly UI states.
+
+7) Performance and code quality
+- keep route lean
+- avoid duplicate DB queries
+- no unnecessary refetch loops
+- no insecure direct frontend Bunny URL construction
+- keep TypeScript clean
+- follow existing conventions
+- no hacky shortcuts
+
+8) Testing
+After implementation:
+- run TypeScript check
+- verify dev/build is clean
+- test the frontend video page with real backend playback response
+- confirm mock playback helper is no longer used in active flow
+
+Deliverables at the end:
+- files created/updated
+- exact access logic implemented
+- whether Bunny integration is fully working now or what final small step remains
