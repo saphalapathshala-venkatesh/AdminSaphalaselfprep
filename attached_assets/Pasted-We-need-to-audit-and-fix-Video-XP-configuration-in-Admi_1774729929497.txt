@@ -1,0 +1,91 @@
+We need to audit and fix Video XP configuration in Admin app.
+
+Problem:
+Frontend XP logic is correct, but XP may not trigger if admin config is not properly wired.
+
+--------------------------------------------------
+PART 1: VERIFY VIDEO MODEL
+--------------------------------------------------
+
+Check Video model:
+
+Must have:
+- xpEnabled: Boolean
+- xpValue: Int
+
+Confirm:
+- These fields exist in Prisma schema
+- They are saved correctly in DB
+
+--------------------------------------------------
+PART 2: ADMIN VIDEO EDIT PAGE
+--------------------------------------------------
+
+In Admin video create/edit:
+
+Ensure fields exist:
+
+1. "Enable XP" (checkbox)
+2. "XP Value" (number input)
+
+Rules:
+- If xpEnabled = false → XP NEVER triggers
+- If xpEnabled = true → xpValue MUST be required
+
+--------------------------------------------------
+PART 3: VALIDATION
+--------------------------------------------------
+
+Add validation:
+
+IF xpEnabled = true AND xpValue is null/0:
+→ show error:
+"XP value must be set when XP is enabled"
+
+--------------------------------------------------
+PART 4: API RESPONSE CHECK
+--------------------------------------------------
+
+Ensure student API receives:
+
+video.xpEnabled
+video.xpValue
+
+No null/undefined cases
+
+--------------------------------------------------
+PART 5: DEBUG VIEW (VERY IMPORTANT)
+--------------------------------------------------
+
+In admin video list/table:
+
+Add columns:
+- XP Enabled (Yes/No)
+- XP Value
+
+So admin can quickly verify
+
+--------------------------------------------------
+PART 6: OPTIONAL SAFETY (RECOMMENDED)
+--------------------------------------------------
+
+In backend (video complete route):
+
+IF xpEnabled = false:
+→ return xpAwarded = 0 immediately
+
+(This ensures backend safety)
+
+--------------------------------------------------
+PART 7: FINAL VERIFICATION
+--------------------------------------------------
+
+Test:
+
+1. XP enabled video → XP awarded
+2. XP disabled video → NO XP
+3. Changing XP value reflects immediately
+
+--------------------------------------------------
+DO NOT CHANGE ANY OTHER SYSTEM
+Only fix wiring + validation + visibility

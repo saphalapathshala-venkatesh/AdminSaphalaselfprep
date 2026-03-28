@@ -67,6 +67,7 @@ export default function EditVideoPage() {
     providerVideoId: "", hlsUrl: "", playbackUrl: "", thumbnailUrl: "",
     durationSeconds: "", lessonOrder: "0", allowPreview: false,
     tags: "", unlockAt: "",
+    xpEnabled: false, xpValue: "",
   });
 
   const showToast = (msg: string, ok = true) => {
@@ -98,6 +99,8 @@ export default function EditVideoPage() {
           allowPreview: Boolean(v.allowPreview),
           tags: Array.isArray(v.tags) ? v.tags.join(", ") : "",
           unlockAt: v.unlockAt ? v.unlockAt.slice(0, 16) : "",
+          xpEnabled: Boolean(v.xpEnabled),
+          xpValue: v.xpValue != null ? String(v.xpValue) : "",
         });
         if (v.categoryId) fetch(`/api/taxonomy?level=subject&parentId=${v.categoryId}`).then(r => r.json()).then(j => setSubjects(j.data || []));
         if (v.subjectId) fetch(`/api/taxonomy?level=topic&parentId=${v.subjectId}`).then(r => r.json()).then(j => setTopics(j.data || []));
@@ -139,6 +142,12 @@ export default function EditVideoPage() {
       return;
     }
 
+    const xpValueInt = parseInt(form.xpValue) || 0;
+    if (form.xpEnabled && xpValueInt <= 0) {
+      showToast("XP value must be set when XP is enabled", false);
+      return;
+    }
+
     setSaving(true);
     const payload = {
       ...form,
@@ -150,6 +159,8 @@ export default function EditVideoPage() {
       categoryId: form.categoryId || null,
       examId: form.examId || null,
       unlockAt: form.unlockAt ? form.unlockAt + ":00+05:30" : null,
+      xpEnabled: form.xpEnabled,
+      xpValue: xpValueInt,
     };
 
     const res = await fetch(`/api/videos/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -363,6 +374,34 @@ export default function EditVideoPage() {
             <input type="checkbox" checked={form.allowPreview} onChange={e => set("allowPreview", e.target.checked)} style={{ width: 16, height: 16, accentColor: PURPLE }} />
             <span style={{ fontSize: "0.875rem", color: "#374151" }}>Allow free preview</span>
           </label>
+
+          <div style={{ marginTop: "1.25rem", padding: "1rem", background: "#faf5ff", borderRadius: "8px", border: "1px solid #e9d5ff" }}>
+            <div style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#6d28d9", marginBottom: "0.75rem" }}>XP Rewards</div>
+            <label style={{ display: "flex", alignItems: "center", gap: "0.625rem", cursor: "pointer", marginBottom: "0.75rem" }}>
+              <input type="checkbox" checked={form.xpEnabled} onChange={e => set("xpEnabled", e.target.checked)} style={{ width: 16, height: 16, accentColor: PURPLE }} />
+              <span style={{ fontSize: "0.875rem", color: "#374151", fontWeight: 600 }}>Enable XP for this video</span>
+            </label>
+            {form.xpEnabled && (
+              <div>
+                <label style={labelStyle}>XP Value <span style={{ color: "#dc2626" }}>*</span></label>
+                <input
+                  type="number"
+                  min="1"
+                  value={form.xpValue}
+                  onChange={e => set("xpValue", e.target.value)}
+                  placeholder="e.g. 50"
+                  style={{ ...inputStyle, width: 160, borderColor: form.xpEnabled && !parseInt(form.xpValue) ? "#dc2626" : undefined }}
+                />
+                {form.xpEnabled && !parseInt(form.xpValue) && (
+                  <div style={{ marginTop: "0.25rem", fontSize: "0.75rem", color: "#dc2626" }}>XP value must be set when XP is enabled</div>
+                )}
+                <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem", color: "#7c3aed" }}>
+                  1st watch = {parseInt(form.xpValue) || 0} XP · 2nd watch = {Math.floor((parseInt(form.xpValue) || 0) * 0.5)} XP · 3rd+ = 0 XP
+                </p>
+              </div>
+            )}
+          </div>
+
           <div style={{ marginTop: "1rem" }}>
             <label style={labelStyle}>Unlock At <span style={{ fontWeight: 400, color: "#94a3b8" }}>(optional)</span></label>
             <input type="datetime-local" value={form.unlockAt} onChange={e => set("unlockAt", e.target.value)} style={inputStyle} />

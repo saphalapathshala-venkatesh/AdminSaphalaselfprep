@@ -60,10 +60,16 @@ export async function POST(req: NextRequest) {
       title, description, facultyId, courseId, categoryId, examId, subjectId, topicId, subtopicId,
       accessType, status, lessonOrder, durationSeconds, thumbnailUrl,
       provider, providerVideoId, hlsUrl, playbackUrl,
-      allowPreview, tags, unlockAt,
+      allowPreview, tags, unlockAt, xpEnabled, xpValue,
     } = body;
 
     if (!title?.trim()) return NextResponse.json({ error: "title is required" }, { status: 400 });
+
+    const xpEnabledBool = Boolean(xpEnabled);
+    const xpValueInt = Math.max(0, parseInt(xpValue) || 0);
+    if (xpEnabledBool && xpValueInt === 0) {
+      return NextResponse.json({ error: "XP value must be set when XP is enabled" }, { status: 400 });
+    }
 
     const video = await prisma.video.create({
       data: {
@@ -89,6 +95,8 @@ export async function POST(req: NextRequest) {
         allowPreview: Boolean(allowPreview),
         tags: Array.isArray(tags) ? tags : [],
         unlockAt: unlockAt ? new Date(unlockAt) : null,
+        xpEnabled: xpEnabledBool,
+        xpValue: xpValueInt,
         createdById: user.id,
       },
       include: {
