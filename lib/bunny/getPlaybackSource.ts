@@ -4,9 +4,8 @@
  * Centralises all Bunny URL construction.
  * Token-auth mode can be layered on here once a signing key is available.
  *
- * Env vars (optional — allows graceful degradation to manually-stored URLs):
- *   BUNNY_LIBRARY_ID   — numeric Bunny Stream library ID
- *   BUNNY_CDN_HOSTNAME — pull-zone CDN hostname, e.g. vz-abc123.b-cdn.net
+ * Env vars:
+ *   BUNNY_LIBRARY_ID — numeric Bunny Stream library ID (required for Bunny videos)
  */
 
 export type PlaybackSource = {
@@ -26,29 +25,18 @@ type VideoRecord = {
 
 export function getBunnyPlaybackSource(video: VideoRecord): PlaybackSource | null {
   const libraryId = process.env.BUNNY_LIBRARY_ID?.trim();
-  const cdnHostname = process.env.BUNNY_CDN_HOSTNAME?.trim();
 
   if (video.provider === "BUNNY" && video.providerVideoId) {
     const guid = video.providerVideoId.trim();
 
-    const manifestUrl = cdnHostname
-      ? `https://${cdnHostname}/${guid}/playlist.m3u8`
-      : (video.hlsUrl ?? video.playbackUrl ?? null);
+    if (!libraryId) return null;
 
-    if (!manifestUrl) return null;
-
-    const embedUrl = libraryId
-      ? `https://iframe.mediadelivery.net/embed/${libraryId}/${guid}?autoplay=false&responsive=true`
-      : manifestUrl;
-
-    const posterUrl = cdnHostname
-      ? `https://${cdnHostname}/${guid}/thumbnail.jpg`
-      : (video.thumbnailUrl ?? null);
+    const embedUrl = `https://iframe.mediadelivery.net/embed/${libraryId}/${guid}?autoplay=false&responsive=true`;
 
     return {
-      manifestUrl,
+      manifestUrl: embedUrl,
       embedUrl,
-      posterUrl,
+      posterUrl: video.thumbnailUrl ?? null,
       expiresAt: null,
     };
   }
