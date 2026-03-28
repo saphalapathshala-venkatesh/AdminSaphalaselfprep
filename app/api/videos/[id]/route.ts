@@ -66,6 +66,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         tags: Array.isArray(tags) ? tags : existing.tags,
         publishedAt: wasPublished ? new Date() : (publishedAt !== undefined ? (publishedAt ? new Date(publishedAt) : null) : existing.publishedAt),
         unlockAt: unlockAt !== undefined ? (unlockAt ? new Date(unlockAt) : null) : existing.unlockAt,
+        xpEnabled: body.xpEnabled !== undefined ? Boolean(body.xpEnabled) : existing.xpEnabled,
+        xpValue: body.xpValue !== undefined ? Math.max(0, parseInt(body.xpValue) || 0) : existing.xpValue,
       },
       include: {
         faculty: { select: { id: true, name: true } },

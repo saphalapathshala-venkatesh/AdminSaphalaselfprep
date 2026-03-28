@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
   const courseId = searchParams.get("courseId") || "";
   const facultyId = searchParams.get("facultyId") || "";
   const accessType = searchParams.get("accessType") || "";
+  const provider = searchParams.get("provider") || "";
 
   const where: any = { tenantId: "default" };
   if (search) where.title = { contains: search, mode: "insensitive" };
@@ -25,6 +26,7 @@ export async function GET(req: NextRequest) {
   if (courseId) where.courseId = courseId;
   if (facultyId) where.facultyId = facultyId;
   if (accessType) where.accessType = accessType;
+  if (provider) where.provider = provider;
 
   try {
     const [items, total] = await Promise.all([

@@ -63,6 +63,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [infStats, setInfStats] = useState<InfringementStats | null>(null);
+  const [doubtStats, setDoubtStats] = useState<{ open: number; answered: number; total: number } | null>(null);
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
@@ -82,6 +83,18 @@ export default function DashboardPage() {
       .then(r => r.json())
       .then(d => setInfStats(d))
       .catch(() => {});
+
+    Promise.all([
+      fetch("/api/admin/doubts?pageSize=1").then(r => r.json()),
+      fetch("/api/admin/doubts?status=OPEN&pageSize=1").then(r => r.json()),
+      fetch("/api/admin/doubts?status=ANSWERED&pageSize=1").then(r => r.json()),
+    ]).then(([all, open, answered]) => {
+      setDoubtStats({
+        total: all.pagination?.total ?? 0,
+        open: open.pagination?.total ?? 0,
+        answered: answered.pagination?.total ?? 0,
+      });
+    }).catch(() => {});
   }, []);
 
   const applyPreset = (name: string) => {
@@ -390,6 +403,29 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Doubts Activity Card ── */}
+      {doubtStats !== null && (
+        <div style={{ ...card, marginBottom: "1.75rem", borderLeft: "4px solid #7c3aed" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+            <h3 style={{ ...chartTitle, margin: 0, color: "#7c3aed" }}>💬 Student Doubts</h3>
+            <Link href="/admin/doubts" style={{ fontSize: "0.75rem", color: BRAND.purple, textDecoration: "none", fontWeight: 600 }}>Manage Doubts →</Link>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "0.75rem" }}>
+            {[
+              { label: "Total", value: doubtStats.total, color: "#475569" },
+              { label: "Open", value: doubtStats.open, color: "#b45309" },
+              { label: "Answered", value: doubtStats.answered, color: "#15803d" },
+              { label: "Closed", value: doubtStats.total - doubtStats.open - doubtStats.answered, color: "#64748b" },
+            ].map(stat => (
+              <div key={stat.label} style={{ background: "#fafafa", borderRadius: 8, padding: "0.625rem 0.75rem", textAlign: "center", border: "1px solid #f3f4f6" }}>
+                <div style={{ fontSize: "1.25rem", fontWeight: 800, color: stat.color }}>{stat.value}</div>
+                <div style={{ fontSize: "0.65rem", color: "#9ca3af", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{stat.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
