@@ -19,6 +19,9 @@ const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
 export const prisma = globalForPrisma.prisma || new PrismaClient();
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+// Cache the instance on globalThis in ALL environments.
+// In development this prevents HMR from creating multiple PrismaClient instances.
+// In production (Vercel warm instances) this prevents per-request connection leaks.
+globalForPrisma.prisma = prisma;
 
 export default prisma;
