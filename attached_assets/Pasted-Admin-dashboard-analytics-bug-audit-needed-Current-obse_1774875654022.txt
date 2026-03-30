@@ -1,0 +1,62 @@
+Admin dashboard analytics bug audit needed.
+
+Current observed behavior:
+- Real payment in production succeeded.
+- Student app shows order as PAID and access granted.
+- Admin dashboard updates Paid Users count correctly.
+- But Gross Revenue remains ₹0.00.
+- Net Revenue is also wrong.
+- Net revenue rule should be:
+  Cashfree fee = 1.6% of gross
+  GST on fee = 18%
+  Total deduction = 1.6% * 1.18 = 1.888%
+  Net Revenue = Gross Revenue - gateway charges
+  Example: gross ₹10 => net ₹9.81 approx
+
+Task:
+Read the actual admin dashboard analytics code and trace exactly why paid users update but revenue does not.
+
+Please do all of the following:
+
+1. Identify the exact files/routes/components/queries used for:
+   - Paid Users
+   - Gross Revenue
+   - Net Revenue
+
+2. Identify the exact DB tables/fields each metric reads from.
+
+3. Compare those queries with the actual payment flow source of truth:
+   - successful Cashfree payment/order rows
+   - payment status updates
+   - entitlement creation
+
+4. Find the mismatch:
+   - wrong table?
+   - wrong status filter?
+   - wrong date field?
+   - wrong amount field?
+   - reading paise but displaying rupees incorrectly?
+   - admin app not reading the shared DB payment rows correctly?
+
+5. Fix the admin dashboard so that:
+   - Gross Revenue = sum of all successful paid orders in selected range
+   - Net Revenue = Gross Revenue - Cashfree fee - GST on fee
+   - Formula:
+     gatewayFee = gross * 0.016
+     gstOnGatewayFee = gatewayFee * 0.18
+     netRevenue = gross - gatewayFee - gstOnGatewayFee
+   - Use proper rounding to 2 decimals for display
+   - Do not hardcode test values
+
+6. Ensure date filters work on the correct payment success date field.
+
+7. Ensure failed/cancelled/pending orders are excluded.
+
+8. Tell me exactly what was wrong and what files were changed.
+
+Important:
+- Do not make assumptions.
+- Read actual code first.
+- Preserve paid users logic if already correct.
+- Fix only the revenue analytics path.
+- If amounts are stored in paise, normalize correctly to rupees in UI.
