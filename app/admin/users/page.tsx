@@ -31,6 +31,22 @@ interface EditForm {
   isActive: boolean;
 }
 
+interface EntitlementRow {
+  id: string;
+  productCode: string;
+  status: string;
+  createdAt: string;
+  purchaseId: string | null;
+  package: { id: string; name: string; code: string } | null;
+}
+
+interface PackageOption {
+  id: string;
+  name: string;
+  code: string;
+  entitlementCodes: string[];
+}
+
 interface CreateForm {
   name: string;
   email: string;
@@ -95,8 +111,79 @@ export default function UsersPage() {
   const [pwSaving, setPwSaving] = useState(false);
   const [pwError, setPwError] = useState("");
 
+  // Course-access modal
+  const [coursesUser, setCoursesUser] = useState<UserRow | null>(null);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [coursesEnrolled, setCoursesEnrolled] = useState<EntitlementRow[]>([]);
+  const [coursesAvailable, setCoursesAvailable] = useState<PackageOption[]>([]);
+  const [coursesGrantPkg, setCoursesGrantPkg] = useState("");
+  const [coursesGranting, setCoursesGranting] = useState(false);
+  const [coursesError, setCoursesError] = useState("");
+
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const showToast = (msg: string, ok = true) => { setToast({ msg, ok }); setTimeout(() => setToast(null), 3200); };
+
+  // ── Course-access handlers ─────────────────────────────────────────────────
+  const openCourses = async (u: UserRow) => {
+    setCoursesUser(u);
+    setCoursesLoading(true);
+    setCoursesError("");
+    setCoursesGrantPkg("");
+    const res = await fetch(`/api/users/${u.id}/entitlements`);
+    const json = await res.json();
+    if (res.ok) {
+      setCoursesEnrolled(json.data.enrolled);
+      setCoursesAvailable(json.data.available);
+    } else {
+      setCoursesError(json.error || "Failed to load course access");
+    }
+    setCoursesLoading(false);
+  };
+
+  const refreshCourses = async (u: UserRow) => {
+    setCoursesLoading(true);
+    setCoursesError("");
+    const res = await fetch(`/api/users/${u.id}/entitlements`);
+    const json = await res.json();
+    if (res.ok) {
+      setCoursesEnrolled(json.data.enrolled);
+      setCoursesAvailable(json.data.available);
+    } else {
+      setCoursesError(json.error || "Failed to refresh");
+    }
+    setCoursesLoading(false);
+  };
+
+  const grantCourse = async () => {
+    if (!coursesUser || !coursesGrantPkg) return;
+    setCoursesGranting(true);
+    setCoursesError("");
+    const res = await fetch(`/api/users/${coursesUser.id}/entitlements`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ packageId: coursesGrantPkg }),
+    });
+    const json = await res.json();
+    setCoursesGranting(false);
+    if (!res.ok) { setCoursesError(json.error || "Failed to grant access"); return; }
+    setCoursesGrantPkg("");
+    showToast("Access granted");
+    refreshCourses(coursesUser);
+  };
+
+  const updateEntitlementStatus = async (entId: string, status: "ACTIVE" | "REVOKED") => {
+    if (!coursesUser) return;
+    setCoursesError("");
+    const res = await fetch(`/api/users/${coursesUser.id}/entitlements/${entId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    const json = await res.json();
+    if (!res.ok) { setCoursesError(json.error || "Failed to update"); return; }
+    showToast(status === "REVOKED" ? "Access revoked" : "Access reactivated");
+    refreshCourses(coursesUser);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -315,6 +402,7 @@ export default function UsersPage() {
                   <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
                     <button onClick={() => openEdit(u)} style={btnStyle(PURPLE)}>Edit</button>
                     <button onClick={() => openBlock(u)} style={btnStyle(u.isBlocked ? "#15803d" : "#dc2626")}>{u.isBlocked ? "Unblock" : "Block"}</button>
+                    <button onClick={() => openCourses(u)} style={btnStyle("#0f766e")}>Courses</button>
                     <button onClick={() => { setPwResetUser(u); setPwForm({ newPassword: "", confirmPassword: "", mustChangePassword: false }); setPwError(""); }} style={btnStyle("#7c3aed")}>Reset Password</button>
                     <button onClick={() => setResetUser(u)} style={btnStyle("#b45309")}>Reset Devices</button>
                     <Link href={`/admin/users/${u.id}/devices`} style={{ ...btnStyle("#0369a1"), textDecoration: "none" }}>Devices</Link>
@@ -538,6 +626,138 @@ export default function UsersPage() {
               <button onClick={confirmGlobalReset} disabled={globalResetSaving} style={{ ...primaryBtn, background: "#dc2626" }}>{globalResetSaving ? "Resetting…" : "Reset All Devices"}</button>
               <button onClick={() => setGlobalResetOpen(false)} style={cancelBtn}>Cancel</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Course Access Modal ───────────────────────────────────────────────── */}
+      {coursesUser && (
+        <div style={overlay}>
+          <div style={{ ...modal, maxWidth: 560, maxHeight: "90vh", overflowY: "auto" }}>
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem" }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: "1.0625rem", fontWeight: 700, color: "#0f172a" }}>Course Access</h2>
+                <div style={{ fontSize: "0.8125rem", color: "#64748b", marginTop: "0.2rem" }}>
+                  {coursesUser.name || coursesUser.email || "User"}
+                </div>
+              </div>
+              <button
+                onClick={() => setCoursesUser(null)}
+                style={{ border: "none", background: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8", lineHeight: 1, padding: "0.125rem 0.375rem" }}
+              >✕</button>
+            </div>
+
+            {coursesError && (
+              <div style={{ background: "#fee2e2", color: "#dc2626", padding: "0.5rem 0.75rem", borderRadius: "6px", marginBottom: "0.875rem", fontSize: "0.8125rem", fontWeight: 600 }}>
+                {coursesError}
+              </div>
+            )}
+
+            {coursesLoading ? (
+              <div style={{ textAlign: "center", padding: "2.5rem 1rem", color: "#94a3b8", fontSize: "0.875rem" }}>Loading…</div>
+            ) : (
+              <>
+                {/* ── Enrolled entitlements ── */}
+                <div style={{ marginBottom: "1.5rem" }}>
+                  <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.625rem" }}>
+                    Enrolled ({coursesEnrolled.filter(e => e.status === "ACTIVE").length} active)
+                  </div>
+
+                  {coursesEnrolled.length === 0 ? (
+                    <div style={{ padding: "1rem", background: "#f8fafc", borderRadius: "8px", color: "#94a3b8", fontSize: "0.8125rem", textAlign: "center" }}>
+                      No course access yet.
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                      {coursesEnrolled.map(e => (
+                        <div
+                          key={e.id}
+                          style={{
+                            display: "flex", alignItems: "center", gap: "0.625rem",
+                            padding: "0.5rem 0.75rem", borderRadius: "8px",
+                            background: e.status === "ACTIVE" ? "#f0fdf4" : "#fafafa",
+                            border: `1px solid ${e.status === "ACTIVE" ? "#bbf7d0" : "#e2e8f0"}`,
+                          }}
+                        >
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, fontSize: "0.8125rem", color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {e.package?.name ?? e.productCode}
+                            </div>
+                            <div style={{ fontSize: "0.72rem", color: "#64748b", marginTop: "0.125rem" }}>
+                              <span style={{ fontFamily: "monospace" }}>{e.productCode}</span>
+                              {" · "}
+                              {e.purchaseId ? "purchased" : "admin-granted"}
+                              {" · "}
+                              <span style={{ fontWeight: 700, color: e.status === "ACTIVE" ? "#15803d" : "#dc2626" }}>
+                                {e.status}
+                              </span>
+                            </div>
+                          </div>
+                          {e.status === "ACTIVE" ? (
+                            <button
+                              onClick={() => updateEntitlementStatus(e.id, "REVOKED")}
+                              style={{ padding: "0.2rem 0.625rem", borderRadius: "5px", border: "1px solid #dc2626", color: "#dc2626", background: "#fff", cursor: "pointer", fontSize: "0.72rem", fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}
+                            >
+                              Revoke
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => updateEntitlementStatus(e.id, "ACTIVE")}
+                              style={{ padding: "0.2rem 0.625rem", borderRadius: "5px", border: "1px solid #15803d", color: "#15803d", background: "#fff", cursor: "pointer", fontSize: "0.72rem", fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}
+                            >
+                              Re-activate
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Grant access ── */}
+                <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "1rem" }}>
+                  <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.625rem" }}>
+                    Grant Access
+                  </div>
+
+                  {coursesAvailable.length === 0 ? (
+                    <div style={{ padding: "1rem", background: "#f8fafc", borderRadius: "8px", color: "#94a3b8", fontSize: "0.8125rem", textAlign: "center" }}>
+                      User already has access to all available packages.
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", gap: "0.625rem", alignItems: "center" }}>
+                      <select
+                        value={coursesGrantPkg}
+                        onChange={e => setCoursesGrantPkg(e.target.value)}
+                        style={{ ...input, flex: 1, marginTop: 0 }}
+                      >
+                        <option value="">— Select a package —</option>
+                        {coursesAvailable.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={grantCourse}
+                        disabled={!coursesGrantPkg || coursesGranting}
+                        style={{
+                          padding: "0.5rem 1.125rem", borderRadius: "7px", border: "none",
+                          background: "#0f766e", color: "#fff", fontWeight: 700,
+                          cursor: (!coursesGrantPkg || coursesGranting) ? "not-allowed" : "pointer",
+                          fontSize: "0.875rem", flexShrink: 0,
+                          opacity: (!coursesGrantPkg || coursesGranting) ? 0.6 : 1,
+                        }}
+                      >
+                        {coursesGranting ? "Granting…" : "Grant"}
+                      </button>
+                    </div>
+                  )}
+                  <div style={{ marginTop: "0.5rem", fontSize: "0.72rem", color: "#94a3b8" }}>
+                    Granting access does not create a payment order or purchase record.
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
