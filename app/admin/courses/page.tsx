@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import AdminImageUploader from "@/components/admin/AdminImageUploader";
 import { parseRupees, validatePricing, calculateDiscount, formatRupee } from "@/lib/pricing";
 
 const PURPLE = "#7c3aed";
@@ -274,13 +273,36 @@ function CourseForm({ form, onChange, error, isEdit, categories, exams, disabled
       </div>
 
       <div>
-        <AdminImageUploader
-          label="Thumbnail"
-          value={form.thumbnailUrl || null}
-          onChange={(url) => set({ thumbnailUrl: url || "" })}
+        <label style={labelSt}>Thumbnail URL</label>
+        <input
+          type="url"
+          value={form.thumbnailUrl || ""}
+          onChange={e => set({ thumbnailUrl: e.target.value })}
+          placeholder="https://example.com/course-thumbnail.jpg"
           disabled={disabled}
-          base64
+          style={inputSt}
         />
+        {form.thumbnailUrl && (
+          <div style={{ marginTop: "0.5rem", position: "relative", borderRadius: 10, overflow: "hidden", height: 120 }}>
+            <img
+              src={form.thumbnailUrl}
+              alt="Thumbnail preview"
+              style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 10, border: "1px solid #e2e8f0", display: "block" }}
+              onError={e => { (e.target as HTMLImageElement).style.opacity = "0.3"; }}
+            />
+            <button
+              type="button"
+              onClick={() => set({ thumbnailUrl: "" })}
+              disabled={disabled}
+              style={{ position: "absolute", top: 6, right: 6, background: "rgba(220,38,38,0.85)", border: "none", color: "#fff", borderRadius: 5, padding: "3px 9px", fontSize: "0.72rem", fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer" }}
+            >
+              ✕ Clear
+            </button>
+          </div>
+        )}
+        <div style={{ marginTop: "0.25rem", fontSize: "0.72rem", color: "#94a3b8" }}>
+          Paste a direct image link (JPG, PNG, WebP). The preview updates automatically.
+        </div>
       </div>
 
       {/* Product type checkboxes */}
