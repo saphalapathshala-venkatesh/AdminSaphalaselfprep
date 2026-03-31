@@ -920,7 +920,7 @@ export default function QuestionBankPage() {
                           <input
                             type={child.type === "MCQ_SINGLE" ? "radio" : "checkbox"}
                             checked={opt.isCorrect}
-                            onChange={() => updateGroupChildOption(ci, oi, "isCorrect", true)}
+                            onChange={() => updateGroupChildOption(ci, oi, "isCorrect", child.type === "MCQ_SINGLE" ? true : !opt.isCorrect)}
                             style={{ accentColor: "#059669" }}
                           />
                           <input
