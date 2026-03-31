@@ -1,0 +1,100 @@
+We need a frontend performance and payload-safety audit focused on images, screenshots, equations, and rich question content in the Saphala student app.
+
+Important context:
+- Question content is stored as HTML.
+- Some images/screenshots may currently be embedded as base64 data URIs inside question stem/options/explanations.
+- Equations are rendered using KaTeX from stored HTML spans.
+- We previously had loading/performance issues with base64 images used for course thumbnails.
+- Before changing editor/import behavior, we want to ensure test loading and rendering will not break due to large embedded images or rich content.
+- Do NOT make assumptions. Read the actual code and trace the real frontend request/render path first.
+
+Your task:
+Perform a full audit of the student/frontend app to determine whether base64 images, screenshots, and equation-heavy content can break or degrade:
+- test attempt loading
+- question palette loading
+- next/previous question navigation
+- test submission/review pages
+- ebooks/flashcards if they share the same rendering path
+- Vercel/serverless response safety
+- mobile performance
+
+Please answer in this exact structure:
+
+A. Current frontend loading path
+1. Identify the exact files/routes/components used for:
+   - starting a test
+   - fetching test questions
+   - rendering a question during attempt
+   - rendering review/solution pages
+   - rendering flashcards/ebooks if relevant
+2. For each, explain:
+   - whether the full rich HTML payload is fetched at once or incrementally
+   - whether all questions are sent in one API response
+   - whether options/explanations/images are included immediately
+   - whether the frontend keeps all questions in memory
+
+B. Base64 image risk audit
+Audit the actual code and tell us:
+1. Can base64 images inside question HTML significantly increase API response size?
+2. Could this hit or approach Vercel/serverless payload/response limits?
+3. Could this slow initial test load, question switching, or review rendering?
+4. Could this especially hurt mobile devices / low bandwidth users?
+5. Are there any places where dangerouslySetInnerHTML + many large base64 images could cause DOM/render slowness?
+6. Are course thumbnails and test question images handled differently right now?
+
+C. Exact high-risk flows
+Identify the highest-risk flows in the current frontend, such as:
+- attempt start API returning too much HTML at once
+- review page loading every question + explanation + image together
+- flashcards or ebooks loading large HTML blocks
+- cached client state becoming too large
+- repeated KaTeX rendering over very large content payloads
+
+D. Payload measurement audit
+Please inspect the actual fetch/render path and estimate:
+1. Which API responses are likely to become too large if questions include screenshots/base64 images
+2. Which UI screens would degrade first
+3. Whether the app currently has any safeguards like:
+   - pagination
+   - lazy loading
+   - per-question fetch
+   - image size limits
+   - response truncation
+   - virtualization
+
+E. Final risk assessment
+Classify each of these as Low / Medium / High risk:
+- base64 screenshots inside question stem
+- base64 screenshots inside options
+- base64 screenshots inside explanations
+- equation-heavy but image-light questions
+- review pages with many rich questions
+- flashcards with embedded base64 images
+- ebooks/content pages with embedded base64 images
+
+F. Recommended frontend-safe strategy
+Based on the actual codebase, give one practical recommendation for production safety:
+For example:
+- base64 allowed only for tiny inline images under strict size limit
+- screenshots must move to object storage/CDN URLs
+- explanations should be fetched lazily
+- review pages should avoid loading everything at once
+- attempt API should exclude explanation payload until review
+Use the current architecture and give the least disruptive safe solution.
+
+G. Action plan
+Give a concrete implementation plan with file-level targets for frontend safety only:
+1. any API responses that should be slimmed down
+2. any screens that should lazy-load
+3. any renderers that should defer image loading
+4. any size guardrails that should be enforced
+5. any cases where base64 should be blocked entirely
+6. any places where equations are safe and do not need change
+
+Important constraints:
+- This is an audit first, not implementation
+- Read actual code first
+- No assumptions
+- Focus on production safety in Vercel and real student usage
+- We want to know whether images/screenshots/equations can break or degrade test attempts and other content loading
+- Explicitly mention whether current architecture is safe or unsafe for large embedded base64 screenshots
