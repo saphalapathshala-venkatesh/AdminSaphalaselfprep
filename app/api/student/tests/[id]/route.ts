@@ -40,6 +40,8 @@ export async function GET(
                 // explanation and explanationSecondary intentionally omitted —
                 // served only after submission via GET /api/student/attempts/[id]/review
                 difficulty: true,
+                groupId: true,
+                group: { select: { paragraph: true } },
                 options: {
                   select: {
                     id: true,
@@ -117,6 +119,8 @@ export async function GET(
         stem: tq.question.stem,
         stemSecondary: tq.question.stemSecondary ?? null,
         difficulty: tq.question.difficulty,
+        groupId: tq.question.groupId ?? null,
+        paragraphHtml: tq.question.group?.paragraph ?? null,
         options: tq.question.options,
       };
     });

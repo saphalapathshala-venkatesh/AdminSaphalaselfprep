@@ -56,6 +56,7 @@ interface Question {
   topicId: string | null;
   subtopicId: string | null;
   groupId?: string | null;
+  group?: { id: string; paragraph: string } | null;
   options: { id: string; text: string; textSecondary?: string | null; isCorrect: boolean; order: number }[];
   subtopic?: {
     id: string;

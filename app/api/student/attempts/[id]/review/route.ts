@@ -84,6 +84,8 @@ export async function GET(
             stemSecondary: true,
             explanation: true,
             explanationSecondary: true,
+            groupId: true,
+            group: { select: { paragraph: true } },
             options: {
               select: {
                 id: true,
@@ -155,6 +157,8 @@ export async function GET(
         stemSecondary: tq.question.stemSecondary ?? null,
         explanation: tq.question.explanation ?? null,
         explanationSecondary: tq.question.explanationSecondary ?? null,
+        groupId: tq.question.groupId ?? null,
+        paragraphHtml: tq.question.group?.paragraph ?? null,
         options: tq.question.options,
         selectedOptionIds: ans?.selectedOptionIds ?? [],
         isMarkedForReview: ans?.isMarkedForReview ?? false,

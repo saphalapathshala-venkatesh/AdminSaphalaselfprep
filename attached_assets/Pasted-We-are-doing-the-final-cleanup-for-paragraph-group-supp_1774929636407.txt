@@ -1,0 +1,83 @@
+We are doing the final cleanup for paragraph-group support in Saphala.
+
+Important:
+Do NOT make assumptions.
+Read the actual current code first.
+Then implement only the required changes.
+Keep everything additive and safe.
+Do not break existing standalone questions or grouped questions.
+
+Clarified product decision:
+- We do NOT need paragraph language switching.
+- We do NOT want separate paragraphEn / paragraphTe fields.
+- All paragraph content will be stored as a single bilingual rich-content field, just like our other bilingual uploaded content.
+- Frontend should render the entire bilingual paragraph as-is.
+
+Current known state:
+- Question groups already exist in the DB/runtime flow.
+- groupId / paragraphHtml currently flow through the test/review pipeline.
+- Frontend paragraph rendering already works.
+- Prisma schema is not fully synced with the actual paragraph-group structure yet.
+- We now want clean Prisma alignment and clean storage for grouped bilingual paragraph content.
+
+Implement exactly the following:
+
+A. Prisma schema sync
+1. Update schema.prisma so paragraph-group support is fully represented in Prisma.
+2. Add a proper QuestionGroup model (or align the existing one if already present in schema).
+3. Add Question.groupId relation properly in Prisma schema.
+4. Keep everything additive and safe.
+5. Run the safest schema sync flow used in this project.
+
+B. Group paragraph storage cleanup
+1. Use a single rich-content paragraph field for QuestionGroup.
+2. Keep/store paragraph content as bilingual rich HTML in one field.
+3. If current DB/runtime uses a differently named paragraph field, align code cleanly without losing existing data.
+4. Do not introduce paragraphEn / paragraphTe split fields.
+
+C. Backend/API updates
+1. Update all backend code paths that currently read/write paragraphHtml or single paragraph fields.
+2. Ensure grouped question payloads cleanly expose:
+   - groupId
+   - paragraphHtml (or final chosen single-field name)
+3. Preserve standalone question behavior unchanged.
+4. Remove unnecessary raw-SQL-only dependence if Prisma schema can now support the same flow cleanly.
+
+D. Admin question-group form updates
+1. Update admin group creation/editing UI so paragraph groups use a single bilingual RichEditor field for the passage.
+2. Existing grouped questions should remain editable.
+3. Child question flow should remain unchanged.
+
+E. DOCX import alignment
+1. Update grouped DOCX import so grouped passages populate the single bilingual paragraph field.
+2. If current DOCX format supports one group paragraph block, map it directly into the paragraph field.
+3. Do not add artificial bilingual field splitting.
+
+F. Student/test API readiness
+1. Ensure test attempt and review backend payloads return the single grouped paragraph field cleanly.
+2. Do not break existing question rendering fields.
+3. Keep payload minimal and correct.
+
+G. Backward compatibility and migration safety
+1. Existing grouped questions must continue to work.
+2. Existing standalone questions must continue to work.
+3. No destructive migration.
+4. No unnecessary refactors.
+
+H. Final output format
+After implementation, respond in exactly this structure:
+1. Files changed
+2. Schema changes made
+3. Migration / data backfill performed
+4. How grouped paragraph data is stored now
+5. How backend payloads changed
+6. How admin group editing changed
+7. Any frontend change required next
+8. Risks / limitations still remaining
+
+Important constraints:
+- This is primarily a backend/admin/schema task
+- Frontend changes should not be implemented here unless absolutely required
+- Keep changes safe, additive, and production-ready
+- Paragraph content is stored as one bilingual rich-content field
+- Prisma schema must match the real runtime structure after this change

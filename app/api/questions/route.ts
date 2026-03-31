@@ -67,6 +67,7 @@ export async function GET(req: NextRequest) {
         include: {
           options: { orderBy: { order: "asc" } },
           _count: { select: { testQuestions: true } },
+          group: { select: { id: true, paragraph: true } },
           subtopic: {
             select: {
               id: true,
