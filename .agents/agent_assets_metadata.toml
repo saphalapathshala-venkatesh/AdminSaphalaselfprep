@@ -72,3 +72,9 @@ id = "fe0VT53KPrxEOQGt1XR78"
 uri = "file://saphala-selfprep-admin.zip"
 type = "unspecified"
 title = "Saphala Self Prep Admin Console — Full Codebase (691 KB)"
+
+[[outputs]]
+id = "CJ-gHGsmpeTNfoe9WC4-Y"
+uri = "file://saphala-admin-console.zip"
+type = "unspecified"
+title = "Saphala Admin Console — Full Codebase"
