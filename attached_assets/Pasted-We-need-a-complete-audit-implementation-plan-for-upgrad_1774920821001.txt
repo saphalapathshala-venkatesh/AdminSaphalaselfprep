@@ -1,0 +1,159 @@
+We need a complete audit + implementation plan for upgrading the Saphala Question Bank and Test pipeline with these locked requirements.
+
+Do NOT make assumptions.
+Read the actual code first, then respond based only on the current codebase.
+
+We want to upgrade the system so that question creation, bulk import, question bank storage, test builder usage, and frontend rendering all support a clean and consistent rich-question model.
+
+Locked requirements:
+
+1. Bulk upload
+- We no longer want CSV as the main path for questions.
+- Word / DOCX bulk upload should be the primary and sufficient bulk upload path.
+- The import flow must clearly support:
+  - Single Question import
+  - Paragraph-Based Question import
+
+2. Single-question creation in admin
+Admin should support:
+- rich question text
+- inline equations
+- block equations
+- image URL insertion anywhere in the content
+- inline images inside a sentence
+- block images/diagrams
+- proper sequence preservation after save
+- same support for options and explanations where practical
+
+3. Paragraph-based questions
+We need proper support for paragraph/comprehension/caselet style questions:
+- one paragraph entered once
+- 2 to 10 child questions attached to that paragraph
+- paragraph should automatically appear in frontend while attempting each child question
+- paragraph should not need to be duplicated manually into every question
+- paragraph structure must work in:
+  - Question Bank
+  - bulk import
+  - adding questions to tests
+  - reusing questions from Question Bank into tests
+  - importing existing tests
+- the UI must clearly distinguish:
+  - Single Question
+  - Paragraph-Based Question
+
+4. Rendering requirement
+After upload/import/save, the displayed question must preserve:
+- exact content order
+- image position
+- inline equation position
+- paragraph/question structure
+- correct frontend rendering during test attempt and review
+
+5. Image handling
+We do NOT want base64 images in question content.
+We want image URLs / CDN URLs only.
+The code should automatically handle rendering of inline images vs block images without requiring manual dimensions every time.
+Default styling should be applied by code:
+- inline image inside text should align properly with text
+- larger images/diagrams should render responsively as blocks
+Admin should be able to insert an image URL at the exact cursor position in question/explanation content.
+
+Your task:
+
+A. Audit current model and editor flow
+1. Identify the current schema/model support for:
+   - single questions
+   - paragraph/grouped questions
+   - parent-child question relationships
+   - test question grouping
+2. Identify the exact admin components currently used for:
+   - question stem
+   - options
+   - explanations
+   - bulk imports
+   - test builder question creation
+3. Identify whether paragraph/group question support already exists partially in DB or code.
+
+B. Audit import capability
+1. Identify current DOCX import flow and parser.
+2. Identify whether current import can support:
+   - rich text
+   - image URLs
+   - embedded images
+   - equations
+   - paragraph + child question grouping
+3. Identify what changes are needed to make DOCX the primary import format.
+4. Confirm whether CSV can be safely deprioritized or removed from the question pipeline.
+
+C. Audit rendering capability
+1. Identify exact frontend renderers for:
+   - test attempt
+   - review/solutions
+   - question previews
+2. Confirm whether inline image URLs inside HTML content will render correctly in the same line as text if the code adds default inline-image styles.
+3. Identify where renderer changes are required so inline images, block images, and equations display consistently.
+
+D. Final recommended architecture
+Recommend one final architecture only for all of the following:
+- single rich question
+- paragraph-based question
+- DOCX bulk import
+- image URL insertion
+- frontend rendering
+- Question Bank → Test Builder reuse
+
+Important:
+Do NOT give multiple vague options.
+Recommend one clean, production-safe architecture based on the current codebase.
+
+E. Paragraph-question design
+Design the exact intended behavior for paragraph-based questions:
+1. how admin creates them manually
+2. how admin imports them from DOCX
+3. how they are stored in DB
+4. how they appear in Question Bank
+5. how they are added into tests
+6. how frontend shows paragraph + each child question
+7. how review page shows them
+8. how marks/timing/attempt data should behave for child questions
+
+F. Image URL design
+Define the exact UX for image insertion:
+1. image URL button in question editor
+2. image inserted at current cursor position
+3. auto-detect whether image should behave inline or block
+4. default CSS/class rules so admins do not need to manually set dimensions every time
+5. responsive behavior on mobile
+6. same behavior in question stem, options, explanation, and paragraph where practical
+
+G. Implementation plan
+Give a file-by-file implementation plan covering:
+1. schema/model changes if needed
+2. admin question bank changes
+3. test builder changes
+4. DOCX import changes
+5. frontend renderer changes
+6. Question Bank selection/reuse changes
+7. review/attempt page changes
+8. migration/backward compatibility plan
+
+H. Final output format
+Respond in this exact format:
+1. Current state audit
+2. Gaps vs locked requirements
+3. Recommended final architecture
+4. Paragraph-question design
+5. DOCX import design
+6. Image URL rendering design
+7. File-by-file implementation plan
+8. Risks / limitations
+9. Final recommendation
+
+Important constraints:
+- Read actual code first
+- No assumptions
+- No generic suggestions
+- No CSV-first workflow
+- We want DOCX-first workflow
+- We want image URLs, not base64
+- We want paragraph-based questions fully supported across admin and frontend
