@@ -38,6 +38,51 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   if (!course) return NextResponse.json({ error: "Course not found" }, { status: 404 });
 
+  // ── Linked content (test series, PDFs, videos, etc.) ──────────────────────
+  const linkedRows = await prisma.courseLinkedContent.findMany({
+    where: { courseId },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  const linkedByType: Record<string, string[]> = {};
+  for (const r of linkedRows) {
+    if (!linkedByType[r.contentType]) linkedByType[r.contentType] = [];
+    linkedByType[r.contentType].push(r.sourceId);
+  }
+
+  const linkedTitleMap: Record<string, string> = {};
+  await Promise.all(
+    Object.entries(linkedByType).map(async ([type, ids]) => {
+      if (type === "TEST_SERIES") {
+        const rows = await prisma.testSeries.findMany({ where: { id: { in: ids } }, select: { id: true, title: true } });
+        for (const r of rows) linkedTitleMap[r.id] = r.title;
+      } else if (type === "PDF") {
+        const rows = await prisma.pdfAsset.findMany({ where: { id: { in: ids } }, select: { id: true, title: true } });
+        for (const r of rows) linkedTitleMap[r.id] = r.title;
+      } else if (type === "EBOOK") {
+        const rows = await prisma.contentPage.findMany({ where: { id: { in: ids } }, select: { id: true, title: true } });
+        for (const r of rows) linkedTitleMap[r.id] = r.title;
+      } else if (type === "VIDEO") {
+        const rows = await prisma.video.findMany({ where: { id: { in: ids } }, select: { id: true, title: true } });
+        for (const r of rows) linkedTitleMap[r.id] = r.title;
+      } else if (type === "FLASHCARD_DECK") {
+        const rows = await prisma.flashcardDeck.findMany({ where: { id: { in: ids } }, select: { id: true, title: true } });
+        for (const r of rows) linkedTitleMap[r.id] = r.title;
+      } else if (type === "LIVE_CLASS") {
+        const rows = await prisma.liveClass.findMany({ where: { id: { in: ids } }, select: { id: true, title: true } });
+        for (const r of rows) linkedTitleMap[r.id] = r.title;
+      }
+    })
+  );
+
+  const linkedContent = linkedRows.map((r) => ({
+    id: r.id,
+    contentType: r.contentType as string,
+    sourceId: r.sourceId,
+    sortOrder: r.sortOrder,
+    title: r.titleOverride ?? linkedTitleMap[r.sourceId] ?? "(Deleted)",
+  }));
+
   const subjectIds = sections.map((s) => s.subjectId);
   const subjects = subjectIds.length
     ? await prisma.subject.findMany({
@@ -112,5 +157,5 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     })),
   }));
 
-  return NextResponse.json({ course, sections: enriched });
+  return NextResponse.json({ course, sections: enriched, linkedContent });
 }

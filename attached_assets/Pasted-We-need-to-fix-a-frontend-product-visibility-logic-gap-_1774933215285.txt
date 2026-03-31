@@ -1,0 +1,68 @@
+We need to fix a frontend product-visibility logic gap for Saphala courses.
+
+Important:
+- Do NOT make assumptions.
+- Read the actual frontend course-detail and curriculum rendering code first.
+- This is a course display / content reflection fix.
+- Do NOT redesign unrelated flows.
+
+Problem:
+When a course contains Test Series only, and the admin has already linked the Test Series to the course, the frontend shows nothing because the current curriculum display expects subject/section-based structure.
+
+This is wrong.
+For a Test-Series-only course, subject/chapter/lesson curriculum structure should not be mandatory for frontend visibility.
+
+Goal:
+Make the frontend correctly display course-linked test series/tests even when no subject-based curriculum structure exists.
+
+Implement exactly the following:
+
+A. Audit current course detail rendering
+1. Identify the exact frontend files/components/routes used for:
+   - course detail page
+   - curriculum rendering
+   - linked content rendering
+2. Identify what condition currently causes the page to show blank / no visible content for a test-series-only course.
+3. Confirm whether frontend currently requires subject sections or structured curriculum before rendering anything.
+
+B. Audit available backend/course payload
+1. Check what course-linked content data is already available in the current payload:
+   - test series
+   - tests
+   - PDFs
+   - videos
+   - flashcards
+2. Confirm whether linked test series are already present in the frontend payload and just not rendered, or whether the API must be read differently.
+
+C. Fix rendering logic
+1. Keep existing structured curriculum rendering unchanged for normal courses.
+2. Add fallback / alternate rendering for test-series-only courses:
+   - if no subject/chapter/lesson curriculum exists
+   - but linked test series/tests exist
+   - render them directly in the course content area
+3. This should not require subject structure to exist.
+
+D. Mixed-course safety
+1. If a course has both structured curriculum and linked test series, do not break existing flow.
+2. If needed, render a separate "Test Series" or "Tests Included" section below the normal curriculum.
+3. Keep UI simple and aligned with existing design.
+
+E. No regression
+1. Standalone structured courses must continue to work unchanged.
+2. Purchased/unpurchased access logic must remain correct.
+3. Do not break course preview/locked-state behavior.
+
+F. Final output format
+After implementation, respond in exactly this structure:
+1. Files changed
+2. What was wrong
+3. What was changed
+4. How test-series-only courses now render
+5. How mixed courses now render
+6. Any backend dependency still missing
+
+Important constraints:
+- Frontend first
+- Do not assume subject structure is mandatory for all products
+- Course should reflect admin-linked sellable content even without curriculum sections
+- No unnecessary redesign
