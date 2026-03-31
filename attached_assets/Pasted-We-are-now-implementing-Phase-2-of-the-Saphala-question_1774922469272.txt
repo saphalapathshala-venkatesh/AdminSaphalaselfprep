@@ -1,0 +1,150 @@
+We are now implementing Phase 2 of the Saphala question/content pipeline.
+
+Important:
+Do NOT make assumptions.
+Read the actual code first.
+Then implement only what is required in this phase.
+Do not redesign unrelated systems.
+Keep backward compatibility where practical.
+
+Context from completed Phase 1:
+- Initial test payload no longer includes explanations.
+- Review-only explanation path exists and frontend is aligned.
+- RichEditor blocks new base64 image creation and supports image URL insertion.
+- Frontend now supports rich-img, rich-img-inline, rich-img-block rendering.
+- Existing legacy base64 content may still exist and should not be broken immediately.
+
+Phase 2 goals:
+1. Add real paragraph/group question support in schema + admin + test pipeline.
+2. Upgrade DOCX import to become the primary question import path.
+3. Convert imported images to hosted/CDN URLs instead of base64.
+4. Add proper image upload pipeline for admin editor so admins can upload and auto-insert images without manual hosting every time.
+5. Prepare the system so frontend can later render paragraph groups cleanly with minimum extra changes.
+
+Implement exactly the following:
+
+A. Schema: paragraph/group question support
+1. Audit the current Prisma schema for Question, TestQuestion, imports, and any existing grouped/passage hacks.
+2. Add a proper additive paragraph/group model. Preferred direction:
+   - QuestionGroup (or equivalent clear name)
+   - stores paragraph/passage HTML once
+   - child Question rows reference it via nullable groupId
+3. Keep standalone questions fully supported with groupId = null.
+4. Do NOT break existing questions or attempts.
+5. If needed for test display grouping, add only additive nullable fields.
+6. After schema update, run the safest possible DB sync approach used in this project.
+
+B. Admin Question Bank: paragraph-group creation/editing
+1. Audit current question bank UI and API routes.
+2. Add clear question-type choice in admin:
+   - Single Question
+   - Paragraph-Based Questions
+3. For paragraph-based mode:
+   - allow entering one paragraph/passage using RichEditor
+   - allow adding 2 to 10 child questions
+   - each child question has its own:
+     - stem
+     - options
+     - explanation
+     - answer metadata
+4. Save paragraph once and link all child questions to that group.
+5. In question list UI, make grouped questions clearly identifiable.
+6. Prefer collapsed/expandable display if practical, but do not overbuild.
+
+C. DOCX import redesign (DOCX-first workflow)
+1. Audit current DOCX import parser and preview/commit flow.
+2. Make DOCX the primary question creation import path.
+3. We no longer want CSV as the main path for creating new questions.
+4. Update import logic so DOCX can support:
+   - normal single questions
+   - paragraph/group question blocks
+   - rich text
+   - image content
+   - $$latex$$ inline/block equation markers
+5. Add a clear paragraph-group import convention in the parser, for example:
+   - GROUP_START
+   - Passage:
+   - QUESTION
+   - END_QUESTION
+   - GROUP_END
+   Use whichever exact pattern best fits the current parser architecture, but keep it explicit and deterministic.
+6. Ensure preview flow shows grouped questions clearly before commit.
+
+D. DOCX equations
+1. Audit current parser limitations for equations.
+2. Do NOT try to support Word OMML if not realistically possible.
+3. Support practical LaTeX markers in DOCX body text:
+   - $$...$$
+   - optionally $...$ if safe
+4. Convert these during import into the existing renderable math format already used by the app.
+5. Preserve backward compatibility with current question rendering pipeline.
+
+E. Imported image handling
+1. Audit current DOCX image handling path.
+2. Currently imported images may become base64 in HTML — stop that for new imports.
+3. During import commit:
+   - detect embedded/base64 images
+   - upload them to the project’s object storage / CDN path
+   - replace src with hosted URL before saving Question / paragraph HTML
+4. Keep implementation robust and production-safe.
+5. If uploads need batching, do so sensibly.
+
+F. RichEditor image upload pipeline
+1. Extend RichEditor so admin does not need to manually host images before inserting.
+2. Add an upload flow:
+   - admin chooses/pastes/drops image
+   - image uploads to configured storage
+   - returned CDN URL is inserted at cursor
+3. Keep existing Image URL insertion path too.
+4. Preserve automatic inline vs block class assignment:
+   - rich-img
+   - rich-img-inline
+   - rich-img-block
+5. Do not reintroduce base64 persistence.
+
+G. Test Builder alignment
+1. Audit current admin test builder.
+2. Replace plain textareas/inputs used for question content with RichEditor where required.
+3. Ensure test builder supports:
+   - rich question text
+   - rich options
+   - explanations
+4. If paragraph-based questions are selected from Question Bank into tests, ensure structure is preserved or at least data model is ready for frontend rendering later.
+5. Do not overbuild frontend-facing paragraph rendering in this prompt; backend/admin readiness is the focus.
+
+H. API and backend readiness for frontend phase
+1. Ensure student/test APIs can expose paragraph group data in a clean way when requested later.
+2. Prepare payload shape so frontend can easily render:
+   - paragraph once
+   - child question under it
+3. Do not break existing standalone question flows.
+
+I. Backward compatibility and safety
+1. Existing standalone questions must continue to work unchanged.
+2. Existing legacy base64 images may remain in old content for now; do not try to migrate all old rows in this phase unless absolutely necessary.
+3. No destructive migration.
+4. No unrelated refactors.
+
+J. Final output format
+After implementation, respond in exactly this structure:
+1. Files changed
+2. Schema changes made
+3. How paragraph/group questions are now stored
+4. How admin creates paragraph-based questions now
+5. How DOCX import now handles:
+   - single questions
+   - paragraph groups
+   - equations
+   - images
+6. How RichEditor upload flow now works
+7. How test builder changed
+8. Any frontend changes required next
+9. Risks / limitations still remaining
+
+Important constraints:
+- This is Phase 2 backend/admin implementation only
+- Keep changes additive and safe
+- DOCX is the primary bulk import path
+- No CSV-first assumptions
+- No base64 persistence for new imported/editor-uploaded images
+- Use the app’s existing rendering pipeline instead of introducing a new editor framework

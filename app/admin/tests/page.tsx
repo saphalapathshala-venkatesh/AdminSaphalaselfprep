@@ -1,6 +1,15 @@
 "use client";
 import React, { useState, useCallback, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import { BRAND, adminBtn } from "@/lib/adminStyles";
+
+const RichEditor = dynamic(() => import("@/components/ui/RichEditor"), { ssr: false });
+
+function hasVisibleText(html: string): boolean {
+  if (!html) return false;
+  const stripped = html.replace(/<[^>]*>/g, "").trim();
+  return stripped.length > 0 || html.includes("<img");
+}
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -456,7 +465,7 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
   async function handleCqSave() {
     setCqError("");
     const isMCQ = ["MCQ_SINGLE", "MCQ_MULTIPLE"].includes(cqForm.type);
-    if (!cqForm.stem.trim()) { setCqError("Question stem is required."); return; }
+    if (!hasVisibleText(cqForm.stem)) { setCqError("Question stem is required."); return; }
     if (isMCQ) {
       const filled = cqOptions.filter(o => o.text.trim());
       if (filled.length < 2) { setCqError("MCQ requires at least 2 options with text."); return; }
@@ -1133,8 +1142,12 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
 
             <div style={{ marginBottom: "1rem" }}>
               <label style={lbl}>Question Stem *</label>
-              <textarea value={cqForm.stem} onChange={e => setCqForm(f => ({ ...f, stem: e.target.value }))}
-                rows={4} placeholder="Enter question text…" style={{ ...inp, resize: "vertical" }} />
+              <RichEditor
+                value={cqForm.stem}
+                onChange={(html) => setCqForm(f => ({ ...f, stem: html }))}
+                placeholder="Enter question text, paste an image, or insert an equation…"
+                minHeight={80}
+              />
             </div>
 
             {["MCQ_SINGLE", "MCQ_MULTIPLE"].includes(cqForm.type) && (
@@ -1170,8 +1183,12 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
 
             <div style={{ marginBottom: "1rem" }}>
               <label style={lbl}>Explanation / Answer</label>
-              <textarea value={cqForm.explanation} onChange={e => setCqForm(f => ({ ...f, explanation: e.target.value }))}
-                rows={2} placeholder="Explanation or correct answer…" style={{ ...inp, resize: "vertical" }} />
+              <RichEditor
+                value={cqForm.explanation}
+                onChange={(html) => setCqForm(f => ({ ...f, explanation: html }))}
+                placeholder="Explanation or correct answer — supports images and equations…"
+                minHeight={60}
+              />
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>

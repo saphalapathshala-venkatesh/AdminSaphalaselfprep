@@ -272,7 +272,13 @@ function normaliseMammothHtml(html: string): string {
     .replace(/<em>/gi, "<i>")
     .replace(/<\/em>/gi, "</i>")
     .replace(/ style="[^"]*"/gi, "")
-    .replace(/ class="[^"]*"/gi, "");
+    .replace(/ class="[^"]*"/gi, "")
+    // Convert $$...$$  LaTeX markers to the math-eq span format used by RichContent.
+    // Handles both block ($$\n...\n$$) and inline ($$...$$ on same line) usage.
+    .replace(/\$\$([^$]+?)\$\$/g, (_full, latex) => {
+      const trimmed = latex.replace(/\s+/g, " ").trim();
+      return `<span class="math-eq" data-latex="${trimmed}">$$${trimmed}$$</span>`;
+    });
 }
 
 /**
@@ -405,7 +411,7 @@ function normaliseCorrect(val: string): string {
 }
 
 /** Finalise a RawRow built from a QUESTION block */
-function finaliseRow(row: RawRow, passageHtml: string): RawRow {
+function finaliseRow(row: RawRow, passageHtml: string, groupKey?: string): RawRow {
   const out: RawRow = { ...row };
 
   // Normalise correct answer
@@ -435,14 +441,20 @@ function finaliseRow(row: RawRow, passageHtml: string): RawRow {
     delete (out as any)._sourceTag;
   }
 
-  // Attach passage as tag
+  // Attach passage as tag for backward-compat rendering
   if (passageHtml) {
     const existing = (out.tags || "").trim();
     const passageTag = `passage:${passageHtml}`;
     out.tags = existing ? `${existing},${passageTag}` : passageTag;
   }
 
-  // Remove internal field
+  // Group metadata for Phase 2 commit: proper QuestionGroup creation
+  if (groupKey) {
+    (out as any)._groupKey = groupKey;
+    (out as any)._paragraphHtml = passageHtml;
+  }
+
+  // Remove internal fields
   delete (out as any)._passage;
 
   return out;
@@ -461,11 +473,17 @@ export function parseDocxHtml(rawHtml: string): RawRow[] {
   let passageHtml = "";
   let groupTaxonomy: Pick<RawRow, "category" | "subject" | "topic" | "subtopic"> = {};
 
+  // Group tracking: each GROUP_START block gets a unique key so the commit
+  // route can create one QuestionGroup record and link all child Questions.
+  let groupCounter = 0;
+  let currentGroupKey: string | undefined = undefined;
+
   const pushRow = () => {
     if (currentRow.stem || currentRow.option1) {
       rows.push(finaliseRow(
         { ...groupTaxonomy, ...currentRow },
         passageHtml,
+        currentGroupKey,
       ));
     }
     currentRow = {};
@@ -482,12 +500,15 @@ export function parseDocxHtml(rawHtml: string): RawRow[] {
       groupTaxonomy = {};
       currentRow = {};
       currentField = null;
+      // Assign a new group key for this paragraph block — all child questions will share it
+      currentGroupKey = `docx-group-${++groupCounter}`;
       continue;
     }
     if (/^group_end/i.test(t)) {
       if (state === "IN_QUESTION") pushRow();
       passageHtml = "";
       groupTaxonomy = {};
+      currentGroupKey = undefined;
       state = "IDLE";
       continue;
     }

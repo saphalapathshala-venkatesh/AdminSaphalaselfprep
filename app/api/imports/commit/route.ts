@@ -5,8 +5,47 @@ import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { validateRow, type RawRow } from "@/lib/importValidator";
+import { uploadBase64ImageToStorage } from "@/lib/objectStorage";
 import { writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
+
+/**
+ * Replace every base64-embedded image in an HTML string with a CDN URL.
+ * Images are uploaded to object storage directly from the server (server-side PUT).
+ * Falls back to keeping the base64 intact if the upload fails (non-fatal).
+ */
+async function replaceBase64Images(html: string): Promise<string> {
+  if (!html || !html.includes("data:image")) return html;
+
+  const pattern = /src="data:image\/([^;]+);base64,([^"]+)"/g;
+  let result = html;
+  let offset = 0;
+
+  for (const m of Array.from(html.matchAll(new RegExp(pattern.source, "g")))) {
+    const [fullMatch, mimeSubtype, base64Data] = m;
+    const contentType = `image/${mimeSubtype}`;
+    try {
+      const cdnUrl = await uploadBase64ImageToStorage(base64Data, contentType);
+      result = result.slice(0, (m.index ?? 0) + offset) +
+               `src="${cdnUrl}"` +
+               result.slice((m.index ?? 0) + offset + fullMatch.length);
+      offset += `src="${cdnUrl}"`.length - fullMatch.length;
+    } catch (err) {
+      console.warn("[commit] base64 image upload failed, keeping inline:", err);
+    }
+  }
+  return result;
+}
+
+/** Apply base64→CDN replacement to stem, explanation, and option texts in a normalised row. */
+async function hoistImages(nr: ReturnType<typeof validateRow>["normalizedRow"] & {}): Promise<void> {
+  if (!nr) return;
+  nr.stem = await replaceBase64Images(nr.stem);
+  if (nr.explanation) nr.explanation = await replaceBase64Images(nr.explanation);
+  for (const opt of nr.options ?? []) {
+    opt.text = await replaceBase64Images(opt.text);
+  }
+}
 
 export async function POST(req: NextRequest) {
   const user = await getSessionUserFromRequest(req);
@@ -36,6 +75,30 @@ export async function POST(req: NextRequest) {
       orderBy: { rowNumber: "asc" },
     });
 
+    // ── Pre-pass: create QuestionGroup records for DOCX paragraph blocks ─────
+    // Rows produced by parseDocxHtml carry _groupKey and _paragraphHtml in rawData.
+    // We create one QuestionGroup per unique key and store the ID in a map for
+    // the main loop to link child questions.
+    const groupIdByKey = new Map<string, string>();
+
+    for (const row of rows) {
+      const data = (row.editedData || row.rawData) as Record<string, unknown>;
+      const key = data._groupKey as string | undefined;
+      if (!key || groupIdByKey.has(key)) continue;
+
+      const paragraphHtml = (data._paragraphHtml as string | undefined) ?? "";
+      try {
+        const hoistedParagraph = await replaceBase64Images(paragraphHtml);
+        const group = await prisma.questionGroup.create({
+          data: { paragraph: hoistedParagraph },
+        });
+        groupIdByKey.set(key, group.id);
+      } catch (err) {
+        console.warn("[commit] Failed to create QuestionGroup for key", key, err);
+      }
+    }
+
+    // ── Main import loop ───────────────────────────────────────────────────────
     let importedCount = 0;
     let failedCount = 0;
     const errorRows: { rowNumber: number; errorField: string; errorMsg: string; stem: string }[] = [];
@@ -84,14 +147,16 @@ export async function POST(req: NextRequest) {
       }
 
       try {
+        // ── Hoist base64 images to CDN before saving ────────────────────────
+        await hoistImages(nr);
+
+        // ── Taxonomy resolution ─────────────────────────────────────────────
         let categoryId: string | null = null;
         let subjectId: string | null = null;
         let topicId: string | null = null;
         let subtopicId: string | null = null;
 
         if (nr.category) {
-          // Category unique constraint is now (boardId, name). For bulk imports,
-          // find any matching category by name, or create a legacy (boardId=null) one.
           let cat = await prisma.category.findFirst({ where: { name: nr.category } });
           if (!cat) cat = await prisma.category.create({ data: { name: nr.category } });
           categoryId = cat.id;
@@ -139,6 +204,12 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        // ── Group linkage ───────────────────────────────────────────────────
+        const rawData = (row.editedData || row.rawData) as Record<string, unknown>;
+        const groupKey = rawData._groupKey as string | undefined;
+        const groupId = groupKey ? (groupIdByKey.get(groupKey) ?? null) : null;
+
+        // ── Create question ─────────────────────────────────────────────────
         const isMCQ = ["MCQ_SINGLE", "MCQ_MULTIPLE"].includes(nr.type);
 
         await prisma.question.create({
@@ -154,6 +225,7 @@ export async function POST(req: NextRequest) {
             subjectId,
             topicId,
             subtopicId,
+            groupId,
             options: isMCQ
               ? {
                   create: nr.options.map((o) => ({
@@ -189,6 +261,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── Error report CSV ───────────────────────────────────────────────────────
     let reportUrl: string | null = null;
     if (errorRows.length > 0) {
       try {
@@ -231,6 +304,7 @@ export async function POST(req: NextRequest) {
         failedCount,
         finalStatus,
         reportUrl,
+        groupsCreated: groupIdByKey.size,
       },
     });
 
@@ -240,6 +314,7 @@ export async function POST(req: NextRequest) {
         importedCount,
         failedCount,
         reportUrl,
+        groupsCreated: groupIdByKey.size,
       },
     });
   } catch (err) {

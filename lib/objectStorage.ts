@@ -85,6 +85,56 @@ export async function generateImageUploadUrl(
   return { uploadUrl: signed_url, publicUrl };
 }
 
+/**
+ * Uploads a base64-encoded image directly from the server to object storage.
+ * Used during DOCX import commit to convert embedded base64 images to CDN URLs.
+ * Generates a presigned URL then immediately PUTs the image bytes from the server.
+ *
+ * @param base64       Raw base64 string (no data URI prefix)
+ * @param contentType  MIME type (e.g. "image/png")
+ * @returns            Final public CDN URL for the uploaded image
+ */
+export async function uploadBase64ImageToStorage(
+  base64: string,
+  contentType: string
+): Promise<string> {
+  const bucket = getBucket();
+  const ext = ALLOWED_IMAGE_TYPES[contentType] ?? "png";
+  const objectName = `${PUBLIC_IMAGE_PREFIX}/${randomUUID()}.${ext}`;
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
+  const signRes = await fetch(`${SIDECAR}/object-storage/signed-object-url`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      bucket_name: bucket,
+      object_name: objectName,
+      method: "PUT",
+      expires_at: expiresAt,
+    }),
+  });
+
+  if (!signRes.ok) {
+    const body = await signRes.text().catch(() => "");
+    throw new Error(`Sidecar presign failed (${signRes.status}): ${body}`);
+  }
+
+  const { signed_url } = await signRes.json();
+  const imageBuffer = Buffer.from(base64, "base64");
+
+  const putRes = await fetch(signed_url, {
+    method: "PUT",
+    headers: { "Content-Type": contentType },
+    body: imageBuffer,
+  });
+
+  if (!putRes.ok) {
+    throw new Error(`Image PUT to storage failed (${putRes.status})`);
+  }
+
+  return `https://storage.googleapis.com/${bucket}/${objectName}`;
+}
+
 export const MAX_PDF_BYTES = 20 * 1024 * 1024; // 20 MB
 
 /**

@@ -32,6 +32,15 @@ interface Option {
   isCorrect: boolean;
 }
 
+interface GroupChild {
+  type: string;
+  difficulty: string;
+  status: string;
+  stem: string;
+  explanation: string;
+  options: { text: string; isCorrect: boolean }[];
+}
+
 interface Question {
   id: string;
   type: string;
@@ -46,6 +55,7 @@ interface Question {
   subjectId: string | null;
   topicId: string | null;
   subtopicId: string | null;
+  groupId?: string | null;
   options: { id: string; text: string; textSecondary?: string | null; isCorrect: boolean; order: number }[];
   subtopic?: {
     id: string;
@@ -120,6 +130,16 @@ export default function QuestionBankPage() {
     matches: { id: string; stem: string; similarity: number }[];
   } | null>(null);
   const [pendingPayload, setPendingPayload] = useState<any>(null);
+
+  // Group/paragraph question mode (create only; edit stays single)
+  const [questionMode, setQuestionMode] = useState<"single" | "group">("single");
+  const [groupParagraph, setGroupParagraph] = useState("");
+  const [groupChildren, setGroupChildren] = useState<GroupChild[]>([
+    { type: "MCQ_SINGLE", difficulty: "FOUNDATIONAL", status: "DRAFT", stem: "", explanation: "", options: [{ text: "", isCorrect: true }, { text: "", isCorrect: false }] },
+    { type: "MCQ_SINGLE", difficulty: "FOUNDATIONAL", status: "DRAFT", stem: "", explanation: "", options: [{ text: "", isCorrect: true }, { text: "", isCorrect: false }] },
+  ]);
+  const [groupSaving, setGroupSaving] = useState(false);
+  const [groupError, setGroupError] = useState("");
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -271,6 +291,14 @@ export default function QuestionBankPage() {
     setEditId(null);
     setNearDupWarning(null);
     setPendingPayload(null);
+    // Group form reset
+    setQuestionMode("single");
+    setGroupParagraph("");
+    setGroupChildren([
+      { type: "MCQ_SINGLE", difficulty: "FOUNDATIONAL", status: "DRAFT", stem: "", explanation: "", options: [{ text: "", isCorrect: true }, { text: "", isCorrect: false }] },
+      { type: "MCQ_SINGLE", difficulty: "FOUNDATIONAL", status: "DRAFT", stem: "", explanation: "", options: [{ text: "", isCorrect: true }, { text: "", isCorrect: false }] },
+    ]);
+    setGroupError("");
   }
 
   function startCreate() {
@@ -327,6 +355,96 @@ export default function QuestionBankPage() {
       ]);
     }
     setMode("edit");
+  }
+
+  function updateGroupChild(index: number, updates: Partial<GroupChild>) {
+    setGroupChildren((prev) => prev.map((c, i) => i === index ? { ...c, ...updates } : c));
+  }
+
+  function updateGroupChildOption(childIdx: number, optIdx: number, field: "text" | "isCorrect", value: any) {
+    setGroupChildren((prev) =>
+      prev.map((c, i) => {
+        if (i !== childIdx) return c;
+        const updatedOptions = c.options.map((o, j) => {
+          if (j !== optIdx) {
+            if (field === "isCorrect" && value === true && c.type === "MCQ_SINGLE") {
+              return { ...o, isCorrect: false };
+            }
+            return o;
+          }
+          return { ...o, [field]: value };
+        });
+        return { ...c, options: updatedOptions };
+      })
+    );
+  }
+
+  function addGroupChild() {
+    if (groupChildren.length >= 10) return;
+    setGroupChildren((prev) => [
+      ...prev,
+      { type: "MCQ_SINGLE", difficulty: "FOUNDATIONAL", status: "DRAFT", stem: "", explanation: "", options: [{ text: "", isCorrect: true }, { text: "", isCorrect: false }] },
+    ]);
+  }
+
+  function removeGroupChild(index: number) {
+    if (groupChildren.length <= 2) return;
+    setGroupChildren((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleSaveGroup() {
+    if (!hasVisibleText(groupParagraph)) {
+      setGroupError("Paragraph/passage is required for the group");
+      return;
+    }
+    for (let i = 0; i < groupChildren.length; i++) {
+      const c = groupChildren[i];
+      if (!hasVisibleText(c.stem)) {
+        setGroupError(`Child question ${i + 1}: stem is required`);
+        return;
+      }
+      if (MCQ_TYPES.includes(c.type)) {
+        if (c.options.length < 2) { setGroupError(`Child ${i + 1}: at least 2 options required`); return; }
+        if (c.options.every((o) => !o.isCorrect)) { setGroupError(`Child ${i + 1}: mark at least one option correct`); return; }
+        if (c.options.some((o) => !o.text.trim())) { setGroupError(`Child ${i + 1}: all option texts are required`); return; }
+      }
+    }
+    setGroupSaving(true);
+    setGroupError("");
+    try {
+      const res = await fetch("/api/questions/groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paragraph: groupParagraph,
+          categoryId: formCategoryId || null,
+          subjectId: formSubjectId || null,
+          topicId: formTopicId || null,
+          subtopicId: formSubtopicId || null,
+          children: groupChildren.map((c) => ({
+            type: c.type,
+            difficulty: c.difficulty,
+            status: c.status,
+            stem: c.stem,
+            explanation: c.explanation || null,
+            options: MCQ_TYPES.includes(c.type) ? c.options : [],
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setGroupError(data.error || "Failed to save group");
+        return;
+      }
+      showToast(`Paragraph group created with ${groupChildren.length} questions`, "success");
+      setMode("list");
+      resetForm();
+      fetchQuestions();
+    } catch {
+      setGroupError("Network error. Please try again.");
+    } finally {
+      setGroupSaving(false);
+    }
   }
 
   async function handleSave(confirmNearDup = false) {
@@ -635,6 +753,223 @@ export default function QuestionBankPage() {
           </button>
         </div>
 
+        {/* Mode selector — only in create mode */}
+        {mode === "create" && (
+          <div style={{ display: "flex", gap: "0", marginBottom: "1.25rem", border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden", maxWidth: "340px" }}>
+            {(["single", "group"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setQuestionMode(m)}
+                style={{
+                  flex: 1,
+                  padding: "0.5rem 1rem",
+                  fontSize: "0.85rem",
+                  fontWeight: questionMode === m ? 700 : 400,
+                  background: questionMode === m ? "#7c3aed" : "#f8fafc",
+                  color: questionMode === m ? "#fff" : "#64748b",
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: "system-ui, sans-serif",
+                  transition: "all 0.15s",
+                }}
+              >
+                {m === "single" ? "Single Question" : "Paragraph Group"}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ── GROUP FORM ──────────────────────────────────────────────────── */}
+        {mode === "create" && questionMode === "group" && (
+          <div>
+            {groupError && <div style={errorBox}>{groupError}</div>}
+
+            {/* Passage / paragraph */}
+            <div style={{ ...cardStyle, marginBottom: "1rem" }}>
+              <div style={{ fontWeight: 700, color: "#7c3aed", marginBottom: "0.75rem", fontSize: "0.9rem" }}>
+                Passage / Paragraph
+              </div>
+              <div style={{ fontSize: "0.8rem", color: "#6b7280", marginBottom: "0.5rem" }}>
+                This text appears above all child questions. Include the reading passage, figure description, or case study here.
+              </div>
+              <RichEditor
+                value={groupParagraph}
+                onChange={setGroupParagraph}
+                placeholder="Type or paste the paragraph/passage here…"
+                minHeight={100}
+              />
+            </div>
+
+            {/* Shared taxonomy */}
+            <div style={{ ...cardStyle, marginBottom: "1rem" }}>
+              <div style={{ fontWeight: 700, color: "#374151", marginBottom: "0.75rem", fontSize: "0.9rem" }}>
+                Taxonomy (shared by all child questions)
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "1rem" }}>
+                <div>
+                  <label style={labelStyle}>Category</label>
+                  <select value={formCategoryId} onChange={(e) => setFormCategoryId(e.target.value)} style={selectStyle}>
+                    <option value="">-- Select --</option>
+                    {formCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Subject</label>
+                  <select value={formSubjectId} onChange={(e) => setFormSubjectId(e.target.value)} style={selectStyle} disabled={!formCategoryId}>
+                    <option value="">-- Select --</option>
+                    {formSubjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Topic</label>
+                  <select value={formTopicId} onChange={(e) => setFormTopicId(e.target.value)} style={selectStyle} disabled={!formSubjectId}>
+                    <option value="">-- Select --</option>
+                    {formTopics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Subtopic</label>
+                  <select value={formSubtopicId} onChange={(e) => setFormSubtopicId(e.target.value)} style={selectStyle} disabled={!formTopicId}>
+                    <option value="">-- Select --</option>
+                    {formSubtopics.map((st) => <option key={st.id} value={st.id}>{st.name}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Child questions */}
+            <div style={{ marginBottom: "1rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                <div style={{ fontWeight: 700, color: "#374151", fontSize: "0.9rem" }}>
+                  Child Questions ({groupChildren.length}/10)
+                </div>
+                <button
+                  type="button"
+                  onClick={addGroupChild}
+                  disabled={groupChildren.length >= 10}
+                  style={{ ...btnStyle, fontSize: "0.8rem", padding: "0.3rem 0.7rem", backgroundColor: groupChildren.length >= 10 ? "#94a3b8" : "#7c3aed" }}
+                >
+                  + Add Question
+                </button>
+              </div>
+
+              {groupChildren.map((child, ci) => (
+                <div key={ci} style={{ ...cardStyle, marginBottom: "0.875rem", border: "1px solid #c4b5fd", position: "relative" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                    <span style={{ fontWeight: 700, color: "#7c3aed", fontSize: "0.85rem" }}>
+                      Question {ci + 1}
+                    </span>
+                    {groupChildren.length > 2 && (
+                      <button type="button" onClick={() => removeGroupChild(ci)} style={{ ...btnStyle, fontSize: "0.75rem", padding: "0.2rem 0.5rem", backgroundColor: "#dc2626" }}>
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
+                    <div>
+                      <label style={labelStyle}>Type</label>
+                      <select
+                        value={child.type}
+                        onChange={(e) => {
+                          const t = e.target.value;
+                          const newOptions = MCQ_TYPES.includes(t)
+                            ? (child.options.length >= 2 ? child.options : [{ text: "", isCorrect: true }, { text: "", isCorrect: false }])
+                            : [];
+                          updateGroupChild(ci, { type: t, options: newOptions });
+                        }}
+                        style={selectStyle}
+                      >
+                        {Q_TYPES.map((qt) => <option key={qt.value} value={qt.value}>{qt.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Difficulty</label>
+                      <select value={child.difficulty} onChange={(e) => updateGroupChild(ci, { difficulty: e.target.value })} style={selectStyle}>
+                        {DIFFICULTIES.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Status</label>
+                      <select value={child.status} onChange={(e) => updateGroupChild(ci, { status: e.target.value })} style={selectStyle}>
+                        {STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: "0.75rem" }}>
+                    <label style={labelStyle}>Question Stem *</label>
+                    <RichEditor value={child.stem} onChange={(html) => updateGroupChild(ci, { stem: html })} placeholder="Question text…" minHeight={60} />
+                  </div>
+
+                  {MCQ_TYPES.includes(child.type) && (
+                    <div style={{ marginBottom: "0.75rem" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.375rem" }}>
+                        <label style={labelStyle}>Options</label>
+                        {child.options.length < 8 && (
+                          <button type="button" onClick={() => updateGroupChild(ci, { options: [...child.options, { text: "", isCorrect: false }] })}
+                            style={{ ...btnStyle, fontSize: "0.7rem", padding: "0.15rem 0.4rem", backgroundColor: "#7c3aed" }}>
+                            + Option
+                          </button>
+                        )}
+                      </div>
+                      {child.options.map((opt, oi) => (
+                        <div key={oi} style={{ display: "flex", gap: "0.375rem", alignItems: "center", marginBottom: "0.25rem" }}>
+                          <input
+                            type={child.type === "MCQ_SINGLE" ? "radio" : "checkbox"}
+                            checked={opt.isCorrect}
+                            onChange={() => updateGroupChildOption(ci, oi, "isCorrect", true)}
+                            style={{ accentColor: "#059669" }}
+                          />
+                          <input
+                            value={opt.text}
+                            onChange={(e) => updateGroupChildOption(ci, oi, "text", e.target.value)}
+                            placeholder={`Option ${String.fromCharCode(65 + oi)}`}
+                            style={{ ...inputStyle, flex: 1, padding: "0.25rem 0.5rem", fontSize: "0.85rem" }}
+                          />
+                          {child.options.length > 2 && (
+                            <button type="button" onClick={() => updateGroupChild(ci, { options: child.options.filter((_, j) => j !== oi) })}
+                              style={{ ...btnStyle, fontSize: "0.7rem", padding: "0.15rem 0.4rem", backgroundColor: "#dc2626" }}>×</button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div>
+                    <label style={labelStyle}>Explanation (optional)</label>
+                    <RichEditor value={child.explanation} onChange={(html) => updateGroupChild(ci, { explanation: html })} placeholder="Explain the correct answer…" minHeight={44} />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Save group */}
+            <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+              <button
+                type="button"
+                onClick={handleSaveGroup}
+                disabled={groupSaving}
+                style={{ ...btnStyle, backgroundColor: "#7c3aed" }}
+              >
+                {groupSaving ? "Saving…" : `Save Group (${groupChildren.length} questions)`}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMode("list"); resetForm(); }}
+                style={{ ...btnStyle, backgroundColor: "#6b7280" }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── SINGLE QUESTION FORM (hidden when group mode active in create) ──── */}
+        {questionMode === "single" && (
+          <>
+
         {formError && (
           <div style={errorBox}>{formError}</div>
         )}
@@ -882,6 +1217,7 @@ export default function QuestionBankPage() {
             </button>
           </div>
         </div>
+        </>)}
       </div>
     );
   }
@@ -1086,7 +1422,14 @@ export default function QuestionBankPage() {
                       </span>
                     )}
                   </td>
-                  <td style={tdStyle}>{getTypeLabel(q.type)}</td>
+                  <td style={tdStyle}>
+                    {getTypeLabel(q.type)}
+                    {q.groupId && (
+                      <span style={{ display: "block", fontSize: "0.6rem", fontWeight: 700, color: "#7c3aed", marginTop: "1px" }}>
+                        ¶ Grouped
+                      </span>
+                    )}
+                  </td>
                   <td style={tdStyle}>
                     <span style={{
                       display: "inline-block",

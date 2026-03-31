@@ -18,7 +18,7 @@
  *    automatically based on cursor context — no manual dimensions required.
  */
 
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useEffect, useCallback, useState, useId } from "react";
 
 interface RichEditorProps {
   value: string;
@@ -64,6 +64,16 @@ export default function RichEditor({
   // Paste-blocked notice state
   const [pasteBlocked, setPasteBlocked] = useState(false);
   const pasteBlockedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Image dialog tab: "url" | "upload"
+  const [imgTab, setImgTab] = useState<"url" | "upload">("url");
+
+  // File upload state
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
+  const [uploadError, setUploadError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputId = useId();
 
   // Saved selection for both dialogs
   const savedRange = useRef<Range | null>(null);
@@ -178,7 +188,7 @@ export default function RichEditor({
     emitChange();
   }
 
-  // ── Image URL dialog ───────────────────────────────────────────────────────
+  // ── Image dialog (URL + Upload tabs) ─────────────────────────────────────
   function openImgDialog() {
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
@@ -186,7 +196,42 @@ export default function RichEditor({
     }
     setImgUrlInput("");
     setImgUrlError("");
+    setImgTab("url");
+    setUploadFile(null);
+    setUploadStatus("idle");
+    setUploadError("");
     setImgDialogOpen(true);
+  }
+
+  async function handleFileUpload() {
+    if (!uploadFile) return;
+    setUploadStatus("uploading");
+    setUploadError("");
+    try {
+      const res = await fetch("/api/admin/upload/request-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: uploadFile.name, contentType: uploadFile.type, size: uploadFile.size }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({ error: "Request failed" }));
+        throw new Error(j.error ?? "Failed to get upload URL");
+      }
+      const { uploadUrl, publicUrl } = await res.json();
+      const putRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": uploadFile.type },
+        body: uploadFile,
+      });
+      if (!putRes.ok) throw new Error(`Storage upload failed (${putRes.status})`);
+      setImgDialogOpen(false);
+      setUploadFile(null);
+      setUploadStatus("idle");
+      insertImageAtCursor(publicUrl);
+    } catch (err) {
+      setUploadStatus("error");
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
+    }
   }
 
   function insertImageFromUrl() {
@@ -305,10 +350,10 @@ export default function RichEditor({
           type="button"
           onMouseDown={(e) => { e.preventDefault(); openImgDialog(); }}
           style={TOOLBAR_BTN}
-          title="Insert image by URL"
+          title="Insert image (URL or upload)"
           disabled={disabled}
         >
-          🖼 Image URL
+          🖼 Image
         </button>
 
         <button
@@ -384,7 +429,23 @@ export default function RichEditor({
         </div>
       )}
 
-      {/* Image URL dialog */}
+      {/* Hidden file input for upload tab */}
+      <input
+        ref={fileInputRef}
+        id={fileInputId}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const f = e.target.files?.[0] ?? null;
+          setUploadFile(f);
+          setUploadStatus("idle");
+          setUploadError("");
+          e.target.value = "";
+        }}
+      />
+
+      {/* Image dialog — URL tab | Upload tab */}
       {imgDialogOpen && (
         <div
           style={{
@@ -400,81 +461,161 @@ export default function RichEditor({
             padding: "0.75rem",
           }}
         >
-          <div style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#374151", marginBottom: "0.375rem" }}>
-            Insert Image by URL
+          {/* Tab strip */}
+          <div style={{ display: "flex", gap: "0", marginBottom: "0.75rem", borderBottom: "1px solid #e5e7eb" }}>
+            {(["url", "upload"] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => { setImgTab(tab); setUploadError(""); setImgUrlError(""); }}
+                style={{
+                  padding: "0.3125rem 0.75rem",
+                  fontSize: "0.8rem",
+                  fontWeight: imgTab === tab ? 700 : 400,
+                  color: imgTab === tab ? "#16a34a" : "#6b7280",
+                  background: "none",
+                  border: "none",
+                  borderBottom: imgTab === tab ? "2px solid #16a34a" : "2px solid transparent",
+                  cursor: "pointer",
+                  fontFamily: "system-ui, sans-serif",
+                }}
+              >
+                {tab === "url" ? "By URL" : "Upload File"}
+              </button>
+            ))}
           </div>
-          <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.5rem" }}>
-            Paste a hosted image URL (https://…). Image position (inline or block) is detected automatically.
-          </div>
-          <input
-            autoFocus
-            type="url"
-            value={imgUrlInput}
-            onChange={(e) => { setImgUrlInput(e.target.value); setImgUrlError(""); }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") { e.preventDefault(); insertImageFromUrl(); }
-              if (e.key === "Escape") setImgDialogOpen(false);
-            }}
-            placeholder="https://cdn.example.com/image.png"
-            style={{
-              width: "100%",
-              padding: "0.375rem 0.5rem",
-              border: `1px solid ${imgUrlError ? "#ef4444" : "#d1d5db"}`,
-              borderRadius: "4px",
-              fontSize: "0.875rem",
-              fontFamily: "system-ui, sans-serif",
-              marginBottom: "0.375rem",
-              boxSizing: "border-box",
-            }}
-          />
-          {imgUrlError && (
-            <div style={{ fontSize: "0.75rem", color: "#ef4444", marginBottom: "0.375rem" }}>
-              {imgUrlError}
-            </div>
-          )}
-          {imgUrlInput && /^https?:\/\//i.test(imgUrlInput) && (
-            <div style={{ marginBottom: "0.5rem" }}>
-              <div style={{ fontSize: "0.6875rem", color: "#6b7280", marginBottom: "0.25rem" }}>Preview:</div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={imgUrlInput}
-                alt="preview"
-                style={{ maxWidth: "100%", maxHeight: "120px", objectFit: "contain", borderRadius: "4px", border: "1px solid #e5e7eb" }}
+
+          {/* URL tab */}
+          {imgTab === "url" && (
+            <>
+              <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.5rem" }}>
+                Paste a hosted image URL (https://…). Position (inline or block) is detected automatically.
+              </div>
+              <input
+                autoFocus
+                type="url"
+                value={imgUrlInput}
+                onChange={(e) => { setImgUrlInput(e.target.value); setImgUrlError(""); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); insertImageFromUrl(); }
+                  if (e.key === "Escape") setImgDialogOpen(false);
+                }}
+                placeholder="https://cdn.example.com/image.png"
+                style={{
+                  width: "100%",
+                  padding: "0.375rem 0.5rem",
+                  border: `1px solid ${imgUrlError ? "#ef4444" : "#d1d5db"}`,
+                  borderRadius: "4px",
+                  fontSize: "0.875rem",
+                  fontFamily: "system-ui, sans-serif",
+                  marginBottom: "0.375rem",
+                  boxSizing: "border-box",
+                }}
               />
-            </div>
+              {imgUrlError && (
+                <div style={{ fontSize: "0.75rem", color: "#ef4444", marginBottom: "0.375rem" }}>
+                  {imgUrlError}
+                </div>
+              )}
+              {imgUrlInput && /^https?:\/\//i.test(imgUrlInput) && (
+                <div style={{ marginBottom: "0.5rem" }}>
+                  <div style={{ fontSize: "0.6875rem", color: "#6b7280", marginBottom: "0.25rem" }}>Preview:</div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imgUrlInput}
+                    alt="preview"
+                    style={{ maxWidth: "100%", maxHeight: "120px", objectFit: "contain", borderRadius: "4px", border: "1px solid #e5e7eb" }}
+                  />
+                </div>
+              )}
+              <div style={{ display: "flex", gap: "0.375rem" }}>
+                <button
+                  type="button"
+                  onClick={insertImageFromUrl}
+                  style={{ padding: "0.3125rem 0.75rem", background: "#16a34a", color: "#fff", border: "none", borderRadius: "4px", fontSize: "0.8125rem", cursor: "pointer" }}
+                >
+                  Insert
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImgDialogOpen(false)}
+                  style={{ padding: "0.3125rem 0.75rem", background: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db", borderRadius: "4px", fontSize: "0.8125rem", cursor: "pointer" }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
           )}
-          <div style={{ display: "flex", gap: "0.375rem" }}>
-            <button
-              type="button"
-              onClick={insertImageFromUrl}
-              style={{
-                padding: "0.3125rem 0.75rem",
-                background: "#16a34a",
-                color: "#fff",
-                border: "none",
-                borderRadius: "4px",
-                fontSize: "0.8125rem",
-                cursor: "pointer",
-              }}
-            >
-              Insert
-            </button>
-            <button
-              type="button"
-              onClick={() => setImgDialogOpen(false)}
-              style={{
-                padding: "0.3125rem 0.75rem",
-                background: "#f3f4f6",
-                color: "#374151",
-                border: "1px solid #d1d5db",
-                borderRadius: "4px",
-                fontSize: "0.8125rem",
-                cursor: "pointer",
-              }}
-            >
-              Cancel
-            </button>
-          </div>
+
+          {/* Upload tab */}
+          {imgTab === "upload" && (
+            <>
+              <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.5rem" }}>
+                Upload a JPG, PNG, or WebP image (max 5 MB). It will be stored on the CDN and inserted at cursor.
+              </div>
+
+              {/* File picker area */}
+              <div
+                style={{
+                  border: "2px dashed #d1d5db",
+                  borderRadius: "6px",
+                  padding: "0.75rem",
+                  textAlign: "center",
+                  marginBottom: "0.5rem",
+                  background: "#f9fafb",
+                  cursor: "pointer",
+                }}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploadFile ? (
+                  <div>
+                    <div style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#374151", marginBottom: "0.125rem" }}>
+                      {uploadFile.name}
+                    </div>
+                    <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>
+                      {(uploadFile.size / 1024).toFixed(1)} KB · {uploadFile.type}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: "0.8125rem", color: "#6b7280" }}>
+                    Click to choose an image file
+                  </div>
+                )}
+              </div>
+
+              {uploadError && (
+                <div style={{ fontSize: "0.75rem", color: "#ef4444", marginBottom: "0.375rem" }}>
+                  {uploadError}
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: "0.375rem" }}>
+                <button
+                  type="button"
+                  disabled={!uploadFile || uploadStatus === "uploading"}
+                  onClick={handleFileUpload}
+                  style={{
+                    padding: "0.3125rem 0.75rem",
+                    background: !uploadFile || uploadStatus === "uploading" ? "#a7f3d0" : "#16a34a",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "4px",
+                    fontSize: "0.8125rem",
+                    cursor: !uploadFile || uploadStatus === "uploading" ? "default" : "pointer",
+                  }}
+                >
+                  {uploadStatus === "uploading" ? "Uploading…" : "Upload & Insert"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImgDialogOpen(false)}
+                  style={{ padding: "0.3125rem 0.75rem", background: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db", borderRadius: "4px", fontSize: "0.8125rem", cursor: "pointer" }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
