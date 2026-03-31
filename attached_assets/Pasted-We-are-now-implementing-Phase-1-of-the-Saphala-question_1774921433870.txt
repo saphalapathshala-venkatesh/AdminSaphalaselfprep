@@ -1,0 +1,102 @@
+We are now implementing Phase 1 of the Saphala question/test pipeline hardening.
+
+Important:
+Do NOT make assumptions.
+Read the actual code first and then implement only the required changes.
+Do not redesign unrelated parts.
+Do not change schema unless explicitly required in this phase.
+
+Context from completed audit:
+- GET /api/student/tests/[id] currently returns full question payload including explanation and explanationSecondary before attempt starts. This is wrong for both performance and exam integrity.
+- RichEditor currently allows base64 image content via clipboard/file paste.
+- We want to stop new base64 images from entering the system.
+- We want image URLs / CDN URLs only going forward.
+- Frontend will be aligned in a separate phase after backend changes are complete.
+
+Phase 1 goals:
+1. Remove explanations from the initial student test payload.
+2. Create a post-submission review payload path for explanations.
+3. Block new base64 images from being saved via RichEditor and move toward image URL based insertion.
+4. Do this with minimum disruption and without breaking unrelated flows.
+
+Implement exactly the following:
+
+A. Remove explanations from initial test payload
+1. Find the current student test load route:
+   - GET /api/student/tests/[id]
+2. Remove:
+   - explanation
+   - explanationSecondary
+   from the initial payload returned before attempt submission.
+3. Ensure the route still returns everything needed for attempt:
+   - stem
+   - stemSecondary
+   - options
+   - optionsSecondary if already used
+   - marks/timing/metadata currently needed by frontend
+4. Do NOT expose explanations before submission.
+
+B. Add review-only explanation path
+1. Add a new review endpoint or extend the correct post-submission route so that explanations are available only after the attempt is submitted.
+2. Guard it strictly:
+   - only allow explanation payload when attempt.status === "SUBMITTED" (or equivalent final submitted state in code)
+3. Return everything needed for review:
+   - question stem
+   - options
+   - correct answer / selected answer if already available in current review flow
+   - explanation
+   - explanationSecondary
+4. If a review route already exists, reuse it cleanly instead of duplicating logic.
+
+C. Base64 image hardening in RichEditor
+1. Audit the current RichEditor image insertion paths:
+   - clipboard paste
+   - file upload
+   - any direct base64 insertion path
+2. For Phase 1, block new base64 image persistence.
+3. Implement the following rule:
+   - If image paste/upload would create a data:image/... base64 src inside editor HTML, block it with a clear user-facing message.
+4. Add an image URL insertion path in RichEditor:
+   - proper UI, not raw prompt()
+   - allow admin to paste an image URL
+   - insert image at current cursor position
+5. Apply default classes automatically:
+   - inline image class if inserted within text flow
+   - block image class if inserted on an empty line / block context
+6. Do NOT require admin to manually set dimensions every time.
+7. Keep implementation simple and production-safe.
+
+D. Add default image rendering classes
+1. Ensure inserted image HTML gets consistent classes such as:
+   - rich-img
+   - rich-img-inline
+   - rich-img-block
+2. These classes should be suitable for frontend rendering later.
+3. Do not over-style in editor; just ensure structure is correct and consistent.
+
+E. Backward compatibility
+1. Existing old questions with base64 images must continue to render for now.
+2. But no NEW base64 images should be created through the editor after this change.
+3. Do not write migration scripts in this phase.
+
+F. Safety checks
+1. Make sure no initial test payload still leaks explanation fields anywhere else.
+2. Make sure no frontend API contract is broken silently — if review flow needs frontend adjustment, clearly note it in your final report.
+3. Preserve existing test attempt behavior.
+
+G. Final output format
+After implementation, respond in exactly this structure:
+1. Files changed
+2. What was changed in each file
+3. Whether initial test payload no longer includes explanations
+4. Which route now serves explanations after submission
+5. How RichEditor now handles image insertion
+6. What base64 behavior is blocked now
+7. Any frontend adjustments required next
+
+Important constraints:
+- This is Phase 1 only
+- No paragraph-group schema changes yet
+- No DOCX import redesign yet
+- No unrelated refactors
+- Minimal, safe, production-oriented change set

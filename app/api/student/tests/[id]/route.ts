@@ -37,8 +37,8 @@ export async function GET(
                 type: true,
                 stem: true,
                 stemSecondary: true,
-                explanation: true,
-                explanationSecondary: true,
+                // explanation and explanationSecondary intentionally omitted —
+                // served only after submission via GET /api/student/attempts/[id]/review
                 difficulty: true,
                 options: {
                   select: {

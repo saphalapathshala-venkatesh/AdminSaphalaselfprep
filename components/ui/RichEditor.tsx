@@ -4,12 +4,18 @@
  * RichEditor — contenteditable rich text editor for question content.
  *
  * Features:
- *  - Paste images/screenshots directly from clipboard → stored as base64 data URIs
- *  - Upload images via file button
+ *  - Insert image by URL (inline dialog) — class auto-detected: rich-img-inline / rich-img-block
  *  - Insert equations via $$LaTeX$$ markers (inline dialog)
  *  - Bold / italic toolbar
  *  - Outputs HTML via onChange callback
- *  - Existing plain text renders correctly (backward compatible)
+ *  - Backward compatible: existing base64 img src values continue to render
+ *
+ * Phase 1 hardening:
+ *  - Clipboard image paste is BLOCKED. User sees a clear inline message.
+ *  - File-based image upload is BLOCKED. Same reason.
+ *  - All new images must enter via the "🖼 Image URL" dialog.
+ *  - Images get class="rich-img rich-img-inline" or "rich-img rich-img-block"
+ *    automatically based on cursor context — no manual dimensions required.
  */
 
 import { useRef, useEffect, useCallback, useState } from "react";
@@ -35,32 +41,34 @@ const TOOLBAR_BTN: React.CSSProperties = {
   whiteSpace: "nowrap",
 };
 
-const TOOLBAR_BTN_ACTIVE: React.CSSProperties = {
-  ...TOOLBAR_BTN,
-  background: "#7c3aed",
-  color: "#fff",
-  borderColor: "#7c3aed",
-};
-
 export default function RichEditor({
   value,
   onChange,
-  placeholder = "Type here, paste images, or use toolbar…",
+  placeholder = "Type here or use toolbar to insert images/equations…",
   minHeight = 72,
   disabled = false,
 }: RichEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const isInternalChange = useRef(false);
   const lastValue = useRef(value);
 
+  // Equation dialog state
   const [eqDialogOpen, setEqDialogOpen] = useState(false);
   const [eqInput, setEqInput] = useState("");
+
+  // Image URL dialog state
+  const [imgDialogOpen, setImgDialogOpen] = useState(false);
+  const [imgUrlInput, setImgUrlInput] = useState("");
+  const [imgUrlError, setImgUrlError] = useState("");
+
+  // Paste-blocked notice state
+  const [pasteBlocked, setPasteBlocked] = useState(false);
+  const pasteBlockedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Saved selection for both dialogs
   const savedRange = useRef<Range | null>(null);
 
-  // Mount-only: set initial innerHTML from prop (lastValue.current === value on
-  // first render so the sync effect below would skip it — this ensures edit mode
-  // always pre-fills with the saved content).
+  // ── Mount: set initial innerHTML ──────────────────────────────────────────
   useEffect(() => {
     if (editorRef.current) {
       editorRef.current.innerHTML = value;
@@ -69,7 +77,7 @@ export default function RichEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sync from parent when value changes externally (e.g. form reset)
+  // ── Sync from parent (e.g. form reset) ───────────────────────────────────
   useEffect(() => {
     const el = editorRef.current;
     if (!el) return;
@@ -91,68 +99,117 @@ export default function RichEditor({
     onChange(html);
   }, [onChange]);
 
-  // ── Paste handler: capture images from clipboard ───────────────────────────
+  // ── Paste handler: block image paste, allow text paste normally ───────────
   const handlePaste = useCallback(
     (e: React.ClipboardEvent<HTMLDivElement>) => {
       const items = Array.from(e.clipboardData?.items ?? []);
-      const imageItem = items.find((it) => it.type.startsWith("image/"));
-      if (!imageItem) return; // let browser handle text paste normally
+      const hasImage = items.some((it) => it.type.startsWith("image/"));
+      if (!hasImage) return; // let browser handle text paste normally
 
       e.preventDefault();
-      const file = imageItem.getAsFile();
-      if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const src = ev.target?.result as string;
-        insertImageAtCursor(src);
-      };
-      reader.readAsDataURL(file);
+      // Show the "paste blocked" message for 4 seconds
+      if (pasteBlockedTimer.current) clearTimeout(pasteBlockedTimer.current);
+      setPasteBlocked(true);
+      pasteBlockedTimer.current = setTimeout(() => setPasteBlocked(false), 4000);
     },
     []
   );
 
-  // ── Insert <img> at cursor position ───────────────────────────────────────
+  // ── Determine inline vs block based on cursor context ────────────────────
+  function detectImageClass(): "rich-img rich-img-inline" | "rich-img rich-img-block" {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return "rich-img rich-img-block";
+
+    const range = sel.getRangeAt(0);
+    let container: Node = range.startContainer;
+
+    // Walk up to the nearest block-level element inside the editor
+    while (container && container !== editorRef.current) {
+      if (container.nodeType === Node.ELEMENT_NODE) {
+        const tag = (container as Element).tagName.toLowerCase();
+        if (["p", "div", "li", "blockquote", "td", "th"].includes(tag)) {
+          break;
+        }
+      }
+      container = container.parentNode as Node;
+    }
+
+    // Check if the block has any meaningful text content (excluding whitespace)
+    const blockText = container?.textContent?.trim() ?? "";
+    return blockText.length === 0 ? "rich-img rich-img-block" : "rich-img rich-img-inline";
+  }
+
+  // ── Insert <img> at cursor with auto-detected class ───────────────────────
   function insertImageAtCursor(src: string) {
     const el = editorRef.current;
     if (!el) return;
     el.focus();
+
+    const imgClass = detectImageClass();
+
+    // Restore saved range if selection was lost when dialog opened
     const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) {
-      el.innerHTML +=
-        `<img src="${src}" style="max-width:100%;height:auto;display:block;margin:0.25rem 0;" alt="uploaded image" />`;
-    } else {
-      const range = sel.getRangeAt(0);
+    if (savedRange.current && sel) {
+      sel.removeAllRanges();
+      sel.addRange(savedRange.current);
+    }
+
+    const currentSel = window.getSelection();
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = "image";
+    img.className = imgClass;
+
+    if (currentSel && currentSel.rangeCount > 0) {
+      const range = currentSel.getRangeAt(0);
       range.deleteContents();
-      const img = document.createElement("img");
-      img.src = src;
-      img.alt = "uploaded image";
-      img.style.cssText = "max-width:100%;height:auto;display:block;margin:0.25rem 0;";
       range.insertNode(img);
-      // Move cursor after image
       const after = range.cloneRange();
       after.setStartAfter(img);
       after.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(after);
+      currentSel.removeAllRanges();
+      currentSel.addRange(after);
+    } else {
+      el.appendChild(img);
     }
+
+    savedRange.current = null;
     emitChange();
   }
 
-  // ── File upload ────────────────────────────────────────────────────────────
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      insertImageAtCursor(ev.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
+  // ── Image URL dialog ───────────────────────────────────────────────────────
+  function openImgDialog() {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      savedRange.current = sel.getRangeAt(0).cloneRange();
+    }
+    setImgUrlInput("");
+    setImgUrlError("");
+    setImgDialogOpen(true);
   }
 
-  // ── Equation insertion ─────────────────────────────────────────────────────
+  function insertImageFromUrl() {
+    const url = imgUrlInput.trim();
+    if (!url) {
+      setImgUrlError("Please enter an image URL.");
+      return;
+    }
+    // Basic URL validation — must be http/https
+    if (!/^https?:\/\//i.test(url)) {
+      setImgUrlError("URL must start with https:// or http://");
+      return;
+    }
+    // Block base64 data URIs — they should not be inserted here
+    if (/^data:/i.test(url)) {
+      setImgUrlError("Base64 data URIs are not allowed. Use a hosted image URL instead.");
+      return;
+    }
+    setImgDialogOpen(false);
+    insertImageAtCursor(url);
+  }
+
+  // ── Equation dialog ────────────────────────────────────────────────────────
   function openEqDialog() {
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
@@ -205,6 +262,7 @@ export default function RichEditor({
   }
 
   const isEmpty = !value || value === "<br>" || value === "<div><br></div>";
+  const anyDialogOpen = eqDialogOpen || imgDialogOpen;
 
   return (
     <div style={{ position: "relative" }}>
@@ -245,20 +303,13 @@ export default function RichEditor({
 
         <button
           type="button"
-          onMouseDown={(e) => { e.preventDefault(); fileInputRef.current?.click(); }}
+          onMouseDown={(e) => { e.preventDefault(); openImgDialog(); }}
           style={TOOLBAR_BTN}
-          title="Upload or paste image / screenshot"
+          title="Insert image by URL"
           disabled={disabled}
         >
-          📷 Image
+          🖼 Image URL
         </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          style={{ display: "none" }}
-          onChange={handleFileChange}
-        />
 
         <button
           type="button"
@@ -271,9 +322,26 @@ export default function RichEditor({
         </button>
 
         <span style={{ marginLeft: "auto", fontSize: "0.6875rem", color: "#94a3b8", paddingRight: "0.25rem" }}>
-          Paste image with Ctrl+V
+          Use 🖼 to insert images
         </span>
       </div>
+
+      {/* Paste-blocked notice */}
+      {pasteBlocked && (
+        <div
+          style={{
+            background: "#fef3c7",
+            border: "1px solid #f59e0b",
+            borderRadius: "4px",
+            padding: "0.375rem 0.625rem",
+            fontSize: "0.8125rem",
+            color: "#92400e",
+            margin: "0 0 0.25rem",
+          }}
+        >
+          Image paste is disabled. Use the <strong>🖼 Image URL</strong> button to insert images by URL.
+        </div>
+      )}
 
       {/* Editor */}
       <div
@@ -313,6 +381,100 @@ export default function RichEditor({
           }}
         >
           {placeholder}
+        </div>
+      )}
+
+      {/* Image URL dialog */}
+      {imgDialogOpen && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            zIndex: 50,
+            background: "#fff",
+            border: "1px solid #86efac",
+            borderRadius: "6px",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+            padding: "0.75rem",
+          }}
+        >
+          <div style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#374151", marginBottom: "0.375rem" }}>
+            Insert Image by URL
+          </div>
+          <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.5rem" }}>
+            Paste a hosted image URL (https://…). Image position (inline or block) is detected automatically.
+          </div>
+          <input
+            autoFocus
+            type="url"
+            value={imgUrlInput}
+            onChange={(e) => { setImgUrlInput(e.target.value); setImgUrlError(""); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); insertImageFromUrl(); }
+              if (e.key === "Escape") setImgDialogOpen(false);
+            }}
+            placeholder="https://cdn.example.com/image.png"
+            style={{
+              width: "100%",
+              padding: "0.375rem 0.5rem",
+              border: `1px solid ${imgUrlError ? "#ef4444" : "#d1d5db"}`,
+              borderRadius: "4px",
+              fontSize: "0.875rem",
+              fontFamily: "system-ui, sans-serif",
+              marginBottom: "0.375rem",
+              boxSizing: "border-box",
+            }}
+          />
+          {imgUrlError && (
+            <div style={{ fontSize: "0.75rem", color: "#ef4444", marginBottom: "0.375rem" }}>
+              {imgUrlError}
+            </div>
+          )}
+          {imgUrlInput && /^https?:\/\//i.test(imgUrlInput) && (
+            <div style={{ marginBottom: "0.5rem" }}>
+              <div style={{ fontSize: "0.6875rem", color: "#6b7280", marginBottom: "0.25rem" }}>Preview:</div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imgUrlInput}
+                alt="preview"
+                style={{ maxWidth: "100%", maxHeight: "120px", objectFit: "contain", borderRadius: "4px", border: "1px solid #e5e7eb" }}
+              />
+            </div>
+          )}
+          <div style={{ display: "flex", gap: "0.375rem" }}>
+            <button
+              type="button"
+              onClick={insertImageFromUrl}
+              style={{
+                padding: "0.3125rem 0.75rem",
+                background: "#16a34a",
+                color: "#fff",
+                border: "none",
+                borderRadius: "4px",
+                fontSize: "0.8125rem",
+                cursor: "pointer",
+              }}
+            >
+              Insert
+            </button>
+            <button
+              type="button"
+              onClick={() => setImgDialogOpen(false)}
+              style={{
+                padding: "0.3125rem 0.75rem",
+                background: "#f3f4f6",
+                color: "#374151",
+                border: "1px solid #d1d5db",
+                borderRadius: "4px",
+                fontSize: "0.8125rem",
+                cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
