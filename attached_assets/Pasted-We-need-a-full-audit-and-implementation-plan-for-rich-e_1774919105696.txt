@@ -1,0 +1,132 @@
+We need a full audit and implementation plan for rich equation/image support across the Saphala admin question/content editors and frontend renderers.
+
+Goal:
+Teachers/admins must be able to paste or type equations into the editor and have them display exactly like proper mathematical notation in both admin preview and student frontend — not as raw plain text and not as visible LaTeX source.
+
+Also, within the same content flow, we must support:
+- inline equations
+- block equations
+- inline images/screenshots
+- text + image + equation on the same line where needed
+- pasted screenshots from clipboard
+- consistent rendering in question editor, explanations, solutions, and frontend question display
+- compatibility with bulk upload/import wherever realistically possible
+
+Very important:
+Do NOT make assumptions.
+First audit the current codebase thoroughly and tell us the exact current state before suggesting changes.
+
+Please do all of the following:
+
+A. Audit current editor and renderer stack
+1. Identify the exact editors currently used in admin for:
+   - Question text
+   - Options
+   - Explanations
+   - Paragraph/passage questions
+   - Flashcards / ebooks if they share components
+2. Identify the exact frontend renderers currently used to display:
+   - Questions
+   - Options
+   - Explanations
+   - Review/solution pages
+3. Identify whether current content is stored as:
+   - plain text
+   - HTML
+   - editor JSON
+   - markdown
+   - mixed legacy formats
+4. Identify whether any existing support already exists for:
+   - KaTeX
+   - MathJax
+   - Tiptap math extensions
+   - ProseMirror custom nodes
+   - image upload/paste nodes
+   - clipboard image handling
+
+B. Find current gaps and failure points
+Audit why equations are not appearing properly today.
+Specifically check:
+1. If pasted equations are being stored as plain text or escaped HTML
+2. If LaTeX is being stored but never rendered
+3. If renderer strips math markup
+4. If sanitization removes math tags/spans
+5. If admin preview and frontend rendering use different pipelines
+6. If inline images/screenshots are being converted into detached reference images instead of real inline content
+7. If same-line text + image + equation layout is currently impossible because of editor schema limitations
+8. If bulk import path strips formatting/equations/images
+
+C. Recommend one final architecture only
+We want one clean, production-safe rich content pipeline for questions and explanations.
+
+The final solution must support:
+- inline math like x² − 5x + 6 = 0
+- block math
+- proper fractions, roots, powers, subscripts, matrices if possible
+- pasted screenshots/images inside content
+- inline placement of image/equation/text in the same line where possible
+- consistent admin preview and student frontend rendering
+- no raw LaTeX shown to students
+- backward compatibility strategy for legacy questions if needed
+
+Choose one final approach only after audit, for example:
+- Tiptap + math extension + KaTeX rendering + inline image node
+or another approach if better based on actual codebase
+
+Do not give multiple vague options. Recommend one best path based on existing code.
+
+D. Bulk upload/import audit
+Audit all import paths and answer:
+1. Can CSV realistically support rich equations and inline images? If not, say so directly.
+2. Should DOCX be the preferred bulk import format for equations?
+3. Can pasted Word equations be preserved?
+4. What is the best practical import strategy for:
+   - normal text-only MCQs
+   - equation-heavy quant questions
+   - image/screenshot-based questions
+5. If bulk import cannot fully preserve same-line images + equations, say exactly what limitations exist.
+
+E. Implementation plan
+Give a concrete implementation plan with file-level targets:
+1. Admin editor changes required
+2. Storage format changes required or not required
+3. Frontend renderer changes required
+4. Sanitization changes required
+5. Clipboard image paste support
+6. Image upload/storage path
+7. Preview rendering changes
+8. Migration strategy for existing content
+9. Testing plan for:
+   - equation rendering
+   - copy-paste from Word
+   - copy-paste from websites
+   - screenshot paste
+   - frontend display
+   - review/solution display
+   - mobile rendering
+
+F. Non-negotiable UX requirements
+Design and implement with these constraints:
+- Admin must be able to paste content directly into the question editor without breaking formatting
+- Equations must render visually as math, not raw syntax
+- Images/screenshots must live inside the content flow, not become separate “reference image” style attachments unless intentionally added separately
+- Text, equation, and small image should be able to appear inline/on the same line where appropriate
+- Frontend and backend/admin preview must match closely
+- Question editor, options, explanation, and paragraph blocks should all behave consistently where practical
+
+G. Final output format
+Please respond in this structure:
+1. Current state audit
+2. Exact gaps/problems
+3. Recommended final architecture
+4. Import/bulk upload feasibility
+5. File-by-file implementation plan
+6. Risks/limitations
+7. Final recommendation
+
+Important:
+- Read actual code first
+- No assumptions
+- No generic editor suggestions
+- No partial answer
+- We need a practical implementation path that works for Saphala question bank and student frontend
