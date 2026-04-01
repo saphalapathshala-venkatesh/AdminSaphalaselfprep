@@ -120,10 +120,12 @@ export default function RichEditor({
   const [cellMenu, setCellMenu] = useState<{
     x: number; y: number;
     cell: HTMLTableCellElement;
-    canMergeRight: boolean;
-    canMergeDown: boolean;
+    maxMergeRight: number;   // how many cells can be merged to the right
+    maxMergeDown: number;    // how many rows can be merged downward
     canSplit: boolean;
   } | null>(null);
+  const [mergeRightCount, setMergeRightCount] = useState("2");
+  const [mergeDownCount, setMergeDownCount] = useState("2");
 
   // ── Mount: set initial innerHTML ──────────────────────────────────────────
   useEffect(() => {
@@ -423,48 +425,71 @@ export default function RichEditor({
     e.preventDefault();
     const colspan = parseInt(cell.getAttribute("colspan") || "1");
     const rowspan = parseInt(cell.getAttribute("rowspan") || "1");
-    const nextCell = cell.nextElementSibling as HTMLTableCellElement | null;
     const row = cell.closest("tr") as HTMLTableRowElement | null;
-    const nextRow = row?.nextElementSibling as HTMLTableRowElement | null;
     const cellIndex = row ? Array.from(row.cells).indexOf(cell) : -1;
-    const belowCell = nextRow && cellIndex >= 0 ? nextRow.cells[cellIndex] : null;
+
+    // Count mergeable cells to the right
+    let maxRight = 0;
+    let cur: Element | null = cell.nextElementSibling;
+    while (cur && ["TD", "TH"].includes(cur.tagName)) { maxRight++; cur = cur.nextElementSibling; }
+
+    // Count mergeable rows below
+    let maxDown = 0;
+    if (row && cellIndex >= 0) {
+      let nr = row.nextElementSibling as HTMLTableRowElement | null;
+      while (nr && nr.cells[cellIndex]) { maxDown++; nr = nr.nextElementSibling as HTMLTableRowElement | null; }
+    }
+
+    // Reset count inputs to sensible defaults when opening
+    setMergeRightCount(maxRight >= 2 ? String(maxRight) : "1");
+    setMergeDownCount(maxDown >= 2 ? String(maxDown) : "1");
+
     setCellMenu({
       x: e.clientX,
       y: e.clientY,
       cell,
-      canMergeRight: !!(nextCell && ["TD", "TH"].includes(nextCell.tagName)),
-      canMergeDown: !!belowCell,
+      maxMergeRight: maxRight,
+      maxMergeDown: maxDown,
       canSplit: colspan > 1 || rowspan > 1,
     });
   }
 
-  function mergeRight() {
+  function mergeRight(count: number) {
     if (!cellMenu) return;
     const { cell } = cellMenu;
-    const next = cell.nextElementSibling as HTMLTableCellElement | null;
-    if (!next || !["TD", "TH"].includes(next.tagName)) return;
-    const cs = parseInt(cell.getAttribute("colspan") || "1") + parseInt(next.getAttribute("colspan") || "1");
-    cell.setAttribute("colspan", String(cs));
-    while (next.firstChild) cell.appendChild(next.firstChild);
-    next.remove();
+    for (let i = 0; i < count; i++) {
+      const next = cell.nextElementSibling as HTMLTableCellElement | null;
+      if (!next || !["TD", "TH"].includes(next.tagName)) break;
+      const cs = parseInt(cell.getAttribute("colspan") || "1") + parseInt(next.getAttribute("colspan") || "1");
+      cell.setAttribute("colspan", String(cs));
+      while (next.firstChild) cell.appendChild(next.firstChild);
+      next.remove();
+    }
     setCellMenu(null);
     emitChange();
   }
 
-  function mergeDown() {
+  function mergeDown(count: number) {
     if (!cellMenu) return;
     const { cell } = cellMenu;
-    const row = cell.closest("tr") as HTMLTableRowElement | null;
-    if (!row) return;
-    const cellIndex = Array.from(row.cells).indexOf(cell);
-    const nextRow = row.nextElementSibling as HTMLTableRowElement | null;
-    if (!nextRow) return;
-    const below = nextRow.cells[cellIndex] as HTMLTableCellElement | undefined;
-    if (!below) return;
-    const rs = parseInt(cell.getAttribute("rowspan") || "1") + parseInt(below.getAttribute("rowspan") || "1");
-    cell.setAttribute("rowspan", String(rs));
-    while (below.firstChild) cell.appendChild(below.firstChild);
-    below.remove();
+    const originalRow = cell.closest("tr") as HTMLTableRowElement | null;
+    if (!originalRow) return;
+    const cellIndex = Array.from(originalRow.cells).indexOf(cell);
+    for (let i = 0; i < count; i++) {
+      // After each merge the rowspan grows; the next row to absorb is always
+      // rowspan steps below the original row
+      const currentRowspan = parseInt(cell.getAttribute("rowspan") || "1");
+      let targetRow: HTMLTableRowElement | null = originalRow;
+      for (let j = 0; j < currentRowspan; j++) {
+        targetRow = targetRow?.nextElementSibling as HTMLTableRowElement | null;
+      }
+      if (!targetRow || !targetRow.cells[cellIndex]) break;
+      const below = targetRow.cells[cellIndex] as HTMLTableCellElement;
+      const rs = currentRowspan + parseInt(below.getAttribute("rowspan") || "1");
+      cell.setAttribute("rowspan", String(rs));
+      while (below.firstChild) cell.appendChild(below.firstChild);
+      below.remove();
+    }
     setCellMenu(null);
     emitChange();
   }
@@ -1022,11 +1047,7 @@ export default function RichEditor({
       {/* Table cell context menu */}
       {cellMenu && (
         <>
-          {/* Backdrop to close on outside click */}
-          <div
-            style={{ position: "fixed", inset: 0, zIndex: 70 }}
-            onMouseDown={() => setCellMenu(null)}
-          />
+          <div style={{ position: "fixed", inset: 0, zIndex: 70 }} onMouseDown={() => setCellMenu(null)} />
           <div
             style={{
               position: "fixed",
@@ -1035,59 +1056,131 @@ export default function RichEditor({
               zIndex: 80,
               background: "#fff",
               border: "1px solid #e2e8f0",
-              borderRadius: "7px",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
-              minWidth: "180px",
+              borderRadius: "8px",
+              boxShadow: "0 8px 28px rgba(0,0,0,0.16)",
+              minWidth: "240px",
               overflow: "hidden",
               fontSize: "0.8125rem",
             }}
           >
-            <div style={{ padding: "0.35rem 0.65rem", fontSize: "0.7rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid #f1f5f9" }}>
-              Table Cell
+            {/* Header */}
+            <div style={{ padding: "0.4rem 0.75rem", fontSize: "0.7rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid #f1f5f9", background: "#f8fafc" }}>
+              Merge / Split Cell
             </div>
-            {cellMenu.canMergeRight && (
-              <button
-                type="button"
-                onMouseDown={(e) => { e.stopPropagation(); mergeRight(); }}
-                style={{ display: "block", width: "100%", textAlign: "left", padding: "0.45rem 0.75rem", background: "none", border: "none", cursor: "pointer", color: "#1e293b" }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
-              >
-                ⟶ Merge with right cell
-              </button>
+
+            {/* ── Merge right ── */}
+            {cellMenu.maxMergeRight > 0 && (
+              <div style={{ padding: "0.55rem 0.75rem", borderBottom: "1px solid #f1f5f9" }}>
+                <div style={{ fontWeight: 600, color: "#1e293b", marginBottom: "0.35rem" }}>⟶ Merge right</div>
+                <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.4rem" }}>
+                  {cellMenu.maxMergeRight} cell{cellMenu.maxMergeRight > 1 ? "s" : ""} available to the right
+                </div>
+                {/* Quick-select buttons */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem", marginBottom: "0.4rem" }}>
+                  {Array.from({ length: cellMenu.maxMergeRight }, (_, i) => i + 1).map(n => (
+                    <button
+                      key={n}
+                      type="button"
+                      onMouseDown={(e) => { e.stopPropagation(); setMergeRightCount(String(n)); }}
+                      style={{
+                        padding: "0.2rem 0.45rem",
+                        borderRadius: "4px",
+                        border: mergeRightCount === String(n) ? "2px solid #7c3aed" : "1px solid #e2e8f0",
+                        background: mergeRightCount === String(n) ? "#f5f3ff" : "#f8fafc",
+                        color: mergeRightCount === String(n) ? "#7c3aed" : "#374151",
+                        fontWeight: mergeRightCount === String(n) ? 700 : 400,
+                        cursor: "pointer",
+                        fontSize: "0.78rem",
+                        minWidth: "2rem",
+                      }}
+                    >
+                      {n === cellMenu.maxMergeRight ? `All (${n})` : n}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    const count = Math.max(1, Math.min(parseInt(mergeRightCount) || 1, cellMenu.maxMergeRight));
+                    mergeRight(count);
+                  }}
+                  style={{ padding: "0.3rem 0.875rem", background: "#7c3aed", color: "#fff", border: "none", borderRadius: "5px", fontSize: "0.8rem", cursor: "pointer", fontWeight: 600 }}
+                >
+                  Merge {mergeRightCount} cell{parseInt(mergeRightCount) > 1 ? "s" : ""} →
+                </button>
+              </div>
             )}
-            {cellMenu.canMergeDown && (
-              <button
-                type="button"
-                onMouseDown={(e) => { e.stopPropagation(); mergeDown(); }}
-                style={{ display: "block", width: "100%", textAlign: "left", padding: "0.45rem 0.75rem", background: "none", border: "none", cursor: "pointer", color: "#1e293b" }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
-              >
-                ⟓ Merge with cell below
-              </button>
+
+            {/* ── Merge down ── */}
+            {cellMenu.maxMergeDown > 0 && (
+              <div style={{ padding: "0.55rem 0.75rem", borderBottom: "1px solid #f1f5f9" }}>
+                <div style={{ fontWeight: 600, color: "#1e293b", marginBottom: "0.35rem" }}>⟓ Merge down</div>
+                <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.4rem" }}>
+                  {cellMenu.maxMergeDown} row{cellMenu.maxMergeDown > 1 ? "s" : ""} available below
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem", marginBottom: "0.4rem" }}>
+                  {Array.from({ length: cellMenu.maxMergeDown }, (_, i) => i + 1).map(n => (
+                    <button
+                      key={n}
+                      type="button"
+                      onMouseDown={(e) => { e.stopPropagation(); setMergeDownCount(String(n)); }}
+                      style={{
+                        padding: "0.2rem 0.45rem",
+                        borderRadius: "4px",
+                        border: mergeDownCount === String(n) ? "2px solid #0891b2" : "1px solid #e2e8f0",
+                        background: mergeDownCount === String(n) ? "#ecfeff" : "#f8fafc",
+                        color: mergeDownCount === String(n) ? "#0891b2" : "#374151",
+                        fontWeight: mergeDownCount === String(n) ? 700 : 400,
+                        cursor: "pointer",
+                        fontSize: "0.78rem",
+                        minWidth: "2rem",
+                      }}
+                    >
+                      {n === cellMenu.maxMergeDown ? `All (${n})` : n}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    const count = Math.max(1, Math.min(parseInt(mergeDownCount) || 1, cellMenu.maxMergeDown));
+                    mergeDown(count);
+                  }}
+                  style={{ padding: "0.3rem 0.875rem", background: "#0891b2", color: "#fff", border: "none", borderRadius: "5px", fontSize: "0.8rem", cursor: "pointer", fontWeight: 600 }}
+                >
+                  Merge {mergeDownCount} row{parseInt(mergeDownCount) > 1 ? "s" : ""} ↓
+                </button>
+              </div>
             )}
+
+            {/* ── Split ── */}
             {cellMenu.canSplit && (
-              <button
-                type="button"
-                onMouseDown={(e) => { e.stopPropagation(); splitCell(); }}
-                style={{ display: "block", width: "100%", textAlign: "left", padding: "0.45rem 0.75rem", background: "none", border: "none", cursor: "pointer", color: "#7c3aed" }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#f5f3ff")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
-              >
-                ✦ Split merged cell
-              </button>
+              <div style={{ padding: "0.55rem 0.75rem", borderBottom: "1px solid #f1f5f9" }}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => { e.stopPropagation(); splitCell(); }}
+                  style={{ display: "flex", alignItems: "center", gap: "0.375rem", background: "none", border: "none", cursor: "pointer", color: "#7c3aed", fontWeight: 600, fontSize: "0.8125rem", padding: 0 }}
+                >
+                  <span style={{ fontSize: "1rem" }}>✦</span> Split merged cell
+                </button>
+              </div>
             )}
-            {!cellMenu.canMergeRight && !cellMenu.canMergeDown && !cellMenu.canSplit && (
-              <div style={{ padding: "0.45rem 0.75rem", color: "#94a3b8" }}>No merge options available</div>
+
+            {/* No options */}
+            {cellMenu.maxMergeRight === 0 && cellMenu.maxMergeDown === 0 && !cellMenu.canSplit && (
+              <div style={{ padding: "0.55rem 0.75rem", color: "#94a3b8", fontSize: "0.8rem" }}>
+                No merge or split options for this cell
+              </div>
             )}
-            <div style={{ borderTop: "1px solid #f1f5f9" }}>
+
+            {/* Close */}
+            <div style={{ padding: "0.35rem 0.75rem", background: "#f8fafc" }}>
               <button
                 type="button"
                 onMouseDown={(e) => { e.stopPropagation(); setCellMenu(null); }}
-                style={{ display: "block", width: "100%", textAlign: "left", padding: "0.45rem 0.75rem", background: "none", border: "none", cursor: "pointer", color: "#64748b" }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: "0.78rem", padding: 0 }}
               >
                 ✕ Close
               </button>
