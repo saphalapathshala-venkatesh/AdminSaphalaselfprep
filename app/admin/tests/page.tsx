@@ -216,6 +216,12 @@ function normaliseDifficulty(raw: string): string {
   if (v === "MASTERY" || v === "ADVANCED" || v === "HARD") return "MASTERY";
   return "FOUNDATIONAL";
 }
+// Convert a UTC ISO datetime string to an IST datetime-local input value (YYYY-MM-DDTHH:mm)
+function toISTDatetimeLocal(utcStr: string): string {
+  const d = new Date(utcStr);
+  const istMs = d.getTime() + (5 * 60 + 30) * 60 * 1000;
+  return new Date(istMs).toISOString().slice(0, 16);
+}
 const CORRECT_OPT_MAP: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
 
 // ─────────────────────────────────────────────
@@ -1789,7 +1795,7 @@ export default function TestsPage() {
       if (!res.ok) { showToast(d.error || "Failed", "error"); return; }
       const t: TestDetail = d.data;
       setTestId(t.id); setIsPublished(t.isPublished);
-      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(Math.round(t.durationSec / 60)) : "", totalQuestions: t.totalQuestions ? String(t.totalQuestions) : "", marksPerQuestion: t.marksPerQuestion != null ? String(t.marksPerQuestion) : "", negativeMarksPerQuestion: t.negativeMarksPerQuestion != null ? String(t.negativeMarksPerQuestion) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, shuffleQuestions: t.shuffleQuestions, shuffleOptions: t.shuffleOptions, shuffleGroups: t.shuffleGroups, shuffleGroupChildren: t.shuffleGroupChildren, seriesId: t.seriesId || "", categoryId: t.categoryId || "", examId: t.examId || "", xpEnabled: !!t.xpEnabled, xpValue: t.xpValue != null ? String(t.xpValue) : "0", testStartTime: t.testStartTime ? t.testStartTime.slice(0, 16) : "", unlockAt: (t as any).unlockAt ? (t as any).unlockAt.slice(0, 16) : "", isFree: !!t.isFree });
+      setForm({ title: t.title, instructions: t.instructions || "", mode: t.mode, isTimed: t.isTimed, durationSec: t.durationSec ? String(Math.round(t.durationSec / 60)) : "", totalQuestions: t.totalQuestions ? String(t.totalQuestions) : "", marksPerQuestion: t.marksPerQuestion != null ? String(t.marksPerQuestion) : "", negativeMarksPerQuestion: t.negativeMarksPerQuestion != null ? String(t.negativeMarksPerQuestion) : "", allowPause: t.allowPause, strictSectionMode: t.strictSectionMode, shuffleQuestions: t.shuffleQuestions, shuffleOptions: t.shuffleOptions, shuffleGroups: t.shuffleGroups, shuffleGroupChildren: t.shuffleGroupChildren, seriesId: t.seriesId || "", categoryId: t.categoryId || "", examId: t.examId || "", xpEnabled: !!t.xpEnabled, xpValue: t.xpValue != null ? String(t.xpValue) : "0", testStartTime: t.testStartTime ? toISTDatetimeLocal(t.testStartTime) : "", unlockAt: (t as any).unlockAt ? toISTDatetimeLocal((t as any).unlockAt) : "", isFree: !!t.isFree });
       setHasSectionsManual(t.sections.length > 0 || ["SECTIONAL", "MULTI_SECTION"].includes(t.mode));
       const flatSecs: SectionState[] = t.sections.map((s, i) => {
         const parentIndex = s.parentSectionId ? t.sections.findIndex(p => p.id === s.parentSectionId) : null;
@@ -1822,7 +1828,7 @@ export default function TestsPage() {
         shuffleGroups: form.shuffleGroups, shuffleGroupChildren: form.shuffleGroupChildren,
         seriesId: form.seriesId || null, categoryId: form.categoryId || null, examId: form.examId || null,
         xpEnabled: form.xpEnabled, xpValue: parseInt(form.xpValue) || 0,
-        testStartTime: form.testStartTime || null,
+        testStartTime: form.testStartTime ? form.testStartTime + ":00+05:30" : null,
         unlockAt: form.unlockAt ? form.unlockAt + ":00+05:30" : null,
         isFree: form.isFree,
         sections: sections.map(s => ({ title: s.title, durationSec: s.durationSec ? String(parseInt(s.durationSec) * 60) : null, targetCount: s.targetCount || null, parentIndex: s.parentIndex })),
@@ -2151,7 +2157,7 @@ export default function TestsPage() {
                   <div>
                     <label style={lbl}>Unlock At <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: "0.72rem" }}>(optional — blocks access before this time)</span></label>
                     <input type="datetime-local" value={form.unlockAt} onChange={e => setForm({ ...form, unlockAt: e.target.value })} style={inp} />
-                    {form.unlockAt && <p style={{ margin: "3px 0 0", fontSize: "0.7rem", color: "#7c3aed" }}>Access gated until {new Date(form.unlockAt).toLocaleString()}</p>}
+                    {form.unlockAt && <p style={{ margin: "3px 0 0", fontSize: "0.7rem", color: "#7c3aed" }}>Access gated until {new Date(form.unlockAt + ":00+05:30").toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" })} IST</p>}
                   </div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem" }}>
