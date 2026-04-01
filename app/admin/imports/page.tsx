@@ -445,6 +445,38 @@ export default function ImportsPage() {
         </div>
       )}
 
+      {/* ── Download Templates ──────────────────────────────────────────── */}
+      <div style={{ ...cardStyle, marginBottom: "1rem", padding: "1rem 1.25rem" }}>
+        <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "#374151", marginBottom: "0.6rem" }}>
+          📥 Download Import Templates
+        </div>
+        <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.75rem" }}>
+          Use these DOCX templates as a starting point. Images are referenced as URL tokens — do not embed images directly in the file.
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+          <a
+            href="/downloads/saphala_single_question_template_v2.docx"
+            download
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.375rem 0.75rem", background: "#7c3aed", color: "#fff", borderRadius: "6px", fontSize: "0.78rem", fontWeight: 600, textDecoration: "none" }}
+          >
+            ⬇ Single Question Template (v2)
+          </a>
+          <a
+            href="/downloads/saphala_group_question_template_v2.docx"
+            download
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.375rem 0.75rem", background: "#0369a1", color: "#fff", borderRadius: "6px", fontSize: "0.78rem", fontWeight: 600, textDecoration: "none" }}
+          >
+            ⬇ Group / Paragraph Template (v2)
+          </a>
+        </div>
+        <div style={{ marginTop: "0.625rem", padding: "0.5rem 0.75rem", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "6px", fontSize: "0.73rem", color: "#92400e" }}>
+          <strong>Image format:</strong> Do NOT embed images in the Word document. Instead write{" "}
+          <code style={{ background: "#fef3c7", padding: "1px 4px", borderRadius: "3px" }}>[IMAGE: https://your-cdn.com/image.jpg]</code>{" "}
+          anywhere in a Question, Option, or Explanation field.
+        </div>
+      </div>
+
+      {/* ── Upload ──────────────────────────────────────────────────────── */}
       <div style={{ ...cardStyle, marginBottom: "1.5rem", textAlign: "center", padding: "2rem" }}>
         <div style={{ fontSize: "0.875rem", color: "#6b7280", marginBottom: "0.75rem" }}>
           Upload a CSV or DOCX file to import questions

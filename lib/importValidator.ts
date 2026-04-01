@@ -278,7 +278,17 @@ function normaliseMammothHtml(html: string): string {
     .replace(/\$\$([^$]+?)\$\$/g, (_full, latex) => {
       const trimmed = latex.replace(/\s+/g, " ").trim();
       return `<span class="math-eq" data-latex="${trimmed}">$$${trimmed}$$</span>`;
-    });
+    })
+    // Convert [IMAGE: URL] / [IMG: URL] text tokens → <img src="URL"> tags.
+    // Users write these tokens in Word instead of embedding images directly,
+    // so the CDN URL is preserved as-is without any base64 round-trip.
+    .replace(/\[IMAGE:\s*(https?:\/\/[^\]]+)\]/gi, '<img src="$1" />')
+    .replace(/\[IMG:\s*(https?:\/\/[^\]]+)\]/gi, '<img src="$1" />')
+    // Also handle mammoth's anchor representation of bare URLs pasted in Word:
+    // <a href="https://...">https://...</a> where the link text IS the URL
+    // → keep the URL as an img tag only when it ends with a known image extension.
+    .replace(/<a[^>]+href="(https?:\/\/[^"]+\.(?:png|jpg|jpeg|gif|webp|svg))"[^>]*>[^<]*<\/a>/gi,
+      '<img src="$1" />');
 }
 
 /**
