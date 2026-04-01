@@ -1,0 +1,78 @@
+Fix the Saphala Admin App test-builder question picker so imported Question Bank items render as actual formatted content, not raw HTML/editor markup.
+
+Problem:
+While creating/editing a test and importing/selecting questions from Question Bank, the question list/card/modal is showing stored HTML text / raw rich-text markup instead of readable question content. Because of this, admins cannot properly identify and select the desired questions.
+
+Goal:
+In the question-selection UI, every question must display a clean preview of:
+1. Question text
+2. Options
+3. Correct answer
+4. Explanation
+5. Language variants if available (English/Telugu)
+
+What to implement:
+1. In the test creation/edit flow, locate the question picker / question selection component used when importing from Question Bank.
+2. Replace raw string rendering with proper rendered preview.
+   - If question/explanation/options are stored as HTML rich text, render them as sanitized HTML.
+   - Do NOT show literal tags like `<p>`, `<span>`, `data-start`, `data-end`, escaped HTML entities, or editor JSON-like residue.
+3. Build a compact but readable preview card for each question:
+   - Header row: Question ID / taxonomy / difficulty / type
+   - Main area: rendered question stem
+   - Options area: A–D (or dynamic option count based on stored data)
+   - Correct answer badge
+   - Explanation preview
+4. If bilingual fields exist:
+   - Show English first
+   - Show Telugu below it in a visually separated section
+   - If Telugu is absent, do not show empty block
+5. Add expand/collapse behavior:
+   - Default: compact preview with 2–4 lines max for long text
+   - “View full question” toggle expands full question + all options + full explanation
+6. Preserve formatting:
+   - bold, italics, underline
+   - lists
+   - tables if present
+   - line breaks
+   - superscript/subscript where applicable
+7. Sanitize safely:
+   - prevent unsafe HTML/script injection
+   - use the same safe rendering strategy already used or intended for test attempt/review pages
+8. Ensure paragraph/matching/comprehension/group questions are also readable:
+   - passage/paragraph visible first
+   - child question preview below
+9. Improve selection usability:
+   - checkbox or select button remains visible
+   - selected questions clearly highlighted
+   - question preview should not break layout or overflow horizontally
+10. Do not change DB schema unless absolutely necessary.
+11. Reuse existing rendering helpers if available. If not, create a shared helper/component so this same rendering can later be reused in:
+   - Question Bank preview
+   - Test builder picker
+   - Test review/admin preview
+
+Important debugging checks:
+- Verify whether fields are stored as HTML, escaped HTML, or editor output
+- If escaped HTML is stored, decode before safe render
+- If mixed storage formats exist, add a robust formatter that gracefully handles:
+  - plain text
+  - valid HTML
+  - partially escaped HTML
+12. Keep the UI fast:
+   - list should remain performant even with many questions
+   - use lazy expand for full explanation if needed
+   - avoid unnecessary rerenders
+
+Acceptance criteria:
+- In test builder question picker, admins can read the actual formatted question stem instead of HTML code
+- Options are visible and readable
+- Explanation is visible in preview/expanded state
+- English and Telugu content are cleanly readable
+- No raw tags/editor metadata appear
+- Admin can confidently identify and select the correct questions
+
+After implementing:
+1. Show exactly which files were changed
+2. Explain root cause
+3. Mention whether the issue was raw HTML rendering, escaped HTML, or wrong field mapping
+4. Confirm that no other test-builder functionality was broken

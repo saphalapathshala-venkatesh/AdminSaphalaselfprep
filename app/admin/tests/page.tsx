@@ -11,6 +11,114 @@ function hasVisibleText(html: string): boolean {
   return stripped.length > 0 || html.includes("<img");
 }
 
+function stripHtml(html: string): string {
+  if (!html) return "";
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function RenderHtml({ html, style }: { html: string; style?: React.CSSProperties }) {
+  return (
+    <div
+      style={{ lineHeight: 1.5, ...style }}
+      dangerouslySetInnerHTML={{ __html: html || "" }}
+    />
+  );
+}
+
+function QBQuestionPreview({ q }: { q: QuestionItem }) {
+  const [expanded, setExpanded] = React.useState(false);
+  const hasPassage = !!(q as any).group?.paragraph;
+  const passageHtml: string = hasPassage ? (q as any).group.paragraph : "";
+  const hasSecondaryLang = !!(q.stemSecondary && q.stemSecondary.trim());
+
+  const optionLetter = (i: number) => String.fromCharCode(65 + i);
+  const optionStyle = (isCorrect: boolean): React.CSSProperties => ({
+    display: "flex", gap: "0.5rem", alignItems: "flex-start",
+    marginBottom: "0.3rem", padding: "0.2rem 0.4rem", borderRadius: "4px",
+    background: isCorrect ? "#f0fdf4" : "transparent",
+    border: isCorrect ? "1px solid #bbf7d0" : "1px solid transparent",
+  });
+
+  return (
+    <div style={{ fontSize: "0.78rem", color: "#1e293b" }}>
+      {hasPassage && (
+        <div style={{ marginBottom: "0.75rem", padding: "0.5rem 0.75rem", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "6px" }}>
+          <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "#1d4ed8", marginBottom: "0.3rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Passage</div>
+          <RenderHtml html={passageHtml} style={{ fontSize: "0.78rem", color: "#1e3a8a" }} />
+        </div>
+      )}
+
+      <div style={{ marginBottom: "0.6rem" }}>
+        <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "#6b7280", marginBottom: "0.2rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          Question {hasSecondaryLang ? "(English)" : ""}
+        </div>
+        <RenderHtml html={q.stem} />
+        {hasSecondaryLang && (
+          <div style={{ marginTop: "0.5rem", paddingTop: "0.5rem", borderTop: "1px dashed #e2e8f0" }}>
+            <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "#9333ea", marginBottom: "0.2rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Question (Telugu)</div>
+            <RenderHtml html={q.stemSecondary!} style={{ color: "#4b5563" }} />
+          </div>
+        )}
+      </div>
+
+      {q.options && q.options.length > 0 && (
+        <div style={{ marginBottom: "0.6rem" }}>
+          <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "#6b7280", marginBottom: "0.3rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Options</div>
+          {q.options.map((opt, oi) => (
+            <div key={oi} style={optionStyle(opt.isCorrect)}>
+              <span style={{ fontSize: "0.7rem", minWidth: "18px", fontWeight: 700, color: opt.isCorrect ? "#059669" : "#94a3b8", paddingTop: "1px" }}>
+                {opt.isCorrect ? "✓" : optionLetter(oi)}
+              </span>
+              <div style={{ flex: 1 }}>
+                <RenderHtml html={opt.text} style={{ color: opt.isCorrect ? "#065f46" : "#374151", fontWeight: opt.isCorrect ? 600 : 400 }} />
+                {opt.textSecondary && (
+                  <RenderHtml html={opt.textSecondary} style={{ color: opt.isCorrect ? "#047857" : "#6b7280", fontSize: "0.73rem", marginTop: "0.15rem" }} />
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {(q.explanation || q.explanationSecondary) && (
+        <>
+          {!expanded ? (
+            <button
+              onClick={() => setExpanded(true)}
+              style={{ fontSize: "0.7rem", color: "#7c3aed", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
+            >Show explanation ▾</button>
+          ) : (
+            <div style={{ marginTop: "0.4rem", padding: "0.5rem 0.75rem", background: "#faf5ff", border: "1px solid #e9d5ff", borderRadius: "6px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.3rem" }}>
+                <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Explanation {q.explanationSecondary ? "(English)" : ""}
+                </span>
+                <button onClick={() => setExpanded(false)} style={{ fontSize: "0.68rem", color: "#9ca3af", background: "none", border: "none", cursor: "pointer", padding: 0 }}>▴ Hide</button>
+              </div>
+              {q.explanation && <RenderHtml html={q.explanation} />}
+              {q.explanationSecondary && (
+                <div style={{ marginTop: "0.5rem", paddingTop: "0.5rem", borderTop: "1px dashed #e9d5ff" }}>
+                  <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "#9333ea", marginBottom: "0.2rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Explanation (Telugu)</div>
+                  <RenderHtml html={q.explanationSecondary} style={{ color: "#4b5563" }} />
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────
@@ -874,7 +982,11 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
                             setQbSelected(s);
                           }} /></td>
                           <td style={td}><span style={{ fontSize: "0.7rem", background: "#e0e7ff", color: "#3730a3", padding: "1px 5px", borderRadius: "4px" }}>{q.type}</span></td>
-                          <td style={{ ...td, maxWidth: "300px" }}><span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.stem}</span></td>
+                          <td style={{ ...td, maxWidth: "320px" }}>
+                            <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#1e293b" }}>
+                              {stripHtml(q.stem)}
+                            </span>
+                          </td>
                           <td style={td}>{q.difficulty}</td>
                           <td style={td}><span style={{ fontSize: "0.7rem", background: q.status === "APPROVED" ? "#d1fae5" : "#fee2e2", color: q.status === "APPROVED" ? "#065f46" : "#991b1b", padding: "1px 5px", borderRadius: "4px" }}>{q.status}</span></td>
                           <td style={td}>
@@ -893,28 +1005,9 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
                           </td>
                         </tr>
                         {qbExpandedRow === q.id && (
-                          <tr style={{ borderBottom: "1px solid #f1f5f9", background: "#fafbff" }}>
-                            <td colSpan={6} style={{ padding: "0.625rem 1rem 0.75rem 2.5rem" }}>
-                              {q.options && q.options.length > 0 && (
-                                <div style={{ marginBottom: "0.5rem" }}>
-                                  <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b7280", marginBottom: "0.25rem" }}>Options</div>
-                                  {q.options.map((opt: any, oi: number) => (
-                                    <div key={oi} style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", marginBottom: "0.2rem" }}>
-                                      <span style={{ fontSize: "0.7rem", minWidth: "14px", color: opt.isCorrect ? "#059669" : "#94a3b8", fontWeight: 700 }}>{opt.isCorrect ? "✓" : String.fromCharCode(65 + oi)}</span>
-                                      <span style={{ fontSize: "0.78rem", color: opt.isCorrect ? "#059669" : "#374151", fontWeight: opt.isCorrect ? 600 : 400 }}>{opt.text}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                              {q.explanation && (
-                                <div>
-                                  <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b7280", marginBottom: "0.2rem" }}>Explanation</div>
-                                  <div style={{ fontSize: "0.78rem", color: "#374151", whiteSpace: "pre-wrap" }}>{q.explanation}</div>
-                                </div>
-                              )}
-                              {!q.explanation && (!q.options || q.options.length === 0) && (
-                                <div style={{ fontSize: "0.78rem", color: "#94a3b8" }}>No preview data available.</div>
-                              )}
+                          <tr style={{ borderBottom: "1px solid #e2e8f0", background: "#f8faff" }}>
+                            <td colSpan={6} style={{ padding: "0.75rem 1rem 0.75rem 2.5rem" }}>
+                              <QBQuestionPreview q={q} />
                             </td>
                           </tr>
                         )}
@@ -970,7 +1063,11 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
                           setEtChosen(s);
                         }} /></td>
                         <td style={td}><span style={{ fontSize: "0.7rem", background: "#e0e7ff", color: "#3730a3", padding: "1px 5px", borderRadius: "4px" }}>{q.type}</span></td>
-                        <td style={{ ...td, maxWidth: "360px" }}><span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.stem}</span></td>
+                        <td style={{ ...td, maxWidth: "360px" }}>
+                          <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#1e293b" }}>
+                            {stripHtml(q.stem)}
+                          </span>
+                        </td>
                         <td style={td}>{q.difficulty}</td>
                       </tr>
                     ))}
