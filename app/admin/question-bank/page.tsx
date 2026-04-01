@@ -342,11 +342,23 @@ export default function QuestionBankPage() {
           });
         });
       });
-    } else {
-      setFormCategoryId(q.categoryId || "");
-      setFormSubjectId(q.subjectId || "");
-      setFormTopicId(q.topicId || "");
-      setFormSubtopicId(q.subtopicId || "");
+    } else if (q.categoryId) {
+      // No full subtopic relation, but the question may have category/subject/topic IDs.
+      // Set them via cascading loads so each child dropdown has its options before the
+      // value is applied — matching the same pattern as Branch 1 above.
+      setFormCategoryId(q.categoryId);
+      loadTax("subject", q.categoryId).then((subjects) => {
+        setFormSubjects(subjects);
+        if (q.subjectId) {
+          setFormSubjectId(q.subjectId);
+          loadTax("topic", q.subjectId).then((topics) => {
+            setFormTopics(topics);
+            if (q.topicId) {
+              setFormTopicId(q.topicId);
+            }
+          });
+        }
+      });
     }
 
     if (MCQ_TYPES.includes(q.type) && q.options.length > 0) {
