@@ -1906,7 +1906,13 @@ export default function TestsPage() {
                 </div>
                 <div>
                   <label style={lbl}>Instructions</label>
-                  <textarea value={form.instructions} onChange={e => setForm({ ...form, instructions: e.target.value })} rows={2} style={{ ...inp, resize: "vertical" }} />
+                  <RichEditor
+                    value={form.instructions}
+                    onChange={html => setForm(f => ({ ...f, instructions: html }))}
+                    placeholder="Enter test instructions for students…"
+                    minHeight={120}
+                    extended
+                  />
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
                   <div>

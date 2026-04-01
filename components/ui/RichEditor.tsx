@@ -109,6 +109,13 @@ export default function RichEditor({
   // Saved selection for both dialogs
   const savedRange = useRef<Range | null>(null);
 
+  // Extended toolbar state
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [activeColor, setActiveColor] = useState("#000000");
+  const [tableDialogOpen, setTableDialogOpen] = useState(false);
+  const [tableRows, setTableRows] = useState("3");
+  const [tableCols, setTableCols] = useState("3");
+
   // ── Mount: set initial innerHTML ──────────────────────────────────────────
   useEffect(() => {
     if (editorRef.current) {
@@ -337,8 +344,69 @@ export default function RichEditor({
     emitChange();
   }
 
+  function execCmdVal(cmd: string, val: string) {
+    editorRef.current?.focus();
+    document.execCommand(cmd, false, val);
+    emitChange();
+  }
+
+  function applyColor(color: string) {
+    setActiveColor(color);
+    setColorPickerOpen(false);
+    execCmdVal("foreColor", color);
+  }
+
+  function openTableDialog() {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) savedRange.current = sel.getRangeAt(0).cloneRange();
+    setTableRows("3");
+    setTableCols("3");
+    setTableDialogOpen(true);
+  }
+
+  function insertTable() {
+    const rows = Math.max(1, Math.min(20, parseInt(tableRows) || 3));
+    const cols = Math.max(1, Math.min(10, parseInt(tableCols) || 3));
+    const el = editorRef.current;
+    if (!el) { setTableDialogOpen(false); return; }
+    el.focus();
+    const sel = window.getSelection();
+    if (savedRange.current && sel) { sel.removeAllRanges(); sel.addRange(savedRange.current); }
+
+    const cellStyle = "border:1px solid #94a3b8;padding:6px 8px;min-width:60px;";
+    let html = `<table style="border-collapse:collapse;width:100%;margin:0.5em 0;">`;
+    // Header row
+    html += "<thead><tr>";
+    for (let c = 0; c < cols; c++) html += `<th style="${cellStyle}background:#f1f5f9;font-weight:600;">Header ${c + 1}</th>`;
+    html += "</tr></thead><tbody>";
+    for (let r = 0; r < rows - 1; r++) {
+      html += "<tr>";
+      for (let c = 0; c < cols; c++) html += `<td style="${cellStyle}"></td>`;
+      html += "</tr>";
+    }
+    html += "</tbody></table><p><br></p>";
+
+    const currentSel = window.getSelection();
+    if (currentSel && currentSel.rangeCount > 0) {
+      const range = currentSel.getRangeAt(0);
+      range.deleteContents();
+      const frag = range.createContextualFragment(html);
+      range.insertNode(frag);
+      const after = range.cloneRange();
+      after.collapse(false);
+      currentSel.removeAllRanges();
+      currentSel.addRange(after);
+    } else {
+      el.insertAdjacentHTML("beforeend", html);
+    }
+
+    savedRange.current = null;
+    setTableDialogOpen(false);
+    emitChange();
+  }
+
   const isEmpty = !value || value === "<br>" || value === "<div><br></div>";
-  const anyDialogOpen = eqDialogOpen || imgDialogOpen;
+  const anyDialogOpen = eqDialogOpen || imgDialogOpen || tableDialogOpen;
 
   return (
     <div style={{ position: "relative" }}>
@@ -356,50 +424,110 @@ export default function RichEditor({
           alignItems: "center",
         }}
       >
-        <button
-          type="button"
-          onMouseDown={(e) => { e.preventDefault(); execCmd("bold"); }}
-          style={TOOLBAR_BTN}
-          title="Bold"
-          disabled={disabled}
-        >
-          <strong>B</strong>
-        </button>
-        <button
-          type="button"
-          onMouseDown={(e) => { e.preventDefault(); execCmd("italic"); }}
-          style={{ ...TOOLBAR_BTN, fontStyle: "italic" }}
-          title="Italic"
-          disabled={disabled}
-        >
-          <em>I</em>
-        </button>
+        {/* ── Row 1: always-visible controls ── */}
+        <button type="button" onMouseDown={(e) => { e.preventDefault(); execCmd("bold"); }} style={TOOLBAR_BTN} title="Bold" disabled={disabled}><strong>B</strong></button>
+        <button type="button" onMouseDown={(e) => { e.preventDefault(); execCmd("italic"); }} style={{ ...TOOLBAR_BTN, fontStyle: "italic" }} title="Italic" disabled={disabled}><em>I</em></button>
 
-        <div style={{ width: "1px", background: "#d1d5db", height: "20px", margin: "0 0.125rem" }} />
+        {extended && (<>
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); execCmd("underline"); }} style={{ ...TOOLBAR_BTN, textDecoration: "underline" }} title="Underline" disabled={disabled}>U</button>
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); execCmd("strikeThrough"); }} style={{ ...TOOLBAR_BTN, textDecoration: "line-through" }} title="Strikethrough" disabled={disabled}>S</button>
 
-        <button
-          type="button"
-          onMouseDown={(e) => { e.preventDefault(); openImgDialog(); }}
-          style={TOOLBAR_BTN}
-          title="Insert image (URL or upload)"
-          disabled={disabled}
-        >
-          🖼 Image
-        </button>
+          <div style={{ width: "1px", background: "#d1d5db", height: "20px", margin: "0 0.125rem" }} />
 
-        <button
-          type="button"
-          onMouseDown={(e) => { e.preventDefault(); openEqDialog(); }}
-          style={TOOLBAR_BTN}
-          title="Insert equation (LaTeX)"
-          disabled={disabled}
-        >
-          ∑ Equation
-        </button>
+          {/* Font family */}
+          <select
+            title="Font family"
+            style={SELECT_STYLE}
+            disabled={disabled}
+            defaultValue=""
+            onChange={(e) => { if (e.target.value) { execCmdVal("fontName", e.target.value); e.target.value = ""; } }}
+          >
+            <option value="" disabled>Font</option>
+            {FONT_FAMILIES.map(f => <option key={f} value={f === "Default" ? "system-ui,sans-serif" : f}>{f}</option>)}
+          </select>
 
-        <span style={{ marginLeft: "auto", fontSize: "0.6875rem", color: "#94a3b8", paddingRight: "0.25rem" }}>
-          Use 🖼 to insert images
-        </span>
+          {/* Font size */}
+          <select
+            title="Font size"
+            style={{ ...SELECT_STYLE, width: "70px" }}
+            disabled={disabled}
+            defaultValue=""
+            onChange={(e) => { if (e.target.value) { execCmdVal("fontSize", e.target.value); e.target.value = ""; } }}
+          >
+            <option value="" disabled>Size</option>
+            {FONT_SIZES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+
+          <div style={{ width: "1px", background: "#d1d5db", height: "20px", margin: "0 0.125rem" }} />
+
+          {/* Text colour */}
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              title="Text colour"
+              disabled={disabled}
+              onMouseDown={(e) => { e.preventDefault(); setColorPickerOpen(p => !p); setTableDialogOpen(false); }}
+              style={{ ...TOOLBAR_BTN, display: "flex", flexDirection: "column", alignItems: "center", gap: "1px", padding: "2px 6px" }}
+            >
+              <span style={{ fontSize: "0.72rem", fontWeight: 700, color: activeColor === "#ffffff" ? "#374151" : activeColor }}>A</span>
+              <span style={{ display: "block", width: "14px", height: "3px", background: activeColor, borderRadius: "1px", border: "1px solid #d1d5db" }} />
+            </button>
+            {colorPickerOpen && (
+              <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 60, background: "#fff", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0.4rem", boxShadow: "0 4px 12px rgba(0,0,0,0.12)", display: "grid", gridTemplateColumns: "repeat(6, 18px)", gap: "3px" }}>
+                {TEXT_COLORS.map(c => (
+                  <button
+                    key={c}
+                    type="button"
+                    title={c}
+                    onMouseDown={(e) => { e.preventDefault(); applyColor(c); }}
+                    style={{ width: "18px", height: "18px", background: c, border: c === activeColor ? "2px solid #7c3aed" : "1px solid #d1d5db", borderRadius: "3px", cursor: "pointer", padding: 0 }}
+                  />
+                ))}
+                {/* Custom colour input */}
+                <input
+                  type="color"
+                  title="Custom colour"
+                  value={activeColor}
+                  style={{ width: "18px", height: "18px", padding: 0, border: "1px solid #d1d5db", borderRadius: "3px", cursor: "pointer", gridColumn: "span 1" }}
+                  onChange={(e) => applyColor(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+
+          <div style={{ width: "1px", background: "#d1d5db", height: "20px", margin: "0 0.125rem" }} />
+
+          {/* Alignment */}
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); execCmd("justifyLeft"); }} style={TOOLBAR_BTN} title="Align left" disabled={disabled}>≡←</button>
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); execCmd("justifyCenter"); }} style={TOOLBAR_BTN} title="Align centre" disabled={disabled}>≡</button>
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); execCmd("justifyRight"); }} style={TOOLBAR_BTN} title="Align right" disabled={disabled}>→≡</button>
+
+          <div style={{ width: "1px", background: "#d1d5db", height: "20px", margin: "0 0.125rem" }} />
+
+          {/* Lists */}
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); execCmd("insertUnorderedList"); }} style={TOOLBAR_BTN} title="Bullet list" disabled={disabled}>• List</button>
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); execCmd("insertOrderedList"); }} style={TOOLBAR_BTN} title="Numbered list" disabled={disabled}>1. List</button>
+
+          <div style={{ width: "1px", background: "#d1d5db", height: "20px", margin: "0 0.125rem" }} />
+
+          {/* Table */}
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); setTableDialogOpen(p => !p); setColorPickerOpen(false); }}
+            style={TOOLBAR_BTN}
+            title="Insert table"
+            disabled={disabled}
+          >
+            ⊞ Table
+          </button>
+        </>)}
+
+        {!extended && (<>
+          <div style={{ width: "1px", background: "#d1d5db", height: "20px", margin: "0 0.125rem" }} />
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); openImgDialog(); }} style={TOOLBAR_BTN} title="Insert image (URL or upload)" disabled={disabled}>🖼 Image</button>
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); openEqDialog(); }} style={TOOLBAR_BTN} title="Insert equation (LaTeX)" disabled={disabled}>∑ Equation</button>
+          <span style={{ marginLeft: "auto", fontSize: "0.6875rem", color: "#94a3b8", paddingRight: "0.25rem" }}>Use 🖼 to insert images</span>
+        </>)}
       </div>
 
       {/* Paste-blocked notice */}
@@ -726,6 +854,66 @@ export default function RichEditor({
                 fontSize: "0.8125rem",
                 cursor: "pointer",
               }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Table insert dialog (extended only) */}
+      {tableDialogOpen && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            zIndex: 60,
+            background: "#fff",
+            border: "1px solid #e0e7ff",
+            borderRadius: "6px",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+            padding: "0.75rem",
+            minWidth: "200px",
+          }}
+        >
+          <div style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#374151", marginBottom: "0.5rem" }}>Insert Table</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "0.625rem" }}>
+            <div>
+              <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#6b7280", display: "block", marginBottom: "0.2rem" }}>Rows</label>
+              <input
+                type="number" min="1" max="20" value={tableRows}
+                onChange={(e) => setTableRows(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") insertTable(); if (e.key === "Escape") setTableDialogOpen(false); }}
+                style={{ width: "100%", padding: "0.25rem 0.375rem", border: "1px solid #d1d5db", borderRadius: "4px", fontSize: "0.8125rem", boxSizing: "border-box" }}
+                autoFocus
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#6b7280", display: "block", marginBottom: "0.2rem" }}>Columns</label>
+              <input
+                type="number" min="1" max="10" value={tableCols}
+                onChange={(e) => setTableCols(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") insertTable(); if (e.key === "Escape") setTableDialogOpen(false); }}
+                style={{ width: "100%", padding: "0.25rem 0.375rem", border: "1px solid #d1d5db", borderRadius: "4px", fontSize: "0.8125rem", boxSizing: "border-box" }}
+              />
+            </div>
+          </div>
+          <div style={{ fontSize: "0.72rem", color: "#9ca3af", marginBottom: "0.5rem" }}>
+            A header row is added automatically. First row = headers.
+          </div>
+          <div style={{ display: "flex", gap: "0.375rem" }}>
+            <button
+              type="button"
+              onClick={insertTable}
+              style={{ padding: "0.3125rem 0.75rem", background: "#7c3aed", color: "#fff", border: "none", borderRadius: "4px", fontSize: "0.8125rem", cursor: "pointer" }}
+            >
+              Insert
+            </button>
+            <button
+              type="button"
+              onClick={() => setTableDialogOpen(false)}
+              style={{ padding: "0.3125rem 0.75rem", background: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db", borderRadius: "4px", fontSize: "0.8125rem", cursor: "pointer" }}
             >
               Cancel
             </button>
