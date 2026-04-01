@@ -430,6 +430,7 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [csvFilename, setCsvFilename] = useState("");
+  const [docxUploading, setDocxUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // QB state
@@ -540,6 +541,85 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
       setStage("review");
     };
     reader.readAsText(file, "utf-8");
+  }
+
+  async function handleDocxUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvFilename(file.name);
+    setDocxUploading(true);
+    setParseErrors([]);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/imports/preview", { method: "POST", body: fd });
+      const d = await res.json();
+      if (!res.ok) {
+        setParseErrors([d.error || "Upload failed — please check the file and try again."]);
+        return;
+      }
+      const apiRows: Array<{ rowNumber: number; rawData: any; isValid: boolean; errorField: string | null; errorMsg: string | null }> = d.data?.rows || [];
+      if (apiRows.length === 0) {
+        setParseErrors(["No questions found in the file. Make sure you are using the correct DOCX template."]);
+        return;
+      }
+      // Convert import rows → ReviewItem[]
+      const items: ReviewItem[] = apiRows.map((row, idx) => {
+        const raw = (row.rawData || {}) as Record<string, any>;
+        const stem = (raw.stem || "").trim();
+        const explanation = (raw.explanation || "").trim();
+        const diffRaw = (raw.difficulty || "").toUpperCase();
+        const difficulty = ["EASY", "MODERATE", "HARD", "FOUNDATIONAL", "ADVANCED"].includes(diffRaw) ? diffRaw : "FOUNDATIONAL";
+        const marks = parseFloat(raw.marks) > 0 ? parseFloat(raw.marks) : 1;
+        const negativeMarks = parseFloat(raw.negative_marks) >= 0 ? parseFloat(raw.negative_marks) : 0;
+        const sourceTag = (raw.tags || raw.sourceTag || "").trim();
+        const correct = (raw.correct || "").toString().trim().toUpperCase();
+
+        const opts: string[] = [];
+        for (let i = 1; i <= 8; i++) {
+          const o = (raw[`option${i}`] || "").trim();
+          if (o) opts.push(o);
+        }
+        let correctIdx = 0;
+        if (/^\d+$/.test(correct)) correctIdx = parseInt(correct) - 1;
+        else if (correct === "A") correctIdx = 0;
+        else if (correct === "B") correctIdx = 1;
+        else if (correct === "C") correctIdx = 2;
+        else if (correct === "D") correctIdx = 3;
+
+        const errors: string[] = [];
+        const warnings: string[] = [];
+        if (!stem) errors.push("Missing question stem");
+        if (opts.length < 2) errors.push("Need at least 2 options");
+        if (!correct) errors.push("No correct option specified");
+        if (!row.isValid && row.errorMsg) errors.push(row.errorMsg);
+        if (!explanation) warnings.push("No explanation provided");
+
+        const options = opts.map((text, i2) => ({ text, isCorrect: i2 === correctIdx }));
+
+        return {
+          key: `docx_${row.rowNumber}_${idx}_${Date.now()}`,
+          isEdited: false,
+          stem,
+          type: "MCQ_SINGLE",
+          difficulty,
+          explanation,
+          categoryId: "", subjectId: "", topicId: "", subtopicId: "",
+          sourceTag, marks, negativeMarks, options,
+          passageText: (raw._paragraphHtml || raw.passage || "").trim() || undefined,
+          groupId: (raw._groupKey || raw.groupId || "").trim() || undefined,
+          status: errors.length > 0 ? "error" : warnings.length > 0 ? "warning" : "clean",
+          errors, warnings, selected: false,
+        };
+      });
+      setReviewItems(items);
+      setStage("review");
+    } catch {
+      setParseErrors(["Unexpected error while processing the file. Please try again."]);
+    } finally {
+      setDocxUploading(false);
+      e.target.value = "";
+    }
   }
 
   function openCreate() {
@@ -835,7 +915,7 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
             <p style={{ fontSize: "0.875rem", color: "#374151", marginBottom: "1.5rem", fontWeight: 600 }}>Choose a source to add questions from:</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "2rem" }}>
               {[
-                { key: "upload", icon: "📂", title: "Upload CSV / DOCX", desc: "Parse a file, validate & review before committing" },
+                { key: "upload", icon: "📄", title: "Upload DOCX", desc: "Import questions from a .docx file, review before committing" },
                 { key: "qbank", icon: "🗃️", title: "From Question Bank", desc: "Search, filter and pick from existing questions" },
                 { key: "existingtest", icon: "📋", title: "From Existing Test", desc: "Reuse questions from another test (edits create new records)" },
                 { key: "create", icon: "✏️", title: "Create Single Question", desc: "Author one question directly and attach it to this test" },
@@ -873,31 +953,79 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
           </div>
         )}
 
-        {/* STAGE: UPLOAD CSV */}
+        {/* STAGE: UPLOAD DOCX */}
         {stage === "upload" && (
           <div style={{ padding: "1.5rem" }}>
-            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem" }}>
+            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.25rem" }}>
               <button onClick={() => setStage("source")} style={btn("#6b7280")}>← Back</button>
             </div>
-            <div style={{ border: "2px dashed #c4b5fd", borderRadius: "12px", padding: "2.5rem", textAlign: "center", background: "#faf5ff", marginBottom: "1.5rem", cursor: "pointer" }}
-              onClick={() => fileRef.current?.click()}>
-              <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>📂</div>
-              <div style={{ fontWeight: 700, fontSize: "1rem", color: "#7c3aed" }}>
-                {csvFilename || "Click to upload CSV file"}
-              </div>
-              <div style={{ fontSize: "0.8rem", color: "#6b7280", marginTop: "0.25rem" }}>UTF-8 CSV only · Max 5000 rows</div>
-              <input ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={handleFileChange} />
+
+            {/* Step guide */}
+            <div style={{ padding: "0.875rem 1rem", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px", marginBottom: "1.25rem" }}>
+              <div style={{ fontWeight: 700, fontSize: "0.8rem", color: "#374151", marginBottom: "0.5rem" }}>How to bulk-import questions via DOCX</div>
+              <ol style={{ margin: 0, padding: "0 0 0 1.2rem", fontSize: "0.78rem", color: "#4b5563", lineHeight: "1.7" }}>
+                <li>Download the template that matches your question type (below).</li>
+                <li>Fill in your questions following the format exactly — one question per section.</li>
+                <li>To embed images, use the token <code style={{ background: "#f1f5f9", padding: "0.1em 0.3em", borderRadius: "3px" }}>[IMAGE: https://your-cdn-url.jpg]</code> in the stem or option fields.</li>
+                <li>Save as <strong>.docx</strong> and upload it here.</li>
+                <li>Review each parsed question before committing — errors are highlighted in red.</li>
+              </ol>
             </div>
+
+            {/* Template downloads */}
+            <div style={{ padding: "0.875rem 1rem", background: "#faf5ff", border: "1px solid #e9d5ff", borderRadius: "8px", marginBottom: "1.25rem" }}>
+              <div style={{ fontWeight: 700, fontSize: "0.8rem", color: "#7c3aed", marginBottom: "0.5rem" }}>📥 Download Templates</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                <a
+                  href="/downloads/saphala_single_question_template_v2.docx"
+                  download
+                  style={{ ...btn("#7c3aed"), textDecoration: "none", display: "inline-block", fontSize: "0.78rem" }}
+                >
+                  ⬇ Single Question Template
+                </a>
+                <a
+                  href="/downloads/saphala_group_question_template_v2.docx"
+                  download
+                  style={{ ...btn("#059669"), textDecoration: "none", display: "inline-block", fontSize: "0.78rem" }}
+                >
+                  ⬇ Paragraph / Group Question Template
+                </a>
+              </div>
+              <div style={{ fontSize: "0.72rem", color: "#9ca3af", marginTop: "0.5rem" }}>
+                Use the <strong>Single</strong> template for standalone MCQs. Use the <strong>Paragraph/Group</strong> template when multiple questions share a reading passage.
+              </div>
+            </div>
+
+            {/* DOCX upload drop zone */}
+            <div
+              style={{
+                border: "2px dashed #c4b5fd",
+                borderRadius: "12px",
+                padding: "2.25rem",
+                textAlign: "center",
+                background: docxUploading ? "#f5f3ff" : "#faf5ff",
+                marginBottom: "1rem",
+                cursor: docxUploading ? "wait" : "pointer",
+                transition: "background 0.15s",
+              }}
+              onClick={() => !docxUploading && fileRef.current?.click()}
+            >
+              <div style={{ fontSize: "2.25rem", marginBottom: "0.5rem" }}>{docxUploading ? "⏳" : "📄"}</div>
+              <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#7c3aed" }}>
+                {docxUploading ? "Parsing your file…" : csvFilename ? `✔ ${csvFilename}` : "Click to upload a .docx file"}
+              </div>
+              <div style={{ fontSize: "0.78rem", color: "#6b7280", marginTop: "0.25rem" }}>
+                {docxUploading ? "This may take a few seconds." : "DOCX only · Max 5000 questions"}
+              </div>
+              <input ref={fileRef} type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style={{ display: "none" }} onChange={handleDocxUpload} />
+            </div>
+
             {parseErrors.length > 0 && (
-              <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "0.75rem 1rem", marginBottom: "1rem" }}>
-                <div style={{ fontWeight: 700, fontSize: "0.875rem", color: "#dc2626" }}>Parse Errors</div>
+              <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "0.75rem 1rem" }}>
+                <div style={{ fontWeight: 700, fontSize: "0.875rem", color: "#dc2626", marginBottom: "0.25rem" }}>Upload Error</div>
                 {parseErrors.map((e, i) => <div key={i} style={{ fontSize: "0.8rem", color: "#dc2626" }}>• {e}</div>)}
               </div>
             )}
-            <div style={{ padding: "1rem", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: "8px" }}>
-              <div style={{ fontWeight: 700, fontSize: "0.8rem", color: "#0369a1", marginBottom: "0.5rem" }}>DOCX Upload</div>
-              <div style={{ fontSize: "0.78rem", color: "#0369a1" }}>DOCX parsing is coming soon. For now, paste content into a CSV using the sample template.</div>
-            </div>
           </div>
         )}
 
