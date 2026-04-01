@@ -143,6 +143,53 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // ── Resolve taxonomy text → DB IDs for each valid row ────────────────────
+    // This lets consumers (e.g. the test-builder DOCX upload) store the IDs
+    // directly without a separate round-trip.
+    const taxoResolved: Record<number, { categoryId: string | null; subjectId: string | null; topicId: string | null; subtopicId: string | null }> = {};
+
+    const rowsWithTaxo = validationResults
+      .map((vr, i) => ({ rowNumber: i + 1, nr: vr.normalizedRow }))
+      .filter(r => r.nr?.category);
+
+    for (const { rowNumber, nr } of rowsWithTaxo) {
+      if (!nr) continue;
+      let categoryId: string | null = null;
+      let subjectId: string | null = null;
+      let topicId: string | null = null;
+      let subtopicId: string | null = null;
+
+      try {
+        const cat = await prisma.category.findFirst({ where: { name: { equals: nr.category!, mode: "insensitive" } } });
+        if (cat) {
+          categoryId = cat.id;
+          if (nr.subject) {
+            const sub = await prisma.subject.findFirst({ where: { categoryId: cat.id, name: { equals: nr.subject!, mode: "insensitive" } } });
+            if (sub) {
+              subjectId = sub.id;
+              if (nr.topic) {
+                const top = await prisma.topic.findFirst({ where: { subjectId: sub.id, name: { equals: nr.topic!, mode: "insensitive" } } });
+                if (top) {
+                  topicId = top.id;
+                  if (nr.subtopic) {
+                    const st = await prisma.subtopic.findFirst({ where: { topicId: top.id, name: { equals: nr.subtopic!, mode: "insensitive" } } });
+                    if (st) subtopicId = st.id;
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch { /* non-fatal — row just won't have resolved IDs */ }
+
+      taxoResolved[rowNumber] = { categoryId, subjectId, topicId, subtopicId };
+    }
+
+    const enrichedRows = job.rows.map(row => ({
+      ...row,
+      resolvedTaxonomy: taxoResolved[row.rowNumber] ?? null,
+    }));
+
     return NextResponse.json({
       data: {
         job: {
@@ -155,7 +202,7 @@ export async function POST(req: NextRequest) {
           invalidRows: job.invalidRows,
           createdAt: job.createdAt,
         },
-        rows: job.rows,
+        rows: enrichedRows,
         parserWarnings: parserWarnings.length > 0 ? parserWarnings : undefined,
       },
     }, { status: 201 });

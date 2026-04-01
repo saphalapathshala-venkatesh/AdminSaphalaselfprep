@@ -558,7 +558,7 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
         setParseErrors([d.error || "Upload failed — please check the file and try again."]);
         return;
       }
-      const apiRows: Array<{ rowNumber: number; rawData: any; isValid: boolean; errorField: string | null; errorMsg: string | null }> = d.data?.rows || [];
+      const apiRows: Array<{ rowNumber: number; rawData: any; isValid: boolean; errorField: string | null; errorMsg: string | null; resolvedTaxonomy?: { categoryId: string | null; subjectId: string | null; topicId: string | null; subtopicId: string | null } | null }> = d.data?.rows || [];
       if (apiRows.length === 0) {
         setParseErrors(["No questions found in the file. Make sure you are using the correct DOCX template."]);
         return;
@@ -609,6 +609,12 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
           isCorrect: i2 === correctIdx,
         }));
 
+        const taxo = row.resolvedTaxonomy;
+        const resolvedCategoryId  = taxo?.categoryId  || "";
+        const resolvedSubjectId   = taxo?.subjectId   || "";
+        const resolvedTopicId     = taxo?.topicId     || "";
+        const resolvedSubtopicId  = taxo?.subtopicId  || "";
+
         return {
           key: `docx_${row.rowNumber}_${idx}_${Date.now()}`,
           isEdited: false,
@@ -616,7 +622,8 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
           type: "MCQ_SINGLE",
           difficulty,
           explanation, explanationSecondary,
-          categoryId: "", subjectId: "", topicId: "", subtopicId: "",
+          categoryId: resolvedCategoryId, subjectId: resolvedSubjectId,
+          topicId: resolvedTopicId, subtopicId: resolvedSubtopicId,
           sourceTag, marks, negativeMarks, options,
           passageText: (raw._paragraphHtml || raw.passage || "").trim() || undefined,
           groupId: (raw._groupKey || raw.groupId || "").trim() || undefined,
