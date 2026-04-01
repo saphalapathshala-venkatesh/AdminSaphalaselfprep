@@ -37,8 +37,10 @@ interface GroupChild {
   difficulty: string;
   status: string;
   stem: string;
+  stemSecondary: string;
   explanation: string;
-  options: { text: string; isCorrect: boolean }[];
+  explanationSecondary: string;
+  options: { text: string; textSecondary: string; isCorrect: boolean }[];
 }
 
 interface Question {
@@ -135,9 +137,10 @@ export default function QuestionBankPage() {
   // Group/paragraph question mode (create only; edit stays single)
   const [questionMode, setQuestionMode] = useState<"single" | "group">("single");
   const [groupParagraph, setGroupParagraph] = useState("");
+  const [groupParagraphSecondary, setGroupParagraphSecondary] = useState("");
   const [groupChildren, setGroupChildren] = useState<GroupChild[]>([
-    { type: "MCQ_SINGLE", difficulty: "FOUNDATIONAL", status: "DRAFT", stem: "", explanation: "", options: [{ text: "", isCorrect: true }, { text: "", isCorrect: false }] },
-    { type: "MCQ_SINGLE", difficulty: "FOUNDATIONAL", status: "DRAFT", stem: "", explanation: "", options: [{ text: "", isCorrect: true }, { text: "", isCorrect: false }] },
+    { type: "MCQ_SINGLE", difficulty: "FOUNDATIONAL", status: "DRAFT", stem: "", stemSecondary: "", explanation: "", explanationSecondary: "", options: [{ text: "", textSecondary: "", isCorrect: true }, { text: "", textSecondary: "", isCorrect: false }] },
+    { type: "MCQ_SINGLE", difficulty: "FOUNDATIONAL", status: "DRAFT", stem: "", stemSecondary: "", explanation: "", explanationSecondary: "", options: [{ text: "", textSecondary: "", isCorrect: true }, { text: "", textSecondary: "", isCorrect: false }] },
   ]);
   const [groupSaving, setGroupSaving] = useState(false);
   const [groupError, setGroupError] = useState("");
@@ -295,9 +298,10 @@ export default function QuestionBankPage() {
     // Group form reset
     setQuestionMode("single");
     setGroupParagraph("");
+    setGroupParagraphSecondary("");
     setGroupChildren([
-      { type: "MCQ_SINGLE", difficulty: "FOUNDATIONAL", status: "DRAFT", stem: "", explanation: "", options: [{ text: "", isCorrect: true }, { text: "", isCorrect: false }] },
-      { type: "MCQ_SINGLE", difficulty: "FOUNDATIONAL", status: "DRAFT", stem: "", explanation: "", options: [{ text: "", isCorrect: true }, { text: "", isCorrect: false }] },
+      { type: "MCQ_SINGLE", difficulty: "FOUNDATIONAL", status: "DRAFT", stem: "", stemSecondary: "", explanation: "", explanationSecondary: "", options: [{ text: "", textSecondary: "", isCorrect: true }, { text: "", textSecondary: "", isCorrect: false }] },
+      { type: "MCQ_SINGLE", difficulty: "FOUNDATIONAL", status: "DRAFT", stem: "", stemSecondary: "", explanation: "", explanationSecondary: "", options: [{ text: "", textSecondary: "", isCorrect: true }, { text: "", textSecondary: "", isCorrect: false }] },
     ]);
     setGroupError("");
   }
@@ -362,7 +366,7 @@ export default function QuestionBankPage() {
     setGroupChildren((prev) => prev.map((c, i) => i === index ? { ...c, ...updates } : c));
   }
 
-  function updateGroupChildOption(childIdx: number, optIdx: number, field: "text" | "isCorrect", value: any) {
+  function updateGroupChildOption(childIdx: number, optIdx: number, field: "text" | "textSecondary" | "isCorrect", value: any) {
     setGroupChildren((prev) =>
       prev.map((c, i) => {
         if (i !== childIdx) return c;
@@ -384,7 +388,7 @@ export default function QuestionBankPage() {
     if (groupChildren.length >= 10) return;
     setGroupChildren((prev) => [
       ...prev,
-      { type: "MCQ_SINGLE", difficulty: "FOUNDATIONAL", status: "DRAFT", stem: "", explanation: "", options: [{ text: "", isCorrect: true }, { text: "", isCorrect: false }] },
+      { type: "MCQ_SINGLE", difficulty: "FOUNDATIONAL", status: "DRAFT", stem: "", stemSecondary: "", explanation: "", explanationSecondary: "", options: [{ text: "", textSecondary: "", isCorrect: true }, { text: "", textSecondary: "", isCorrect: false }] },
     ]);
   }
 
@@ -418,6 +422,7 @@ export default function QuestionBankPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           paragraph: groupParagraph,
+          paragraphSecondary: groupParagraphSecondary.trim() || null,
           categoryId: formCategoryId || null,
           subjectId: formSubjectId || null,
           topicId: formTopicId || null,
@@ -427,8 +432,12 @@ export default function QuestionBankPage() {
             difficulty: c.difficulty,
             status: c.status,
             stem: c.stem,
+            stemSecondary: c.stemSecondary.trim() || null,
             explanation: c.explanation || null,
-            options: MCQ_TYPES.includes(c.type) ? c.options : [],
+            explanationSecondary: c.explanationSecondary.trim() || null,
+            options: MCQ_TYPES.includes(c.type)
+              ? c.options.map((o) => ({ text: o.text, textSecondary: o.textSecondary.trim() || null, isCorrect: o.isCorrect }))
+              : [],
           })),
         }),
       });
@@ -801,6 +810,21 @@ export default function QuestionBankPage() {
                 minHeight={100}
               />
             </div>
+            <div style={{ ...cardStyle, marginBottom: "1rem", borderLeft: "3px solid #059669" }}>
+              <label style={{ ...labelStyle, color: "#059669" }}>
+                Passage — Secondary Language
+                <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: "0.72rem", marginLeft: "0.5rem" }}>(optional — e.g. Telugu, Hindi)</span>
+              </label>
+              <div style={{ fontSize: "0.78rem", color: "#6b7280", marginBottom: "0.5rem" }}>
+                Secondary language translation of the passage shown above all child questions.
+              </div>
+              <RichEditor
+                value={groupParagraphSecondary}
+                onChange={setGroupParagraphSecondary}
+                placeholder="Secondary language translation of the passage…"
+                minHeight={80}
+              />
+            </div>
 
             {/* Shared taxonomy */}
             <div style={{ ...cardStyle, marginBottom: "1rem" }}>
@@ -875,8 +899,8 @@ export default function QuestionBankPage() {
                         value={child.type}
                         onChange={(e) => {
                           const t = e.target.value;
-                          const newOptions = MCQ_TYPES.includes(t)
-                            ? (child.options.length >= 2 ? child.options : [{ text: "", isCorrect: true }, { text: "", isCorrect: false }])
+                          const newOptions: { text: string; textSecondary: string; isCorrect: boolean }[] = MCQ_TYPES.includes(t)
+                            ? (child.options.length >= 2 ? child.options : [{ text: "", textSecondary: "", isCorrect: true }, { text: "", textSecondary: "", isCorrect: false }])
                             : [];
                           updateGroupChild(ci, { type: t, options: newOptions });
                         }}
@@ -899,9 +923,16 @@ export default function QuestionBankPage() {
                     </div>
                   </div>
 
-                  <div style={{ marginBottom: "0.75rem" }}>
-                    <label style={labelStyle}>Question Stem *</label>
+                  <div style={{ marginBottom: "0.5rem" }}>
+                    <label style={labelStyle}>Question Stem — Primary Language *</label>
                     <RichEditor value={child.stem} onChange={(html) => updateGroupChild(ci, { stem: html })} placeholder="Question text…" minHeight={60} />
+                  </div>
+                  <div style={{ marginBottom: "0.75rem" }}>
+                    <label style={{ ...labelStyle, color: "#059669" }}>
+                      Question Stem — Secondary Language
+                      <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: "0.72rem", marginLeft: "0.5rem" }}>(optional — e.g. Telugu, Hindi)</span>
+                    </label>
+                    <RichEditor value={child.stemSecondary} onChange={(html) => updateGroupChild(ci, { stemSecondary: html })} placeholder="Secondary language translation of the question stem…" minHeight={44} />
                   </div>
 
                   {MCQ_TYPES.includes(child.type) && (
@@ -909,38 +940,57 @@ export default function QuestionBankPage() {
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.375rem" }}>
                         <label style={labelStyle}>Options</label>
                         {child.options.length < 8 && (
-                          <button type="button" onClick={() => updateGroupChild(ci, { options: [...child.options, { text: "", isCorrect: false }] })}
+                          <button type="button" onClick={() => updateGroupChild(ci, { options: [...child.options, { text: "", textSecondary: "", isCorrect: false }] })}
                             style={{ ...btnStyle, fontSize: "0.7rem", padding: "0.15rem 0.4rem", backgroundColor: "#7c3aed" }}>
                             + Option
                           </button>
                         )}
                       </div>
                       {child.options.map((opt, oi) => (
-                        <div key={oi} style={{ display: "flex", gap: "0.375rem", alignItems: "center", marginBottom: "0.25rem" }}>
-                          <input
-                            type={child.type === "MCQ_SINGLE" ? "radio" : "checkbox"}
-                            checked={opt.isCorrect}
-                            onChange={() => updateGroupChildOption(ci, oi, "isCorrect", child.type === "MCQ_SINGLE" ? true : !opt.isCorrect)}
-                            style={{ accentColor: "#059669" }}
-                          />
-                          <input
-                            value={opt.text}
-                            onChange={(e) => updateGroupChildOption(ci, oi, "text", e.target.value)}
-                            placeholder={`Option ${String.fromCharCode(65 + oi)}`}
-                            style={{ ...inputStyle, flex: 1, padding: "0.25rem 0.5rem", fontSize: "0.85rem" }}
-                          />
+                        <div key={oi} style={{ display: "flex", gap: "0.375rem", alignItems: "flex-start", marginBottom: "0.5rem" }}>
+                          <div style={{ paddingTop: "0.45rem" }}>
+                            <input
+                              type={child.type === "MCQ_SINGLE" ? "radio" : "checkbox"}
+                              checked={opt.isCorrect}
+                              onChange={() => updateGroupChildOption(ci, oi, "isCorrect", child.type === "MCQ_SINGLE" ? true : !opt.isCorrect)}
+                              style={{ accentColor: "#059669" }}
+                            />
+                          </div>
+                          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+                            <input
+                              value={opt.text}
+                              onChange={(e) => updateGroupChildOption(ci, oi, "text", e.target.value)}
+                              placeholder={`Option ${String.fromCharCode(65 + oi)} — Primary Language`}
+                              style={{ ...inputStyle, padding: "0.25rem 0.5rem", fontSize: "0.85rem" }}
+                            />
+                            <input
+                              value={opt.textSecondary}
+                              onChange={(e) => updateGroupChildOption(ci, oi, "textSecondary", e.target.value)}
+                              placeholder={`Option ${String.fromCharCode(65 + oi)} — Secondary Language (optional)`}
+                              style={{ ...inputStyle, padding: "0.22rem 0.5rem", fontSize: "0.8rem", color: "#059669", borderColor: "#a7f3d0" }}
+                            />
+                          </div>
                           {child.options.length > 2 && (
-                            <button type="button" onClick={() => updateGroupChild(ci, { options: child.options.filter((_, j) => j !== oi) })}
-                              style={{ ...btnStyle, fontSize: "0.7rem", padding: "0.15rem 0.4rem", backgroundColor: "#dc2626" }}>×</button>
+                            <div style={{ paddingTop: "0.3rem" }}>
+                              <button type="button" onClick={() => updateGroupChild(ci, { options: child.options.filter((_, j) => j !== oi) })}
+                                style={{ ...btnStyle, fontSize: "0.7rem", padding: "0.15rem 0.4rem", backgroundColor: "#dc2626" }}>×</button>
+                            </div>
                           )}
                         </div>
                       ))}
                     </div>
                   )}
 
-                  <div>
-                    <label style={labelStyle}>Explanation (optional)</label>
+                  <div style={{ marginBottom: "0.5rem" }}>
+                    <label style={labelStyle}>Explanation — Primary Language (optional)</label>
                     <RichEditor value={child.explanation} onChange={(html) => updateGroupChild(ci, { explanation: html })} placeholder="Explain the correct answer…" minHeight={44} />
+                  </div>
+                  <div>
+                    <label style={{ ...labelStyle, color: "#059669" }}>
+                      Explanation — Secondary Language
+                      <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: "0.72rem", marginLeft: "0.5rem" }}>(optional)</span>
+                    </label>
+                    <RichEditor value={child.explanationSecondary} onChange={(html) => updateGroupChild(ci, { explanationSecondary: html })} placeholder="Secondary language translation of the explanation…" minHeight={44} />
                   </div>
                 </div>
               ))}

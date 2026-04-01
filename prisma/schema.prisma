@@ -403,15 +403,16 @@ model QuestionOption {
 // One QuestionGroup stores the passage HTML once; child Questions link via groupId.
 // groupId = null → standalone question (fully backward compatible).
 model QuestionGroup {
-  id         String     @id @default(cuid())
-  paragraph  String     // HTML — the passage/intro text shown above all child questions
-  categoryId String?
-  subjectId  String?
-  topicId    String?
-  subtopicId String?
-  questions  Question[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id                  String     @id @default(cuid())
+  paragraph           String     // HTML — the passage/intro text shown above all child questions
+  paragraphSecondary  String?    // Optional secondary language passage HTML
+  categoryId          String?
+  subjectId           String?
+  topicId             String?
+  subtopicId          String?
+  questions           Question[]
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
 }
 
 // IMPORT SYSTEM (CSV & DOCX)

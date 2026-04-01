@@ -43,8 +43,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { paragraph, categoryId, subjectId, topicId, subtopicId, children } = body as {
+  const { paragraph, paragraphSecondary, categoryId, subjectId, topicId, subtopicId, children } = body as {
     paragraph?: string;
+    paragraphSecondary?: string;
     categoryId?: string;
     subjectId?: string;
     topicId?: string;
@@ -96,6 +97,7 @@ export async function POST(req: NextRequest) {
       const group = await tx.questionGroup.create({
         data: {
           paragraph,
+          paragraphSecondary: paragraphSecondary?.trim() || null,
           categoryId: categoryId || null,
           subjectId: subjectId || null,
           topicId: topicId || null,
