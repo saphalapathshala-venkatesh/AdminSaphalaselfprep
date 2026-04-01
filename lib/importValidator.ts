@@ -556,17 +556,32 @@ export function parseDocxHtml(rawHtml: string): RawRow[] {
       const lbl = matchLabel(seg);
       if (lbl) {
         const v = textOf(lbl.valueHtml).trim();
-        if (lbl.key === "category") { groupTaxonomy.category = v; continue; }
-        if (lbl.key === "subject")  { groupTaxonomy.subject  = v; continue; }
-        if (lbl.key === "topic")    { groupTaxonomy.topic    = v; continue; }
-        if (lbl.key === "subtopic") { groupTaxonomy.subtopic = v; continue; }
-        if (lbl.key === "_passage") { passageHtml = lbl.valueHtml; currentField = "_passage"; continue; }
+        if (lbl.key === "category")           { groupTaxonomy.category = v; currentField = null; continue; }
+        if (lbl.key === "subject")            { groupTaxonomy.subject  = v; currentField = null; continue; }
+        if (lbl.key === "topic")              { groupTaxonomy.topic    = v; currentField = null; continue; }
+        if (lbl.key === "subtopic")           { groupTaxonomy.subtopic = v; currentField = null; continue; }
+        if (lbl.key === "_passage") {
+          passageHtml = lbl.valueHtml;
+          currentField = "_passage";
+          continue;
+        }
+        // _passage_secondary: optional secondary-language passage — stored but silently ignored
+        // by commit route if secondary rendering is not implemented yet; never breaks parsing.
+        if ((lbl.key as string) === "_passage_secondary") {
+          currentField = "_passage_secondary";
+          continue;
+        }
+        // Any unrecognised label inside GROUP_START: skip cleanly
+        currentField = null;
+        continue;
       }
-      // Continuation of passage
-      if (currentField === "_passage" && passageHtml) {
-        if (seg.isTable) passageHtml += seg.html;
-        else passageHtml += " " + seg.html;
+      // Continuation of primary or secondary passage
+      if (currentField === "_passage" && !seg.isTable) {
+        passageHtml += " " + seg.html;
+      } else if (currentField === "_passage" && seg.isTable) {
+        passageHtml += seg.html;
       }
+      // _passage_secondary continuation: silently accumulate (no-op for now, no breakage)
       continue;
     }
 

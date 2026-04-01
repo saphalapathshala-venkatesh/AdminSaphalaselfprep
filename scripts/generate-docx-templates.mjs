@@ -290,8 +290,26 @@ async function buildSingleTemplate() {
         // ── Field reference ───────────────────────────────────────────────────
         ...fieldReferenceSection(false),
 
+        // ── Bilingual support note ────────────────────────────────────────────
+        heading2("Bilingual Support (Optional)"),
+        note("All 'Secondary' fields are completely optional. Leave them out entirely for English-only questions — the importer will parse the file cleanly with no errors or warnings."),
+        blank(),
+        body("To add a second language (e.g. Hindi, Marathi, Telugu …) simply include the matching 'Secondary' field directly after the primary one:", { bold: true }),
+        blank(),
+        sectionBox([
+          field("Question:", " Primary-language text here", "1e293b"),
+          field("Question Secondary:", " Secondary-language text here  ← optional", "4338a0"),
+          field("Option A:", " Option in primary language", "1e293b"),
+          field("Option A Secondary:", " Option in secondary language  ← optional", "4338a0"),
+          field("Explanation:", " Primary-language explanation", "1e293b"),
+          field("Explanation Secondary:", " Secondary-language explanation  ← optional", "4338a0"),
+        ]),
+        blank(),
+        note("You can add Secondary fields for any combination: just stem, just options, or the full set. Any field without a Secondary counterpart will simply show the primary language."),
+        divider(),
+
         // ── Example 1: text-only ───────────────────────────────────────────────
-        heading2("Example 1 — Text-only MCQ"),
+        heading2("Example 1 — English-only MCQ (no bilingual fields)"),
         sectionBox([
           field("QUESTION", "", GRAY),
           field("Question:", " What is 15% of 200?", "1e293b"),
@@ -311,8 +329,36 @@ async function buildSingleTemplate() {
         ]),
         blank(),
 
-        // ── Example 2: image in stem ───────────────────────────────────────────
-        heading2("Example 2 — Question with Image URL"),
+        // ── Example 2: bilingual ───────────────────────────────────────────────
+        heading2("Example 2 — Bilingual MCQ (English + Hindi)"),
+        note("Secondary fields are shown in purple/indigo below. They are all optional — remove any you don't need."),
+        blank(),
+        sectionBox([
+          field("QUESTION", "", GRAY),
+          field("Question:", " A train travels 360 km in 4 hours. What is its average speed?", "1e293b"),
+          field("Question Secondary:", " एक ट्रेन 4 घंटे में 360 किमी की दूरी तय करती है। इसकी औसत गति क्या है?", "4338a0"),
+          field("Option A:", " 80 km/h", "1e293b"),
+          field("Option A Secondary:", " 80 किमी/घंटा", "4338a0"),
+          field("Option B:", " 90 km/h", "1e293b"),
+          field("Option B Secondary:", " 90 किमी/घंटा", "4338a0"),
+          field("Option C:", " 100 km/h", "1e293b"),
+          field("Option C Secondary:", " 100 किमी/घंटा", "4338a0"),
+          field("Option D:", " 120 km/h", "1e293b"),
+          field("Option D Secondary:", " 120 किमी/घंटा", "4338a0"),
+          field("Correct Answer:", " B", GREEN),
+          field("Type:", " MCQ_SINGLE", GRAY),
+          field("Difficulty:", " EASY", GRAY),
+          field("Category:", " Banking", GRAY),
+          field("Subject:", " Quantitative Aptitude", GRAY),
+          field("Topic:", " Speed, Distance & Time", GRAY),
+          field("Explanation:", " Speed = Distance ÷ Time = 360 ÷ 4 = 90 km/h.", GRAY),
+          field("Explanation Secondary:", " गति = दूरी ÷ समय = 360 ÷ 4 = 90 किमी/घंटा।", "4338a0"),
+          field("END_QUESTION", "", GRAY),
+        ]),
+        blank(),
+
+        // ── Example 3: image in stem ───────────────────────────────────────────
+        heading2("Example 3 — Question with Image URL"),
         note("Use [IMAGE: URL] anywhere in the Question or Explanation field."),
         blank(),
         sectionBox([
@@ -358,7 +404,7 @@ async function buildSingleTemplate() {
         blank(),
 
         // ── Example 3: equation ───────────────────────────────────────────────
-        heading2("Example 3 — Question with LaTeX Equation"),
+        heading2("Example 4 — Question with LaTeX Equation"),
         note("Wrap LaTeX expressions in $$ ... $$ — they render as KaTeX on the student side."),
         blank(),
         sectionBox([
@@ -384,7 +430,7 @@ async function buildSingleTemplate() {
         blank(),
 
         // ── Multiple correct ───────────────────────────────────────────────────
-        heading2("Example 4 — Multiple-Correct MCQ"),
+        heading2("Example 5 — Multiple-Correct MCQ"),
         sectionBox([
           field("QUESTION", "", GRAY),
           field("Question:", " Which of the following are prime numbers?", "1e293b"),
@@ -399,34 +445,6 @@ async function buildSingleTemplate() {
           field("Subject:", " Quantitative Aptitude", GRAY),
           field("Topic:", " Number Theory", GRAY),
           field("Explanation:", " 2 and 7 are prime numbers. 4 = 2×2, 9 = 3×3.", GRAY),
-          field("END_QUESTION", "", GRAY),
-        ]),
-        blank(),
-
-        // ── Bilingual example ─────────────────────────────────────────────────
-        heading2("Example 5 — Bilingual Question (English + Hindi)"),
-        note("Add 'Secondary' fields for any content you want in a second language. All secondary fields are optional — omit them for English-only questions."),
-        blank(),
-        sectionBox([
-          field("QUESTION", "", GRAY),
-          field("Question:", " A train travels 360 km in 4 hours. What is its average speed?", "1e293b"),
-          field("Question Secondary:", " एक ट्रेन 4 घंटे में 360 किमी की दूरी तय करती है। इसकी औसत गति क्या है?", "4338a0"),
-          field("Option A:", " 80 km/h", "1e293b"),
-          field("Option A Secondary:", " 80 किमी/घंटा", "4338a0"),
-          field("Option B:", " 90 km/h", "1e293b"),
-          field("Option B Secondary:", " 90 किमी/घंटा", "4338a0"),
-          field("Option C:", " 100 km/h", "1e293b"),
-          field("Option C Secondary:", " 100 किमी/घंटा", "4338a0"),
-          field("Option D:", " 120 km/h", "1e293b"),
-          field("Option D Secondary:", " 120 किमी/घंटा", "4338a0"),
-          field("Correct Answer:", " B", GREEN),
-          field("Type:", " MCQ_SINGLE", GRAY),
-          field("Difficulty:", " EASY", GRAY),
-          field("Category:", " Banking", GRAY),
-          field("Subject:", " Quantitative Aptitude", GRAY),
-          field("Topic:", " Speed, Distance & Time", GRAY),
-          field("Explanation:", " Speed = Distance ÷ Time = 360 ÷ 4 = 90 km/h.", GRAY),
-          field("Explanation Secondary:", " गति = दूरी ÷ समय = 360 ÷ 4 = 90 किमी/घंटा।", "4338a0"),
           field("END_QUESTION", "", GRAY),
         ]),
         blank(),
@@ -499,8 +517,15 @@ async function buildGroupTemplate() {
         // ── Field reference ───────────────────────────────────────────────────
         ...fieldReferenceSection(true),
 
+        // ── Bilingual support note ────────────────────────────────────────────
+        heading2("Bilingual Support (Optional)"),
+        note("All 'Secondary' fields are completely optional. Leave them out for English-only questions — the importer will parse the file cleanly with no errors or warnings."),
+        blank(),
+        body("You can add 'Passage Secondary:' after 'Passage:', and 'Question Secondary:', 'Option A Secondary:', etc. inside each question block. Any fields you omit simply won't have a secondary translation.", { color: GRAY }),
+        divider(),
+
         // ── Example ────────────────────────────────────────────────────────────
-        heading2("Example — Passage with Three Sub-questions"),
+        heading2("Example — Passage with Three Sub-questions (English-only)"),
         sectionBox([
           field("GROUP_START", "", GRAY),
           field("Category:", " Banking", GRAY),
