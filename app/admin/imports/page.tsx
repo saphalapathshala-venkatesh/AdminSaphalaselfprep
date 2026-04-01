@@ -469,52 +469,212 @@ export default function ImportsPage() {
 
       {/* ── Download Templates ──────────────────────────────────────────── */}
       <div style={{ ...cardStyle, marginBottom: "1rem", padding: "1rem 1.25rem" }}>
-        <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "#374151", marginBottom: "0.6rem" }}>
-          📥 Download Import Templates
+        <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#374151", marginBottom: "0.5rem" }}>
+          Download Templates
         </div>
-        <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.75rem" }}>
-          Use these DOCX templates as a starting point. Images are referenced as URL tokens — do not embed images directly in the file.
+        <div style={{ fontSize: "0.78rem", color: "#6b7280", marginBottom: "0.75rem" }}>
+          Use the <strong>Single Question</strong> template for standalone MCQs. Use the <strong>Paragraph/Group</strong> template when multiple questions share a reading passage.
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-          <a
-            href="/downloads/saphala_single_question_template_v2.docx"
-            download
-            style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.375rem 0.75rem", background: "#7c3aed", color: "#fff", borderRadius: "6px", fontSize: "0.78rem", fontWeight: 600, textDecoration: "none" }}
-          >
-            ⬇ Single Question Template (v2)
+          <a href="/downloads/saphala_single_question_template_v3.docx" download
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.375rem 0.75rem", background: "#7c3aed", color: "#fff", borderRadius: "6px", fontSize: "0.78rem", fontWeight: 600, textDecoration: "none" }}>
+            Single Question Template
           </a>
-          <a
-            href="/downloads/saphala_group_question_template_v2.docx"
-            download
-            style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.375rem 0.75rem", background: "#0369a1", color: "#fff", borderRadius: "6px", fontSize: "0.78rem", fontWeight: 600, textDecoration: "none" }}
-          >
-            ⬇ Group / Paragraph Template (v2)
+          <a href="/downloads/saphala_group_question_template_v3.docx" download
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.375rem 0.75rem", background: "#0369a1", color: "#fff", borderRadius: "6px", fontSize: "0.78rem", fontWeight: 600, textDecoration: "none" }}>
+            Paragraph / Group Question Template
           </a>
-        </div>
-        <div style={{ marginTop: "0.625rem", padding: "0.5rem 0.75rem", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "6px", fontSize: "0.73rem", color: "#92400e" }}>
-          <strong>Image format:</strong> Do NOT embed images in the Word document. Instead write{" "}
-          <code style={{ background: "#fef3c7", padding: "1px 4px", borderRadius: "3px" }}>[IMAGE: https://your-cdn.com/image.jpg]</code>{" "}
-          anywhere in a Question, Option, or Explanation field.
         </div>
       </div>
 
-      {/* ── Upload ──────────────────────────────────────────────────────── */}
-      <div style={{ ...cardStyle, marginBottom: "1.5rem", textAlign: "center", padding: "2rem" }}>
-        <div style={{ fontSize: "0.875rem", color: "#6b7280", marginBottom: "0.75rem" }}>
-          Upload a CSV or DOCX file to import questions
+      {/* ── Instructions ────────────────────────────────────────────────── */}
+      <div style={{ ...cardStyle, marginBottom: "1rem", padding: "1.125rem 1.25rem" }}>
+        <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#374151", marginBottom: "1rem" }}>
+          How to Format Your DOCX
         </div>
-        <label style={{ ...btnStyle, backgroundColor: uploading ? "#94a3b8" : "#7c3aed", cursor: uploading ? "wait" : "pointer", display: "inline-block" }}>
-          {uploading ? "Processing..." : "Choose File"}
-          <input
-            type="file"
-            accept=".csv,.docx"
-            onChange={handleUpload}
-            disabled={uploading}
-            style={{ display: "none" }}
-          />
-        </label>
-        <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.5rem" }}>
-          Supported: CSV, DOCX
+
+        {/* Step 1 — Structure */}
+        <div style={{ marginBottom: "1rem" }}>
+          <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#7c3aed", marginBottom: "0.4rem" }}>
+            Step 1 — Question Block Structure
+          </div>
+          <div style={{ fontSize: "0.775rem", color: "#374151", lineHeight: 1.6, marginBottom: "0.5rem" }}>
+            Each question must be wrapped in a <strong>QUESTION</strong> … <strong>END_QUESTION</strong> block. Every field label must be on its <strong>own paragraph</strong> — press <strong>Enter</strong> (not Shift+Enter) between each one.
+          </div>
+          <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "0.625rem 0.875rem", fontFamily: "monospace", fontSize: "0.73rem", color: "#1e293b", lineHeight: 1.8 }}>
+            <span style={{ color: "#7c3aed", fontWeight: 700 }}>QUESTION</span><br />
+            <span style={{ color: "#1e293b" }}>Question:  What is the capital of France?</span><br />
+            <span style={{ color: "#1e293b" }}>Option A:  Berlin</span><br />
+            <span style={{ color: "#1e293b" }}>Option B:  Madrid</span><br />
+            <span style={{ color: "#1e293b" }}>Option C:  Paris</span><br />
+            <span style={{ color: "#1e293b" }}>Option D:  Rome</span><br />
+            <span style={{ color: "#059669", fontWeight: 600 }}>Correct Answer:  C</span><br />
+            <span style={{ color: "#64748b" }}>Type:  MCQ_SINGLE</span><br />
+            <span style={{ color: "#64748b" }}>Difficulty:  EASY</span><br />
+            <span style={{ color: "#64748b" }}>Category:  General Knowledge</span><br />
+            <span style={{ color: "#64748b" }}>Subject:  World Geography</span><br />
+            <span style={{ color: "#64748b" }}>Topic:  Capitals of the World</span><br />
+            <span style={{ color: "#94a3b8" }}>Subtopic:  European Capitals  (optional)</span><br />
+            <span style={{ color: "#64748b" }}>Explanation:  Paris is the capital and largest city of France.</span><br />
+            <span style={{ color: "#7c3aed", fontWeight: 700 }}>END_QUESTION</span>
+          </div>
+        </div>
+
+        {/* Required vs Optional fields */}
+        <div style={{ marginBottom: "1rem" }}>
+          <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#7c3aed", marginBottom: "0.5rem" }}>
+            Step 2 — Required and Optional Fields
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+            <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "6px", padding: "0.625rem 0.875rem" }}>
+              <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#065f46", marginBottom: "0.4rem" }}>Required</div>
+              {[
+                ["QUESTION", "Block start marker (standalone line)"],
+                ["Question:", "The question stem text"],
+                ["Option A: / Option B:", "Minimum 2 options for MCQ"],
+                ["Correct Answer:", "Letter(s): A  or  A,C  for multi-correct"],
+                ["Difficulty:", "FOUNDATIONAL · EASY · MEDIUM · HARD"],
+                ["Type:", "MCQ_SINGLE · MCQ_MULTIPLE · TRUE_FALSE"],
+              ].map(([field, desc]) => (
+                <div key={field} style={{ marginBottom: "0.3rem", fontSize: "0.73rem", color: "#1e293b" }}>
+                  <code style={{ background: "#dcfce7", padding: "1px 5px", borderRadius: "3px", fontWeight: 600 }}>{field}</code>
+                  <span style={{ color: "#6b7280", marginLeft: "0.4rem" }}>{desc}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "0.625rem 0.875rem" }}>
+              <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#374151", marginBottom: "0.4rem" }}>Optional</div>
+              {[
+                ["Option C: / Option D:", "Up to 8 options total (Option A–H)"],
+                ["Explanation:", "Explanation of the correct answer"],
+                ["Category:", "Exam category (e.g. Banking, UPSC)"],
+                ["Subject:", "Subject name"],
+                ["Topic:", "Topic name"],
+                ["Subtopic:", "Subtopic name (can be omitted)"],
+                ["Tags:", "Comma-separated tags"],
+                ["Marks:", "Points for correct answer (default: 1)"],
+                ["Negative Marks:", "Points deducted for wrong (default: 0)"],
+                ["Status:", "DRAFT (default) or APPROVED"],
+                ["END_QUESTION", "Block end (auto-detected if omitted)"],
+              ].map(([field, desc]) => (
+                <div key={field} style={{ marginBottom: "0.3rem", fontSize: "0.73rem", color: "#1e293b" }}>
+                  <code style={{ background: "#f1f5f9", padding: "1px 5px", borderRadius: "3px", fontWeight: 600 }}>{field}</code>
+                  <span style={{ color: "#6b7280", marginLeft: "0.4rem" }}>{desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Valid values */}
+        <div style={{ marginBottom: "1rem" }}>
+          <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#7c3aed", marginBottom: "0.4rem" }}>
+            Valid Field Values
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", fontSize: "0.73rem", color: "#374151" }}>
+            {[
+              ["Type", "MCQ_SINGLE  ·  MCQ_MULTIPLE  ·  TRUE_FALSE  ·  FILL_BLANKS  ·  DRAG_DROP  ·  DRAG_REORDER"],
+              ["Difficulty", "FOUNDATIONAL  ·  EASY  ·  MEDIUM  ·  HARD  ·  PROFICIENT  ·  MASTERY"],
+              ["Status", "DRAFT  (default)  ·  APPROVED"],
+              ["Correct Answer", "Single: A  ·  Multiple correct: A,C  (comma-separated, no spaces needed)"],
+            ].map(([label, vals]) => (
+              <div key={label} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "5px", padding: "0.5rem 0.7rem" }}>
+                <div style={{ fontWeight: 700, color: "#374151", marginBottom: "0.2rem" }}>{label}</div>
+                <div style={{ color: "#6b7280", lineHeight: 1.5 }}>{vals}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Bilingual */}
+        <div style={{ marginBottom: "1rem" }}>
+          <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#059669", marginBottom: "0.35rem" }}>
+            Bilingual Questions (Optional)
+          </div>
+          <div style={{ fontSize: "0.775rem", color: "#374151", lineHeight: 1.6, marginBottom: "0.4rem" }}>
+            Add a secondary-language translation for any field by placing the corresponding <strong>Secondary</strong> label immediately after the primary label. All secondary fields are optional — omit any you don't need.
+          </div>
+          <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "6px", padding: "0.5rem 0.875rem", fontFamily: "monospace", fontSize: "0.72rem", color: "#1e293b", lineHeight: 1.8 }}>
+            <span>Question:  A train travels 90 km in 2 hours.</span><br />
+            <span style={{ color: "#059669" }}>Question Secondary:  एक ट्रेन 2 घंटे में 90 किमी की दूरी तय करती है।</span><br />
+            <span>Option A:  45 km/h</span><br />
+            <span style={{ color: "#059669" }}>Option A Secondary:  45 किमी/घंटा</span><br />
+            <span>Explanation:  Speed = 90 ÷ 2 = 45 km/h.</span><br />
+            <span style={{ color: "#059669" }}>Explanation Secondary:  गति = 90 ÷ 2 = 45 किमी/घंटा।</span>
+          </div>
+        </div>
+
+        {/* Images + common mistakes */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+          <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "6px", padding: "0.625rem 0.875rem" }}>
+            <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#92400e", marginBottom: "0.35rem" }}>
+              Images in Questions
+            </div>
+            <div style={{ fontSize: "0.73rem", color: "#78350f", lineHeight: 1.55, marginBottom: "0.4rem" }}>
+              Do <strong>not</strong> paste or embed images in Word. Instead, place an image token anywhere in a Question, Option, or Explanation field:
+            </div>
+            <code style={{ display: "block", background: "#fef3c7", padding: "4px 7px", borderRadius: "4px", fontSize: "0.7rem", color: "#92400e", wordBreak: "break-all" }}>
+              [IMAGE: https://cdn.saphala.in/q/chart.png]
+            </code>
+          </div>
+          <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px", padding: "0.625rem 0.875rem" }}>
+            <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#991b1b", marginBottom: "0.35rem" }}>
+              Common Mistakes to Avoid
+            </div>
+            {[
+              "Using Shift+Enter (soft line break) instead of Enter between fields",
+              "Forgetting the standalone QUESTION marker before each question",
+              "Entering an invalid Difficulty value (check the list above)",
+              "Correct Answer letter not matching any option (e.g. 'E' when only A–D exist)",
+              "Embedding images directly in the Word file instead of using [IMAGE: URL]",
+            ].map((m, i) => (
+              <div key={i} style={{ fontSize: "0.72rem", color: "#7f1d1d", marginBottom: "0.2rem", display: "flex", gap: "0.3rem" }}>
+                <span style={{ color: "#dc2626", flexShrink: 0 }}>✕</span>
+                <span>{m}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Upload Workflow ──────────────────────────────────────────────── */}
+      <div style={{ ...cardStyle, marginBottom: "1rem", padding: "1rem 1.25rem" }}>
+        <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#374151", marginBottom: "0.75rem" }}>
+          Upload Workflow
+        </div>
+        <div style={{ display: "flex", gap: "0", marginBottom: "1rem", flexWrap: "wrap" }}>
+          {[
+            ["1", "Download & fill template", "Use the template above, fill in your questions, save as .docx"],
+            ["2", "Upload file", "Click 'Choose File' and select your .docx or .csv"],
+            ["3", "Review preview", "Check for red rows — use the Edit button to fix errors inline"],
+            ["4", "Validate", "Click Validate to re-run checks after any edits"],
+            ["5", "Import", "Click 'Import Valid Rows' to save questions to the Question Bank"],
+          ].map(([num, title, desc], i, arr) => (
+            <div key={num} style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", flex: "1 1 160px", minWidth: "140px", paddingRight: i < arr.length - 1 ? "0.75rem" : 0 }}>
+              <div style={{ width: "22px", height: "22px", borderRadius: "50%", background: "#7c3aed", color: "#fff", fontSize: "0.7rem", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: "2px" }}>
+                {num}
+              </div>
+              <div>
+                <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151" }}>{title}</div>
+                <div style={{ fontSize: "0.7rem", color: "#6b7280", lineHeight: 1.45, marginTop: "0.15rem" }}>{desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "0.875rem", display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+          <label style={{ ...btnStyle, backgroundColor: uploading ? "#94a3b8" : "#7c3aed", cursor: uploading ? "wait" : "pointer", display: "inline-block" }}>
+            {uploading ? "Processing..." : "Choose File to Upload"}
+            <input
+              type="file"
+              accept=".csv,.docx"
+              onChange={handleUpload}
+              disabled={uploading}
+              style={{ display: "none" }}
+            />
+          </label>
+          <div style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
+            Supported formats: <strong>.docx</strong> (up to 5,000 questions) · <strong>.csv</strong>
+          </div>
         </div>
       </div>
 
