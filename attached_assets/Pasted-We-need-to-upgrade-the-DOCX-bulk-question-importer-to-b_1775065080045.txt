@@ -1,0 +1,106 @@
+We need to upgrade the DOCX bulk question importer to be much more tolerant and admin-friendly.
+
+Problem:
+Right now the importer depends too heavily on Word paragraph boundaries. If a DOCX contains merged lines, soft line breaks, or inline text like:
+
+QUESTIONQuestion: ...
+Option A: ...Option B: ...
+
+the parser fails with “No rows found in file”.
+
+We need a robust “smart parser” that can recover questions even when formatting is imperfect.
+
+Implement the following:
+
+1. Add a normalization layer before parsing:
+- Extract full raw text from the DOCX
+- Normalize line endings to \n
+- Collapse repeated spaces where safe
+- Auto-insert line breaks before known field markers if they are merged into one line
+
+Known markers:
+QUESTION
+Question:
+Option A:
+Option B:
+Option C:
+Option D:
+Option E:
+Option F:
+Option G:
+Option H:
+Correct Answer:
+Type:
+Difficulty:
+Category:
+Subject:
+Topic:
+Subtopic:
+Explanation:
+END_QUESTION
+
+2. Parsing behavior:
+- Primary block format is QUESTION ... END_QUESTION
+- Split content into blocks using those markers
+- If QUESTION is merged with Question:, still recover it
+- If options are merged into a single paragraph, split them correctly by marker
+- Explanation may span multiple lines and should be captured until END_QUESTION
+
+3. Field extraction:
+For each block, extract:
+- Question
+- Options A-D minimum
+- Correct Answer
+- Type
+- Difficulty
+- Category
+- Subject
+- Topic
+- Subtopic
+- Explanation
+
+Use regex-based extraction rather than paragraph-only parsing.
+
+4. Validation:
+- Require Question
+- Require at least 2 options
+- Require Correct Answer and ensure it matches one of the parsed option labels
+- Return precise validation errors per question block
+
+5. Preview UI:
+Before final import, show:
+- total detected question blocks
+- successfully parsed questions
+- failed questions
+- row/block-level error messages
+- parsed preview of question text, options, correct answer, taxonomy
+
+6. Error handling:
+Replace generic “No rows found in file” with informative diagnostics such as:
+- No QUESTION markers found
+- Found QUESTION markers but could not parse required fields
+- Missing Correct Answer in block 3
+- Missing Option B in block 5
+
+7. Backward compatibility:
+Keep existing strict parser support, but run smart normalization + smart parsing as fallback automatically.
+
+8. Architecture:
+- Create a separate reusable parser utility module
+- Add unit-testable functions for:
+  - normalizeImportedQuestionText()
+  - splitQuestionBlocks()
+  - parseQuestionBlock()
+  - validateParsedQuestion()
+
+9. Add tests:
+Include sample fixtures for:
+- perfect paragraph DOCX text
+- QUESTION merged with Question:
+- options concatenated in one paragraph
+- explanation on multiple lines
+- missing fields
+- mixed valid/invalid questions
+
+Goal:
+Admins should be able to import large 200-question DOCX files without needing perfect Word paragraph formatting.

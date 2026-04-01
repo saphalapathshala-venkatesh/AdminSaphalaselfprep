@@ -46,6 +46,7 @@ export default function ImportsPage() {
 
   const [uploading, setUploading] = useState(false);
   const [actionLoading, setActionLoading] = useState("");
+  const [parserWarnings, setParserWarnings] = useState<string[]>([]);
 
   const [editRow, setEditRow] = useState<ImportRow | null>(null);
   const [editData, setEditData] = useState<Record<string, string>>({});
@@ -122,6 +123,7 @@ export default function ImportsPage() {
       showToast(`Preview complete: ${d.data.job.totalRows} rows parsed`, "success");
       setActiveJob(d.data.job);
       setRows(d.data.rows || []);
+      setParserWarnings(d.data.parserWarnings || []);
       setRowTotalPages(1);
       setView("detail");
       fetchJobs();
@@ -235,6 +237,26 @@ export default function ImportsPage() {
             fontSize: "0.875rem",
           }}>
             {toast.msg}
+          </div>
+        )}
+
+        {parserWarnings.length > 0 && (
+          <div style={{
+            padding: "0.875rem 1rem", marginBottom: "1rem", borderRadius: "6px",
+            backgroundColor: "#fffbeb", border: "1px solid #fbbf24",
+            fontSize: "0.82rem", color: "#78350f",
+          }}>
+            <div style={{ fontWeight: 700, marginBottom: "0.35rem", color: "#92400e" }}>
+              Smart Parser Active
+            </div>
+            {parserWarnings.map((w, i) => (
+              <div key={i} style={{ marginBottom: i < parserWarnings.length - 1 ? "0.25rem" : 0 }}>
+                {w}
+              </div>
+            ))}
+            <div style={{ marginTop: "0.5rem", color: "#92400e", fontSize: "0.78rem" }}>
+              Tip: For best results, use the downloadable template and ensure each field is on its own paragraph in Word.
+            </div>
           </div>
         )}
 

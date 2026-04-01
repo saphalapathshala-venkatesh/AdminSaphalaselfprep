@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { validateRow, parseDocxHtml, normalizeColumnNames, type RawRow } from "@/lib/importValidator";
+import { smartParseDocxText } from "@/lib/smartQuestionParser";
 import Papa from "papaparse";
 import mammoth from "mammoth";
 
@@ -29,6 +30,7 @@ export async function POST(req: NextRequest) {
 
     let rawRows: RawRow[] = [];
     const fileType = ext.toUpperCase();
+    let parserWarnings: string[] = [];
 
     if (ext === "csv") {
       const text = await file.text();
@@ -38,23 +40,62 @@ export async function POST(req: NextRequest) {
         transformHeader: (h: string) => h.trim().toLowerCase(),
       });
       rawRows = (parsed.data as Record<string, any>[]).map(normalizeColumnNames);
-    } else {
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const result = await mammoth.convertToHtml(
-        { buffer },
-        {
-          convertImage: mammoth.images.imgElement((image) =>
-            image.read("base64").then((b64) => ({
-              src: `data:${image.contentType};base64,${b64}`,
-            }))
-          ),
-        }
-      );
-      rawRows = parseDocxHtml(result.value);
-    }
 
-    if (rawRows.length === 0) {
-      return NextResponse.json({ error: "No rows found in file" }, { status: 400 });
+      if (rawRows.length === 0) {
+        return NextResponse.json(
+          { error: "No rows found in CSV. Ensure the file has a header row and at least one data row." },
+          { status: 400 }
+        );
+      }
+    } else {
+      // ── DOCX ─────────────────────────────────────────────────────────────
+      const buffer = Buffer.from(await file.arrayBuffer());
+
+      // Run both conversions in parallel — HTML for the strict parser,
+      // plain text as a fallback source for the smart parser.
+      const [htmlResult, textResult] = await Promise.all([
+        mammoth.convertToHtml(
+          { buffer },
+          {
+            convertImage: mammoth.images.imgElement((image) =>
+              image.read("base64").then((b64) => ({
+                src: `data:${image.contentType};base64,${b64}`,
+              }))
+            ),
+          }
+        ),
+        mammoth.extractRawText({ buffer }),
+      ]);
+
+      // ── Attempt 1: strict paragraph-based parser ──────────────────────────
+      rawRows = parseDocxHtml(htmlResult.value);
+
+      // ── Attempt 2: smart tolerant parser (auto-fallback) ──────────────────
+      if (rawRows.length === 0) {
+        const smartResult = smartParseDocxText(textResult.value);
+
+        if (smartResult.rows.length > 0) {
+          rawRows = smartResult.rows;
+          parserWarnings = [
+            `⚠ Smart parser was used because the file's paragraph formatting was imperfect. ` +
+            `${smartResult.blocksFound} question block(s) detected, ` +
+            `${smartResult.blocksParsed} parsed successfully` +
+            (smartResult.blocksFailed > 0
+              ? `, ${smartResult.blocksFailed} skipped due to missing fields.`
+              : "."),
+            ...smartResult.diagnostics,
+          ];
+        } else {
+          // Both parsers found nothing — return the smart parser's diagnostics
+          const detail = smartResult.diagnostics.length > 0
+            ? smartResult.diagnostics.join(" | ")
+            : "The file appears to be empty or contains no recognisable question blocks.";
+          return NextResponse.json(
+            { error: `No questions found in file. ${detail}` },
+            { status: 400 }
+          );
+        }
+      }
     }
 
     const validationResults = rawRows.map((r) => validateRow(r));
@@ -115,6 +156,7 @@ export async function POST(req: NextRequest) {
           createdAt: job.createdAt,
         },
         rows: job.rows,
+        parserWarnings: parserWarnings.length > 0 ? parserWarnings : undefined,
       },
     }, { status: 201 });
   } catch (err) {
