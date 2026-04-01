@@ -116,6 +116,15 @@ export default function RichEditor({
   const [tableRows, setTableRows] = useState("3");
   const [tableCols, setTableCols] = useState("3");
 
+  // Table cell context menu state
+  const [cellMenu, setCellMenu] = useState<{
+    x: number; y: number;
+    cell: HTMLTableCellElement;
+    canMergeRight: boolean;
+    canMergeDown: boolean;
+    canSplit: boolean;
+  } | null>(null);
+
   // ── Mount: set initial innerHTML ──────────────────────────────────────────
   useEffect(() => {
     if (editorRef.current) {
@@ -405,6 +414,94 @@ export default function RichEditor({
     emitChange();
   }
 
+  // ── Table cell merge helpers ───────────────────────────────────────────────
+  function handleCellContextMenu(e: React.MouseEvent<HTMLDivElement>) {
+    if (disabled) return;
+    const target = e.target as HTMLElement;
+    const cell = target.closest("td, th") as HTMLTableCellElement | null;
+    if (!cell) return;
+    e.preventDefault();
+    const colspan = parseInt(cell.getAttribute("colspan") || "1");
+    const rowspan = parseInt(cell.getAttribute("rowspan") || "1");
+    const nextCell = cell.nextElementSibling as HTMLTableCellElement | null;
+    const row = cell.closest("tr") as HTMLTableRowElement | null;
+    const nextRow = row?.nextElementSibling as HTMLTableRowElement | null;
+    const cellIndex = row ? Array.from(row.cells).indexOf(cell) : -1;
+    const belowCell = nextRow && cellIndex >= 0 ? nextRow.cells[cellIndex] : null;
+    setCellMenu({
+      x: e.clientX,
+      y: e.clientY,
+      cell,
+      canMergeRight: !!(nextCell && ["TD", "TH"].includes(nextCell.tagName)),
+      canMergeDown: !!belowCell,
+      canSplit: colspan > 1 || rowspan > 1,
+    });
+  }
+
+  function mergeRight() {
+    if (!cellMenu) return;
+    const { cell } = cellMenu;
+    const next = cell.nextElementSibling as HTMLTableCellElement | null;
+    if (!next || !["TD", "TH"].includes(next.tagName)) return;
+    const cs = parseInt(cell.getAttribute("colspan") || "1") + parseInt(next.getAttribute("colspan") || "1");
+    cell.setAttribute("colspan", String(cs));
+    while (next.firstChild) cell.appendChild(next.firstChild);
+    next.remove();
+    setCellMenu(null);
+    emitChange();
+  }
+
+  function mergeDown() {
+    if (!cellMenu) return;
+    const { cell } = cellMenu;
+    const row = cell.closest("tr") as HTMLTableRowElement | null;
+    if (!row) return;
+    const cellIndex = Array.from(row.cells).indexOf(cell);
+    const nextRow = row.nextElementSibling as HTMLTableRowElement | null;
+    if (!nextRow) return;
+    const below = nextRow.cells[cellIndex] as HTMLTableCellElement | undefined;
+    if (!below) return;
+    const rs = parseInt(cell.getAttribute("rowspan") || "1") + parseInt(below.getAttribute("rowspan") || "1");
+    cell.setAttribute("rowspan", String(rs));
+    while (below.firstChild) cell.appendChild(below.firstChild);
+    below.remove();
+    setCellMenu(null);
+    emitChange();
+  }
+
+  function splitCell() {
+    if (!cellMenu) return;
+    const { cell } = cellMenu;
+    const colspan = parseInt(cell.getAttribute("colspan") || "1");
+    const rowspan = parseInt(cell.getAttribute("rowspan") || "1");
+    const CELL_STYLE = "border:1px solid #94a3b8;padding:6px 8px;min-width:60px;";
+    if (colspan > 1) {
+      cell.removeAttribute("colspan");
+      for (let i = 1; i < colspan; i++) {
+        const nc = document.createElement(cell.tagName.toLowerCase());
+        nc.setAttribute("style", CELL_STYLE);
+        cell.after(nc);
+      }
+    }
+    if (rowspan > 1) {
+      cell.removeAttribute("rowspan");
+      const row = cell.closest("tr") as HTMLTableRowElement | null;
+      if (row) {
+        const idx = Array.from(row.cells).indexOf(cell);
+        let nr = row.nextElementSibling as HTMLTableRowElement | null;
+        for (let i = 1; i < rowspan && nr; i++) {
+          const nc = document.createElement(cell.tagName.toLowerCase());
+          nc.setAttribute("style", CELL_STYLE);
+          if (nr.cells[idx]) nr.insertBefore(nc, nr.cells[idx]);
+          else nr.appendChild(nc);
+          nr = nr.nextElementSibling as HTMLTableRowElement | null;
+        }
+      }
+    }
+    setCellMenu(null);
+    emitChange();
+  }
+
   const isEmpty = !value || value === "<br>" || value === "<div><br></div>";
   const anyDialogOpen = eqDialogOpen || imgDialogOpen || tableDialogOpen;
 
@@ -554,6 +651,7 @@ export default function RichEditor({
         suppressContentEditableWarning
         onInput={emitChange}
         onPaste={handlePaste}
+        onContextMenu={handleCellContextMenu}
         data-placeholder={placeholder}
         style={{
           minHeight,
@@ -919,6 +1017,83 @@ export default function RichEditor({
             </button>
           </div>
         </div>
+      )}
+
+      {/* Table cell context menu */}
+      {cellMenu && (
+        <>
+          {/* Backdrop to close on outside click */}
+          <div
+            style={{ position: "fixed", inset: 0, zIndex: 70 }}
+            onMouseDown={() => setCellMenu(null)}
+          />
+          <div
+            style={{
+              position: "fixed",
+              top: cellMenu.y,
+              left: cellMenu.x,
+              zIndex: 80,
+              background: "#fff",
+              border: "1px solid #e2e8f0",
+              borderRadius: "7px",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+              minWidth: "180px",
+              overflow: "hidden",
+              fontSize: "0.8125rem",
+            }}
+          >
+            <div style={{ padding: "0.35rem 0.65rem", fontSize: "0.7rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid #f1f5f9" }}>
+              Table Cell
+            </div>
+            {cellMenu.canMergeRight && (
+              <button
+                type="button"
+                onMouseDown={(e) => { e.stopPropagation(); mergeRight(); }}
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "0.45rem 0.75rem", background: "none", border: "none", cursor: "pointer", color: "#1e293b" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+              >
+                ⟶ Merge with right cell
+              </button>
+            )}
+            {cellMenu.canMergeDown && (
+              <button
+                type="button"
+                onMouseDown={(e) => { e.stopPropagation(); mergeDown(); }}
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "0.45rem 0.75rem", background: "none", border: "none", cursor: "pointer", color: "#1e293b" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+              >
+                ⟓ Merge with cell below
+              </button>
+            )}
+            {cellMenu.canSplit && (
+              <button
+                type="button"
+                onMouseDown={(e) => { e.stopPropagation(); splitCell(); }}
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "0.45rem 0.75rem", background: "none", border: "none", cursor: "pointer", color: "#7c3aed" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#f5f3ff")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+              >
+                ✦ Split merged cell
+              </button>
+            )}
+            {!cellMenu.canMergeRight && !cellMenu.canMergeDown && !cellMenu.canSplit && (
+              <div style={{ padding: "0.45rem 0.75rem", color: "#94a3b8" }}>No merge options available</div>
+            )}
+            <div style={{ borderTop: "1px solid #f1f5f9" }}>
+              <button
+                type="button"
+                onMouseDown={(e) => { e.stopPropagation(); setCellMenu(null); }}
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "0.45rem 0.75rem", background: "none", border: "none", cursor: "pointer", color: "#64748b" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+              >
+                ✕ Close
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
