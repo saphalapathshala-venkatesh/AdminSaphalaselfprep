@@ -95,8 +95,45 @@ export async function GET(req: NextRequest) {
       prisma.question.count({ where }),
     ]);
 
+    // For questions that have categoryId/subjectId/topicId but no subtopicId,
+    // batch-fetch the names so the UI can display a taxonomy label without
+    // needing a Prisma relation on the Question model.
+    const needsEnrich = questions.filter(
+      (q) => !q.subtopicId && (q.categoryId || q.subjectId || q.topicId)
+    );
+
+    let categoryMap: Record<string, string> = {};
+    let subjectMap: Record<string, string> = {};
+    let topicMap: Record<string, string> = {};
+
+    if (needsEnrich.length > 0) {
+      const catIds = Array.from(new Set(needsEnrich.map((q) => q.categoryId).filter(Boolean) as string[]));
+      const subIds = Array.from(new Set(needsEnrich.map((q) => q.subjectId).filter(Boolean) as string[]));
+      const topIds = Array.from(new Set(needsEnrich.map((q) => q.topicId).filter(Boolean) as string[]));
+
+      const [cats, subs, tops] = await Promise.all([
+        catIds.length ? prisma.category.findMany({ where: { id: { in: catIds } }, select: { id: true, name: true } }) : [],
+        subIds.length ? prisma.subject.findMany({ where: { id: { in: subIds } }, select: { id: true, name: true } }) : [],
+        topIds.length ? prisma.topic.findMany({ where: { id: { in: topIds } }, select: { id: true, name: true } }) : [],
+      ]);
+
+      categoryMap = Object.fromEntries(cats.map((c) => [c.id, c.name]));
+      subjectMap  = Object.fromEntries(subs.map((s) => [s.id, s.name]));
+      topicMap    = Object.fromEntries(tops.map((t) => [t.id, t.name]));
+    }
+
+    const enriched = questions.map((q) => {
+      if (q.subtopicId || !needsEnrich.find((n) => n.id === q.id)) return q;
+      return {
+        ...q,
+        _categoryName: q.categoryId ? (categoryMap[q.categoryId] ?? null) : null,
+        _subjectName:  q.subjectId  ? (subjectMap[q.subjectId]  ?? null) : null,
+        _topicName:    q.topicId    ? (topicMap[q.topicId]      ?? null) : null,
+      };
+    });
+
     return NextResponse.json({
-      data: questions,
+      data: enriched,
       pagination: {
         page,
         limit,

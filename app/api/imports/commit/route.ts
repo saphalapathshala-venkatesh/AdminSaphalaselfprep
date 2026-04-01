@@ -128,21 +128,99 @@ export async function POST(req: NextRequest) {
         where: { contentHash: nr.contentHash },
       });
       if (existingHash) {
-        failedCount++;
-        await prisma.importRow.update({
-          where: { id: row.id },
-          data: {
-            isValid: false,
+        // If the existing question has no taxonomy but the import supplies it,
+        // patch the taxonomy instead of blocking — lets users re-upload with
+        // Category/Subject/Topic/Subtopic to enrich previously bare questions.
+        const hasTaxInImport = !!(nr.category);
+        const hasTaxInDb = !!(existingHash.categoryId);
+
+        if (hasTaxInImport && !hasTaxInDb) {
+          try {
+            // Resolve taxonomy the same way as new imports
+            let patchCategoryId: string | null = null;
+            let patchSubjectId: string | null = null;
+            let patchTopicId: string | null = null;
+            let patchSubtopicId: string | null = null;
+
+            let cat = await prisma.category.findFirst({ where: { name: nr.category! } });
+            if (!cat) cat = await prisma.category.create({ data: { name: nr.category! } });
+            patchCategoryId = cat.id;
+
+            if (nr.subject) {
+              const existingSub = await prisma.subject.findFirst({
+                where: { categoryId: cat.id, name: { equals: nr.subject, mode: "insensitive" } },
+              });
+              patchSubjectId = existingSub
+                ? existingSub.id
+                : (await prisma.subject.create({ data: { name: nr.subject, categoryId: cat.id } })).id;
+
+              if (nr.topic && patchSubjectId) {
+                const existingTop = await prisma.topic.findFirst({
+                  where: { subjectId: patchSubjectId, name: { equals: nr.topic, mode: "insensitive" } },
+                });
+                patchTopicId = existingTop
+                  ? existingTop.id
+                  : (await prisma.topic.create({ data: { name: nr.topic, subjectId: patchSubjectId } })).id;
+
+                if (nr.subtopic && patchTopicId) {
+                  const existingSt = await prisma.subtopic.findFirst({
+                    where: { topicId: patchTopicId, name: { equals: nr.subtopic, mode: "insensitive" } },
+                  });
+                  patchSubtopicId = existingSt
+                    ? existingSt.id
+                    : (await prisma.subtopic.create({ data: { name: nr.subtopic, topicId: patchTopicId } })).id;
+                }
+              }
+            }
+
+            await prisma.question.update({
+              where: { id: existingHash.id },
+              data: {
+                categoryId: patchCategoryId,
+                subjectId: patchSubjectId,
+                topicId: patchTopicId,
+                subtopicId: patchSubtopicId,
+              },
+            });
+
+            importedCount++;
+            await prisma.importRow.update({
+              where: { id: row.id },
+              data: { isValid: true, errorField: null, errorMsg: null },
+            });
+            console.log(`[commit] Patched taxonomy on existing question ${existingHash.id}`);
+          } catch (patchErr: any) {
+            console.warn("[commit] Taxonomy patch failed:", patchErr?.message);
+            failedCount++;
+            await prisma.importRow.update({
+              where: { id: row.id },
+              data: {
+                isValid: false,
+                errorField: "contentHash",
+                errorMsg: "Duplicate question — taxonomy patch failed.",
+              },
+            });
+            errorRows.push({ rowNumber: row.rowNumber, errorField: "contentHash", errorMsg: "Taxonomy patch failed", stem: nr.stem });
+          }
+        } else {
+          failedCount++;
+          await prisma.importRow.update({
+            where: { id: row.id },
+            data: {
+              isValid: false,
+              errorField: "contentHash",
+              errorMsg: hasTaxInDb
+                ? "Exact duplicate blocked. Question already exists with taxonomy."
+                : "Exact duplicate blocked. A question with identical content already exists.",
+            },
+          });
+          errorRows.push({
+            rowNumber: row.rowNumber,
             errorField: "contentHash",
-            errorMsg: "Exact duplicate blocked. A question with identical content already exists.",
-          },
-        });
-        errorRows.push({
-          rowNumber: row.rowNumber,
-          errorField: "contentHash",
-          errorMsg: "Exact duplicate blocked",
-          stem: nr.stem,
-        });
+            errorMsg: "Exact duplicate blocked",
+            stem: nr.stem,
+          });
+        }
         continue;
       }
 

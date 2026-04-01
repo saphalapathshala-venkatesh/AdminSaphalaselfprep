@@ -74,6 +74,10 @@ interface Question {
     };
   } | null;
   createdAt: string;
+  // Enriched by the API when subtopicId is null but partial taxonomy IDs are set
+  _categoryName?: string | null;
+  _subjectName?: string | null;
+  _topicName?: string | null;
 }
 
 interface TaxItem {
@@ -755,9 +759,13 @@ export default function QuestionBankPage() {
   }
 
   function getTaxLabel(q: Question) {
-    if (!q.subtopic) return "-";
-    const s = q.subtopic;
-    return `${s.topic.subject.category.name} > ${s.topic.subject.name} > ${s.topic.name} > ${s.name}`;
+    if (q.subtopic) {
+      const s = q.subtopic;
+      return `${s.topic.subject.category.name} > ${s.topic.subject.name} > ${s.topic.name} > ${s.name}`;
+    }
+    // Fallback: use enriched names sent by API for questions with partial taxonomy
+    const parts = [q._categoryName, q._subjectName, q._topicName].filter(Boolean);
+    return parts.length > 0 ? parts.join(" > ") : "-";
   }
 
   if (mode === "create" || mode === "edit") {
