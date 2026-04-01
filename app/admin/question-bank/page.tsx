@@ -16,9 +16,9 @@ const Q_TYPES = [
   { value: "TRUE_FALSE", label: "True / False" },
 ];
 const DIFFICULTIES = [
-  { value: "FOUNDATIONAL", label: "Foundational" },
-  { value: "PROFICIENT", label: "Proficient" },
-  { value: "MASTERY", label: "Mastery" },
+  { value: "FOUNDATIONAL", label: "Easy" },
+  { value: "PROFICIENT", label: "Moderate" },
+  { value: "MASTERY", label: "Difficult" },
 ];
 const STATUSES = [
   { value: "DRAFT", label: "Draft" },
@@ -1323,9 +1323,9 @@ export default function QuestionBankPage() {
         {[
           { label: "Total in Bank", value: total, color: "#7c3aed", bg: "#f5f3ff" },
           { label: "Showing (filtered)", value: questions.length, color: "#0369a1", bg: "#eff6ff" },
-          { label: "Foundational", value: foundationalCount, color: "#1e40af", bg: "#dbeafe" },
-          { label: "Proficient", value: proficientCount, color: "#92400e", bg: "#fef3c7" },
-          { label: "Mastery", value: masteryCount, color: "#9d174d", bg: "#fce7f3" },
+          { label: "Easy", value: foundationalCount, color: "#1e40af", bg: "#dbeafe" },
+          { label: "Moderate", value: proficientCount, color: "#92400e", bg: "#fef3c7" },
+          { label: "Difficult", value: masteryCount, color: "#9d174d", bg: "#fce7f3" },
         ].map(({ label, value, color, bg }) => (
           <div key={label} style={{ background: bg, border: `1px solid ${color}20`, borderRadius: "8px", padding: "0.5rem 0.875rem", minWidth: "110px" }}>
             <div style={{ fontSize: "0.6875rem", color, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.03em" }}>{label}</div>

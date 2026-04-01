@@ -207,7 +207,7 @@ type TaxoNode = { id: string; name: string };
 const MODES = ["TIMED", "SECTIONAL", "MULTI_SECTION"] as const;
 const Q_TYPES = ["MCQ_SINGLE", "MCQ_MULTI", "TRUE_FALSE", "PASSAGE_BASED", "INTEGER", "DESCRIPTIVE"] as const;
 const DIFFICULTIES = ["FOUNDATIONAL", "PROFICIENT", "MASTERY"] as const;
-const DIFF_LABEL: Record<string, string> = { FOUNDATIONAL: "Foundational", PROFICIENT: "Proficient", MASTERY: "Mastery" };
+const DIFF_LABEL: Record<string, string> = { FOUNDATIONAL: "Easy", PROFICIENT: "Moderate", MASTERY: "Difficult" };
 // Map legacy/DOCX difficulty strings → valid DifficultyLevel enum values
 function normaliseDifficulty(raw: string): string {
   const v = raw.trim().toUpperCase();
@@ -1143,7 +1143,7 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
                               {stripHtml(q.stem)}
                             </span>
                           </td>
-                          <td style={td}>{q.difficulty}</td>
+                          <td style={td}>{DIFF_LABEL[q.difficulty] ?? q.difficulty}</td>
                           <td style={td}><span style={{ fontSize: "0.7rem", background: q.status === "APPROVED" ? "#d1fae5" : "#fee2e2", color: q.status === "APPROVED" ? "#065f46" : "#991b1b", padding: "1px 5px", borderRadius: "4px" }}>{q.status}</span></td>
                           <td style={td}>
                             <div style={{ display: "flex", gap: "0.25rem" }}>
@@ -1224,7 +1224,7 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
                             {stripHtml(q.stem)}
                           </span>
                         </td>
-                        <td style={td}>{q.difficulty}</td>
+                        <td style={td}>{DIFF_LABEL[q.difficulty] ?? q.difficulty}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1341,7 +1341,7 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
                         <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.stem}</span>
                       </td>
                       <td style={td}><span style={{ fontSize: "0.7rem", background: "#e0e7ff", color: "#3730a3", padding: "1px 5px", borderRadius: "4px" }}>{item.type}</span></td>
-                      <td style={td}>{item.difficulty.slice(0, 3)}</td>
+                      <td style={td}>{DIFF_LABEL[item.difficulty] ?? item.difficulty}</td>
                       <td style={td}><span style={{ color: "#059669", fontWeight: 700 }}>+{item.marks}</span></td>
                       <td style={td}><span style={{ color: item.negativeMarks > 0 ? "#dc2626" : "#94a3b8" }}>−{item.negativeMarks}</span></td>
                       <td style={{ ...td, fontSize: "0.7rem", color: "#6b7280" }}>{item.groupId || "—"}</td>
@@ -2463,7 +2463,7 @@ export default function TestsPage() {
                         <td style={{ ...td, color: "#94a3b8" }}>{i + 1}</td>
                         <td style={td}><span style={{ fontSize: "0.7rem", background: "#e0e7ff", color: "#3730a3", padding: "1px 5px", borderRadius: "4px" }}>{tq.question.type}</span></td>
                         <td style={{ ...td, maxWidth: "200px" }}><span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tq.question.stem}</span></td>
-                        <td style={td}>{tq.question.difficulty.slice(0, 3)}</td>
+                        <td style={td}>{DIFF_LABEL[tq.question.difficulty] ?? tq.question.difficulty}</td>
                         <td style={td}><span style={{ fontSize: "0.7rem", padding: "1px 5px", borderRadius: "4px", background: tq.question.status === "APPROVED" ? "#d1fae5" : "#fee2e2", color: tq.question.status === "APPROVED" ? "#065f46" : "#991b1b" }}>{tq.question.status}</span></td>
                         <td style={{ ...td, color: "#059669", fontWeight: 700 }}>+{tq.marks}</td>
                         <td style={{ ...td, color: tq.negativeMarks > 0 ? "#dc2626" : "#94a3b8" }}>−{tq.negativeMarks}</td>
