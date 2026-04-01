@@ -26,7 +26,37 @@ interface RichEditorProps {
   placeholder?: string;
   minHeight?: number;
   disabled?: boolean;
+  /** When true, shows the extended toolbar: colour, font, size, underline, lists, align, table */
+  extended?: boolean;
 }
+
+// ── Extended toolbar constants ─────────────────────────────────────────────
+const FONT_FAMILIES = [
+  "Default", "Arial", "Georgia", "Times New Roman", "Courier New",
+  "Verdana", "Trebuchet MS", "Comic Sans MS",
+];
+const FONT_SIZES = [
+  { label: "Small",    value: "2" },
+  { label: "Normal",   value: "3" },
+  { label: "Large",    value: "4" },
+  { label: "X-Large",  value: "5" },
+  { label: "XX-Large", value: "6" },
+];
+const TEXT_COLORS = [
+  "#000000", "#374151", "#6b7280", "#ef4444", "#f97316",
+  "#eab308", "#22c55e", "#3b82f6", "#8b5cf6", "#ec4899",
+  "#ffffff", "#fef9c3",
+];
+const SELECT_STYLE: React.CSSProperties = {
+  border: "1px solid #d1d5db",
+  borderRadius: "4px",
+  padding: "0.125rem 0.25rem",
+  fontSize: "0.72rem",
+  color: "#374151",
+  background: "#fff",
+  cursor: "pointer",
+  height: "24px",
+};
 
 const TOOLBAR_BTN: React.CSSProperties = {
   background: "none",
@@ -47,6 +77,7 @@ export default function RichEditor({
   placeholder = "Type here or use toolbar to insert images/equations…",
   minHeight = 72,
   disabled = false,
+  extended = false,
 }: RichEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const isInternalChange = useRef(false);
