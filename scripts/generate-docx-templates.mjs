@@ -177,32 +177,39 @@ function imageGuideSection() {
 
 function fieldReferenceSection(includePassage) {
   const rows = [
-    ["QUESTION",          "Required",  "Marks the start of a question block"],
-    ["Question:",         "Required",  "The question stem (rich text + [IMAGE: URL] supported)"],
-    ["Option A:",         "Required*", "Option text (* required for MCQ types)"],
-    ["Option B:",         "Required*", "Option text"],
-    ["Option C:",         "Optional",  "Option text"],
-    ["Option D:",         "Optional",  "Option text"],
-    ["Correct Answer:",   "Required",  "Letter(s): A, B, C or D. Multiple: A,C"],
-    ["Type:",             "Optional",  "MCQ_SINGLE (default) | MCQ_MULTIPLE | TRUE_FALSE | INTEGER | DESCRIPTIVE"],
-    ["Difficulty:",       "Required",  "EASY | MEDIUM | HARD | FOUNDATIONAL | PROFICIENT | MASTERY"],
-    ["Category:",         "Optional",  "Exam category name (e.g. Banking, UPSC)"],
-    ["Subject:",          "Optional",  "Subject name"],
-    ["Topic:",            "Optional",  "Topic name"],
-    ["Subtopic:",         "Optional",  "Subtopic name"],
-    ["Explanation:",      "Optional",  "Solution / explanation (rich text + [IMAGE: URL] supported)"],
-    ["Tags:",             "Optional",  "Comma-separated tags (e.g. source:SBI_PO_2024)"],
-    ["Marks:",            "Optional",  "Marks awarded (default: 1)"],
-    ["Negative Marks:",   "Optional",  "Marks deducted for wrong answer (default: 0)"],
-    ["Status:",           "Optional",  "DRAFT (default) | APPROVED"],
-    ["END_QUESTION",      "Optional",  "Marks end of block (auto-detected if omitted)"],
+    ["QUESTION",                "Required",  "Marks the start of a question block"],
+    ["Question:",               "Required",  "Primary-language question stem (rich text + [IMAGE: URL] supported)"],
+    ["Question Secondary:",     "Optional",  "Secondary-language question stem (bilingual). Leave blank for English-only."],
+    ["Option A:",               "Required*", "Primary-language option text (* required for MCQ types)"],
+    ["Option A Secondary:",     "Optional",  "Secondary-language translation of Option A"],
+    ["Option B:",               "Required*", "Primary-language option text"],
+    ["Option B Secondary:",     "Optional",  "Secondary-language translation of Option B"],
+    ["Option C:",               "Optional",  "Primary-language option text"],
+    ["Option C Secondary:",     "Optional",  "Secondary-language translation of Option C"],
+    ["Option D:",               "Optional",  "Primary-language option text"],
+    ["Option D Secondary:",     "Optional",  "Secondary-language translation of Option D"],
+    ["Correct Answer:",         "Required",  "Letter(s): A, B, C or D. Multiple: A,C"],
+    ["Type:",                   "Optional",  "MCQ_SINGLE (default) | MCQ_MULTIPLE | TRUE_FALSE | INTEGER | DESCRIPTIVE"],
+    ["Difficulty:",             "Required",  "EASY | MEDIUM | HARD | FOUNDATIONAL | PROFICIENT | MASTERY"],
+    ["Category:",               "Optional",  "Exam category name (e.g. Banking, UPSC)"],
+    ["Subject:",                "Optional",  "Subject name"],
+    ["Topic:",                  "Optional",  "Topic name"],
+    ["Subtopic:",               "Optional",  "Subtopic name"],
+    ["Explanation:",            "Optional",  "Primary-language solution / explanation (rich text + [IMAGE: URL] supported)"],
+    ["Explanation Secondary:",  "Optional",  "Secondary-language translation of the explanation"],
+    ["Tags:",                   "Optional",  "Comma-separated tags (e.g. source:SBI_PO_2024)"],
+    ["Marks:",                  "Optional",  "Marks awarded (default: 1)"],
+    ["Negative Marks:",         "Optional",  "Marks deducted for wrong answer (default: 0)"],
+    ["Status:",                 "Optional",  "DRAFT (default) | APPROVED"],
+    ["END_QUESTION",            "Optional",  "Marks end of block (auto-detected if omitted)"],
   ];
 
   if (includePassage) {
     rows.splice(2, 0,
-      ["GROUP_START",   "Required",  "Opens a paragraph/comprehension group"],
-      ["Passage:",      "Required",  "Shared passage HTML ([IMAGE: URL] supported)"],
-      ["GROUP_END",     "Required",  "Closes the group — all questions between share the passage"],
+      ["GROUP_START",          "Required",  "Opens a paragraph/comprehension group"],
+      ["Passage:",             "Required",  "Shared passage HTML ([IMAGE: URL] supported)"],
+      ["Passage Secondary:",   "Optional",  "Secondary-language translation of the shared passage"],
+      ["GROUP_END",            "Required",  "Closes the group — all questions between share the passage"],
     );
   }
 
@@ -265,12 +272,12 @@ async function buildSingleTemplate() {
           spacing: { before: 0, after: 60 },
         }),
         new Paragraph({
-          children: [new TextRun({ text: "Single / Standalone Questions  •  v2  (Image URL Edition)", size: 22, color: GRAY })],
+          children: [new TextRun({ text: "Single / Standalone Questions  •  v3  (Bilingual + Image URL Edition)", size: 22, color: GRAY })],
           alignment: AlignmentType.CENTER,
           spacing: { before: 0, after: 40 },
         }),
         new Paragraph({
-          children: [new TextRun({ text: "Upload this file at: Admin → Imports → Choose File", size: 19, color: BLUE, italics: true })],
+          children: [new TextRun({ text: "Upload this file at: Admin → Tests → Add Questions → Upload DOCX", size: 19, color: BLUE, italics: true })],
           alignment: AlignmentType.CENTER,
           spacing: { before: 0, after: 360 },
         }),
@@ -396,6 +403,34 @@ async function buildSingleTemplate() {
         ]),
         blank(),
 
+        // ── Bilingual example ─────────────────────────────────────────────────
+        heading2("Example 5 — Bilingual Question (English + Hindi)"),
+        note("Add 'Secondary' fields for any content you want in a second language. All secondary fields are optional — omit them for English-only questions."),
+        blank(),
+        sectionBox([
+          field("QUESTION", "", GRAY),
+          field("Question:", " A train travels 360 km in 4 hours. What is its average speed?", "1e293b"),
+          field("Question Secondary:", " एक ट्रेन 4 घंटे में 360 किमी की दूरी तय करती है। इसकी औसत गति क्या है?", "4338a0"),
+          field("Option A:", " 80 km/h", "1e293b"),
+          field("Option A Secondary:", " 80 किमी/घंटा", "4338a0"),
+          field("Option B:", " 90 km/h", "1e293b"),
+          field("Option B Secondary:", " 90 किमी/घंटा", "4338a0"),
+          field("Option C:", " 100 km/h", "1e293b"),
+          field("Option C Secondary:", " 100 किमी/घंटा", "4338a0"),
+          field("Option D:", " 120 km/h", "1e293b"),
+          field("Option D Secondary:", " 120 किमी/घंटा", "4338a0"),
+          field("Correct Answer:", " B", GREEN),
+          field("Type:", " MCQ_SINGLE", GRAY),
+          field("Difficulty:", " EASY", GRAY),
+          field("Category:", " Banking", GRAY),
+          field("Subject:", " Quantitative Aptitude", GRAY),
+          field("Topic:", " Speed, Distance & Time", GRAY),
+          field("Explanation:", " Speed = Distance ÷ Time = 360 ÷ 4 = 90 km/h.", GRAY),
+          field("Explanation Secondary:", " गति = दूरी ÷ समय = 360 ÷ 4 = 90 किमी/घंटा।", "4338a0"),
+          field("END_QUESTION", "", GRAY),
+        ]),
+        blank(),
+
         divider(),
         body("For group/paragraph questions, use the Group Question Template.", { color: GRAY, italics: true }),
         body("For help, contact the admin team.", { color: GRAY, italics: true }),
@@ -435,12 +470,12 @@ async function buildGroupTemplate() {
           spacing: { before: 0, after: 60 },
         }),
         new Paragraph({
-          children: [new TextRun({ text: "Group / Paragraph / Comprehension Questions  •  v2  (Image URL Edition)", size: 22, color: GRAY })],
+          children: [new TextRun({ text: "Group / Paragraph / Comprehension Questions  •  v3  (Bilingual + Image URL Edition)", size: 22, color: GRAY })],
           alignment: AlignmentType.CENTER,
           spacing: { before: 0, after: 40 },
         }),
         new Paragraph({
-          children: [new TextRun({ text: "Upload this file at: Admin → Imports → Choose File", size: 19, color: BLUE, italics: true })],
+          children: [new TextRun({ text: "Upload this file at: Admin → Tests → Add Questions → Upload DOCX", size: 19, color: BLUE, italics: true })],
           alignment: AlignmentType.CENTER,
           spacing: { before: 0, after: 360 },
         }),
@@ -543,8 +578,8 @@ async function buildGroupTemplate() {
 // ══════════════════════════════════════════════════════════════════════════════
 
 const FILES = [
-  { fn: buildSingleTemplate, name: "saphala_single_question_template_v2.docx" },
-  { fn: buildGroupTemplate,  name: "saphala_group_question_template_v2.docx"  },
+  { fn: buildSingleTemplate, name: "saphala_single_question_template_v3.docx" },
+  { fn: buildGroupTemplate,  name: "saphala_group_question_template_v3.docx"  },
 ];
 
 console.log("Generating DOCX templates...");

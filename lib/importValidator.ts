@@ -14,6 +14,7 @@ const MCQ_TYPES = ["MCQ_SINGLE", "MCQ_MULTIPLE"];
 export interface RawRow {
   type?: string;
   stem?: string;
+  stem_secondary?: string;          // bilingual: secondary-language question stem
   option1?: string;
   option2?: string;
   option3?: string;
@@ -22,8 +23,13 @@ export interface RawRow {
   option6?: string;
   option7?: string;
   option8?: string;
+  option1_secondary?: string;       // bilingual: secondary-language option A
+  option2_secondary?: string;       // bilingual: secondary-language option B
+  option3_secondary?: string;       // bilingual: secondary-language option C
+  option4_secondary?: string;       // bilingual: secondary-language option D
   correct?: string;
   explanation?: string;
+  explanation_secondary?: string;   // bilingual: secondary-language explanation
   difficulty?: string;
   status?: string;
   tags?: string;
@@ -365,36 +371,47 @@ function extractHtmlSegments(html: string): HtmlSegment[] {
 
 // ── Known field labels (new UPDATED template format) ─────────────────────────
 const FIELD_LABELS: { re: RegExp; key: keyof RawRow }[] = [
-  { re: /^question rich text\s*:/i,        key: "stem" },
-  { re: /^question\s*:/i,                  key: "stem" },
-  { re: /^passage rich text\s*:/i,         key: "_passage" as any },
-  { re: /^passage\s*:/i,                   key: "_passage" as any },
-  { re: /^option a rich text\s*:/i,        key: "option1" },
-  { re: /^option a\s*:/i,                  key: "option1" },
-  { re: /^option b rich text\s*:/i,        key: "option2" },
-  { re: /^option b\s*:/i,                  key: "option2" },
-  { re: /^option c rich text\s*:/i,        key: "option3" },
-  { re: /^option c\s*:/i,                  key: "option3" },
-  { re: /^option d rich text\s*:/i,        key: "option4" },
-  { re: /^option d\s*:/i,                  key: "option4" },
-  { re: /^correct answer\s*:/i,            key: "correct" },
-  { re: /^correct\s*:/i,                   key: "correct" },
-  { re: /^explanation rich text\s*:/i,     key: "explanation" },
-  { re: /^explanation\s*:/i,               key: "explanation" },
-  { re: /^solution rich text\s*:/i,        key: "explanation" },
-  { re: /^solution\s*:/i,                  key: "explanation" },
-  { re: /^category\s*:/i,                  key: "category" },
-  { re: /^subject\s*:/i,                   key: "subject" },
-  { re: /^topic\s*:/i,                     key: "topic" },
-  { re: /^subtopic\s*:/i,                  key: "subtopic" },
-  { re: /^question type\s*:/i,             key: "type" },
-  { re: /^type\s*:/i,                      key: "type" },
-  { re: /^difficulty\s*:/i,               key: "difficulty" },
-  { re: /^status\s*:/i,                    key: "status" },
-  { re: /^source tag\s*:/i,               key: "_sourceTag" as any },
-  { re: /^tags\s*:/i,                      key: "tags" },
-  { re: /^marks\s*:/i,                     key: "marks" },
-  { re: /^negative marks\s*:/i,           key: "negative_marks" },
+  // ── Primary-language fields ────────────────────────────────────────────────
+  { re: /^question rich text\s*:/i,                 key: "stem" },
+  { re: /^question\s*:/i,                           key: "stem" },
+  { re: /^passage rich text\s*:/i,                  key: "_passage" as any },
+  { re: /^passage\s*:/i,                            key: "_passage" as any },
+  { re: /^option a rich text\s*:/i,                 key: "option1" },
+  { re: /^option a\s*:/i,                           key: "option1" },
+  { re: /^option b rich text\s*:/i,                 key: "option2" },
+  { re: /^option b\s*:/i,                           key: "option2" },
+  { re: /^option c rich text\s*:/i,                 key: "option3" },
+  { re: /^option c\s*:/i,                           key: "option3" },
+  { re: /^option d rich text\s*:/i,                 key: "option4" },
+  { re: /^option d\s*:/i,                           key: "option4" },
+  { re: /^correct answer\s*:/i,                     key: "correct" },
+  { re: /^correct\s*:/i,                            key: "correct" },
+  { re: /^explanation rich text\s*:/i,              key: "explanation" },
+  { re: /^explanation\s*:/i,                        key: "explanation" },
+  { re: /^solution rich text\s*:/i,                 key: "explanation" },
+  { re: /^solution\s*:/i,                           key: "explanation" },
+  { re: /^category\s*:/i,                           key: "category" },
+  { re: /^subject\s*:/i,                            key: "subject" },
+  { re: /^topic\s*:/i,                              key: "topic" },
+  { re: /^subtopic\s*:/i,                           key: "subtopic" },
+  { re: /^question type\s*:/i,                      key: "type" },
+  { re: /^type\s*:/i,                               key: "type" },
+  { re: /^difficulty\s*:/i,                         key: "difficulty" },
+  { re: /^status\s*:/i,                             key: "status" },
+  { re: /^source tag\s*:/i,                         key: "_sourceTag" as any },
+  { re: /^tags\s*:/i,                               key: "tags" },
+  { re: /^marks\s*:/i,                              key: "marks" },
+  { re: /^negative marks\s*:/i,                     key: "negative_marks" },
+  // ── Secondary-language (bilingual) fields ─────────────────────────────────
+  { re: /^question secondary\s*:/i,                 key: "stem_secondary" },
+  { re: /^stem secondary\s*:/i,                     key: "stem_secondary" },
+  { re: /^option a secondary\s*:/i,                 key: "option1_secondary" },
+  { re: /^option b secondary\s*:/i,                 key: "option2_secondary" },
+  { re: /^option c secondary\s*:/i,                 key: "option3_secondary" },
+  { re: /^option d secondary\s*:/i,                 key: "option4_secondary" },
+  { re: /^explanation secondary\s*:/i,              key: "explanation_secondary" },
+  { re: /^solution secondary\s*:/i,                 key: "explanation_secondary" },
+  { re: /^passage secondary\s*:/i,                  key: "_passage_secondary" as any },
 ];
 
 /** Try to match a segment's text against a known field label.
@@ -576,7 +593,9 @@ export function parseDocxHtml(rawHtml: string): RawRow[] {
         } else if (currentField && !seg.isTable) {
           // Continuation of the current field
           const prev = (currentRow as any)[currentField] || "";
-          const richFields = ["stem", "option1", "option2", "option3", "option4", "explanation", "_passage"];
+          const richFields = ["stem", "stem_secondary", "option1", "option2", "option3", "option4",
+            "option1_secondary", "option2_secondary", "option3_secondary", "option4_secondary",
+            "explanation", "explanation_secondary", "_passage", "_passage_secondary"];
           if (richFields.includes(currentField) && prev) {
             (currentRow as any)[currentField] = `${prev}<br>${seg.html}`;
           }
@@ -639,7 +658,9 @@ export function parseDocxHtml(rawHtml: string): RawRow[] {
 
         // Continuation of current field
         if (currentField && currentRow.stem) {
-          const richFields = ["stem", "option1", "option2", "option3", "option4", "explanation"];
+          const richFields = ["stem", "stem_secondary", "option1", "option2", "option3", "option4",
+            "option1_secondary", "option2_secondary", "option3_secondary", "option4_secondary",
+            "explanation", "explanation_secondary"];
           if (richFields.includes(currentField)) {
             const prev = (currentRow as any)[currentField] || "";
             if (prev) (currentRow as any)[currentField] = `${prev}<br>${seg.html}`;

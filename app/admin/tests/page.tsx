@@ -575,10 +575,18 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
         const sourceTag = (raw.tags || raw.sourceTag || "").trim();
         const correct = (raw.correct || "").toString().trim().toUpperCase();
 
+        const stemSecondary = (raw.stem_secondary || "").trim() || undefined;
+        const explanationSecondary = (raw.explanation_secondary || "").trim() || undefined;
+
+        // Build primary options and collect secondary translations in parallel arrays
         const opts: string[] = [];
+        const optsSecondary: string[] = [];
         for (let i = 1; i <= 8; i++) {
           const o = (raw[`option${i}`] || "").trim();
-          if (o) opts.push(o);
+          if (o) {
+            opts.push(o);
+            optsSecondary.push((raw[`option${i}_secondary`] || "").trim());
+          }
         }
         let correctIdx = 0;
         if (/^\d+$/.test(correct)) correctIdx = parseInt(correct) - 1;
@@ -595,15 +603,19 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
         if (!row.isValid && row.errorMsg) errors.push(row.errorMsg);
         if (!explanation) warnings.push("No explanation provided");
 
-        const options = opts.map((text, i2) => ({ text, isCorrect: i2 === correctIdx }));
+        const options = opts.map((text, i2) => ({
+          text,
+          textSecondary: optsSecondary[i2] || undefined,
+          isCorrect: i2 === correctIdx,
+        }));
 
         return {
           key: `docx_${row.rowNumber}_${idx}_${Date.now()}`,
           isEdited: false,
-          stem,
+          stem, stemSecondary,
           type: "MCQ_SINGLE",
           difficulty,
-          explanation,
+          explanation, explanationSecondary,
           categoryId: "", subjectId: "", topicId: "", subtopicId: "",
           sourceTag, marks, negativeMarks, options,
           passageText: (raw._paragraphHtml || raw.passage || "").trim() || undefined,
@@ -977,14 +989,14 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
               <div style={{ fontWeight: 700, fontSize: "0.8rem", color: "#7c3aed", marginBottom: "0.5rem" }}>📥 Download Templates</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
                 <a
-                  href="/downloads/saphala_single_question_template_v2.docx"
+                  href="/downloads/saphala_single_question_template_v3.docx"
                   download
                   style={{ ...btn("#7c3aed"), textDecoration: "none", display: "inline-block", fontSize: "0.78rem" }}
                 >
                   ⬇ Single Question Template
                 </a>
                 <a
-                  href="/downloads/saphala_group_question_template_v2.docx"
+                  href="/downloads/saphala_group_question_template_v3.docx"
                   download
                   style={{ ...btn("#059669"), textDecoration: "none", display: "inline-block", fontSize: "0.78rem" }}
                 >
