@@ -15,6 +15,17 @@ import { computeContentHash } from "@/lib/questionHash";
 // If existingQuestionId is provided with edits → save as new Question
 // If no existingQuestionId → save as new Question
 
+const VALID_TYPES = ["MCQ_SINGLE", "MCQ_MULTI", "TRUE_FALSE", "PASSAGE_BASED", "INTEGER", "DESCRIPTIVE"];
+const VALID_DIFF = ["FOUNDATIONAL", "PROFICIENT", "MASTERY"];
+
+function normaliseDifficulty(raw: string): string {
+  const v = (raw || "").trim().toUpperCase();
+  if (v === "FOUNDATIONAL" || v === "EASY") return "FOUNDATIONAL";
+  if (v === "PROFICIENT" || v === "MODERATE" || v === "MEDIUM") return "PROFICIENT";
+  if (v === "MASTERY" || v === "ADVANCED" || v === "HARD") return "MASTERY";
+  return "FOUNDATIONAL";
+}
+
 export async function POST(req: NextRequest) {
   const user = await getSessionUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -53,89 +64,92 @@ export async function POST(req: NextRequest) {
     const skipped: string[] = [];
     const errors: string[] = [];
 
-    const VALID_TYPES = ["MCQ_SINGLE", "MCQ_MULTI", "TRUE_FALSE", "PASSAGE_BASED", "INTEGER", "DESCRIPTIVE"];
-    const VALID_DIFF = ["FOUNDATIONAL", "MODERATE", "ADVANCED"];
+    // Process each question independently — no shared transaction.
+    // A shared $transaction causes cascade failure: if one question's DB insert
+    // is rejected, PostgreSQL marks the entire transaction aborted, which makes
+    // every subsequent tx.* call fail too, and then $transaction() itself throws
+    // even though each error was caught, blocking all remaining questions.
+    for (const item of questions) {
+      try {
+        const stem = (item.stem || "").trim();
+        if (!stem) { errors.push(`Skipped: empty stem`); continue; }
 
-    await prisma.$transaction(async (tx) => {
-      for (const item of questions) {
-        try {
-          const stem = (item.stem || "").trim();
-          if (!stem) { errors.push(`Skipped: empty stem`); continue; }
+        const type = VALID_TYPES.includes(item.type) ? item.type : "MCQ_SINGLE";
+        const difficulty = VALID_DIFF.includes(item.difficulty)
+          ? item.difficulty
+          : normaliseDifficulty(item.difficulty);
+        const options: { text: string; textSecondary?: string; isCorrect: boolean }[] =
+          Array.isArray(item.options) ? item.options : [];
+        const marks = Math.max(0, parseFloat(String(item.marks ?? 1)) || 1);
+        const negativeMarks = Math.max(0, parseFloat(String(item.negativeMarks ?? 0)) || 0);
 
-          const type = VALID_TYPES.includes(item.type) ? item.type : "MCQ_SINGLE";
-          const difficulty = VALID_DIFF.includes(item.difficulty) ? item.difficulty : "FOUNDATIONAL";
-          const options: { text: string; isCorrect: boolean }[] = Array.isArray(item.options) ? item.options : [];
-          const marks = Math.max(0, parseFloat(String(item.marks ?? 1)) || 1);
-          const negativeMarks = Math.max(0, parseFloat(String(item.negativeMarks ?? 0)) || 0);
+        let questionId: string;
+        const isEdited = item.isEdited === true;
+        const hasExisting = !!item.existingQuestionId;
 
-          let questionId: string;
-          const isEdited = item.isEdited === true;
-          const hasExisting = !!item.existingQuestionId;
-
-          if (hasExisting && !isEdited) {
-            questionId = item.existingQuestionId;
+        if (hasExisting && !isEdited) {
+          questionId = item.existingQuestionId;
+        } else {
+          const hash = computeContentHash(stem, options.map((o) => ({ text: o.text })), type);
+          const dup = await prisma.question.findUnique({ where: { contentHash: hash } });
+          if (dup) {
+            questionId = dup.id;
           } else {
-            const hash = computeContentHash(stem, options.map((o: { text: string }) => ({ text: o.text })), type);
-            const dup = await tx.question.findUnique({ where: { contentHash: hash } });
-            if (dup) {
-              questionId = dup.id;
-            } else {
-              const tags: string[] = [];
-              if (item.sourceTag) tags.push(`source:${item.sourceTag}`);
-              if (item.groupId) tags.push(`group:${item.groupId}`);
-              if (item.passageText) tags.push(`passage:${item.passageText.slice(0, 500)}`);
+            const tags: string[] = [];
+            if (item.sourceTag) tags.push(`source:${item.sourceTag}`);
+            if (item.groupId) tags.push(`group:${item.groupId}`);
+            if (item.passageText) tags.push(`passage:${item.passageText.slice(0, 500)}`);
 
-              const newQ = await tx.question.create({
-                data: {
-                  stem,
-                  stemSecondary: item.stemSecondary?.trim() || null,
-                  type,
-                  difficulty,
-                  explanation: item.explanation?.trim() || null,
-                  explanationSecondary: item.explanationSecondary?.trim() || null,
-                  categoryId: item.categoryId || null,
-                  subjectId: item.subjectId || null,
-                  topicId: item.topicId || null,
-                  subtopicId: item.subtopicId || null,
-                  tags,
-                  contentHash: hash,
-                  status: "APPROVED",
-                  options: {
-                    create: options.map((opt: { text: string; textSecondary?: string; isCorrect: boolean }, idx: number) => ({
-                      text: opt.text.trim(),
-                      textSecondary: opt.textSecondary?.trim() || null,
-                      isCorrect: opt.isCorrect === true,
-                      order: idx,
-                    })),
-                  },
+            const newQ = await prisma.question.create({
+              data: {
+                stem,
+                stemSecondary: item.stemSecondary?.trim() || null,
+                type,
+                difficulty,
+                explanation: item.explanation?.trim() || null,
+                explanationSecondary: item.explanationSecondary?.trim() || null,
+                categoryId: item.categoryId || null,
+                subjectId: item.subjectId || null,
+                topicId: item.topicId || null,
+                subtopicId: item.subtopicId || null,
+                tags,
+                contentHash: hash,
+                status: "APPROVED",
+                options: {
+                  create: options.map((opt, idx) => ({
+                    text: opt.text.trim(),
+                    textSecondary: opt.textSecondary?.trim() || null,
+                    isCorrect: opt.isCorrect === true,
+                    order: idx,
+                  })),
                 },
-              });
-              questionId = newQ.id;
-            }
+              },
+            });
+            questionId = newQ.id;
           }
-
-          if (existingQIds.has(questionId)) {
-            skipped.push(questionId);
-            continue;
-          }
-
-          await tx.testQuestion.create({
-            data: {
-              testId,
-              questionId,
-              sectionId: sectionId || null,
-              order: nextOrder++,
-              marks,
-              negativeMarks,
-            },
-          });
-          existingQIds.add(questionId);
-          committed.push(questionId);
-        } catch (innerErr: any) {
-          errors.push(`Error on item: ${innerErr?.message || "unknown"}`);
         }
+
+        if (existingQIds.has(questionId)) {
+          skipped.push(questionId);
+          continue;
+        }
+
+        await prisma.testQuestion.create({
+          data: {
+            testId,
+            questionId,
+            sectionId: sectionId || null,
+            order: nextOrder++,
+            marks,
+            negativeMarks,
+          },
+        });
+        existingQIds.add(questionId);
+        committed.push(questionId);
+      } catch (innerErr: any) {
+        errors.push(`Error on item: ${innerErr?.message || "unknown"}`);
       }
-    });
+    }
 
     writeAuditLog({
       actorId: user.id,
@@ -166,8 +180,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       data: { committed: committed.length, skipped: skipped.length, errors, sections: updatedSections, questions: updatedQuestions },
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error("Add questions error:", err);
-    return NextResponse.json({ error: "Failed to add questions" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to add questions", detail: err?.message }, { status: 500 });
   }
 }

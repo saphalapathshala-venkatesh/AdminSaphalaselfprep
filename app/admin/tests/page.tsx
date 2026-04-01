@@ -206,7 +206,16 @@ type TaxoNode = { id: string; name: string };
 // ─────────────────────────────────────────────
 const MODES = ["TIMED", "SECTIONAL", "MULTI_SECTION"] as const;
 const Q_TYPES = ["MCQ_SINGLE", "MCQ_MULTI", "TRUE_FALSE", "PASSAGE_BASED", "INTEGER", "DESCRIPTIVE"] as const;
-const DIFFICULTIES = ["FOUNDATIONAL", "MODERATE", "ADVANCED"] as const;
+const DIFFICULTIES = ["FOUNDATIONAL", "PROFICIENT", "MASTERY"] as const;
+const DIFF_LABEL: Record<string, string> = { FOUNDATIONAL: "Foundational", PROFICIENT: "Proficient", MASTERY: "Mastery" };
+// Map legacy/DOCX difficulty strings → valid DifficultyLevel enum values
+function normaliseDifficulty(raw: string): string {
+  const v = raw.trim().toUpperCase();
+  if (v === "FOUNDATIONAL" || v === "EASY") return "FOUNDATIONAL";
+  if (v === "PROFICIENT" || v === "MODERATE" || v === "MEDIUM") return "PROFICIENT";
+  if (v === "MASTERY" || v === "ADVANCED" || v === "HARD") return "MASTERY";
+  return "FOUNDATIONAL";
+}
 const CORRECT_OPT_MAP: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
 
 // ─────────────────────────────────────────────
@@ -479,7 +488,7 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
 
   // Create-single-question state
   const [cqForm, setCqForm] = useState({
-    type: "MCQ_SINGLE", stem: "", explanation: "", difficulty: "MODERATE",
+    type: "MCQ_SINGLE", stem: "", explanation: "", difficulty: "FOUNDATIONAL",
     marks: "1", negativeMarks: "0",
     categoryId: "", subjectId: "", topicId: "", subtopicId: "",
   });
@@ -569,7 +578,7 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
         const stem = (raw.stem || "").trim();
         const explanation = (raw.explanation || "").trim();
         const diffRaw = (raw.difficulty || "").toUpperCase();
-        const difficulty = ["EASY", "MODERATE", "HARD", "FOUNDATIONAL", "ADVANCED"].includes(diffRaw) ? diffRaw : "FOUNDATIONAL";
+        const difficulty = normaliseDifficulty(diffRaw);
         const marks = parseFloat(raw.marks) > 0 ? parseFloat(raw.marks) : 1;
         const negativeMarks = parseFloat(raw.negative_marks) >= 0 ? parseFloat(raw.negative_marks) : 0;
         const sourceTag = (raw.tags || raw.sourceTag || "").trim();
@@ -642,7 +651,7 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
   }
 
   function openCreate() {
-    setCqForm({ type: "MCQ_SINGLE", stem: "", explanation: "", difficulty: "MODERATE", marks: "1", negativeMarks: "0", categoryId: "", subjectId: "", topicId: "", subtopicId: "" });
+    setCqForm({ type: "MCQ_SINGLE", stem: "", explanation: "", difficulty: "FOUNDATIONAL", marks: "1", negativeMarks: "0", categoryId: "", subjectId: "", topicId: "", subtopicId: "" });
     setCqOptions([{ text: "", isCorrect: false }, { text: "", isCorrect: false }, { text: "", isCorrect: false }, { text: "", isCorrect: false }]);
     setCqSubjects([]); setCqTopics([]); setCqSubtopics([]);
     setCqError("");
@@ -1108,7 +1117,7 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
                 </select>
                 <select value={qbDiff} onChange={e => setQbDiff(e.target.value)} style={inp}>
                   <option value="">All Difficulties</option>
-                  {DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
+                  {DIFFICULTIES.map(d => <option key={d} value={d}>{DIFF_LABEL[d] ?? d}</option>)}
                 </select>
                 <button onClick={() => loadQBResults(1)} style={btn(BRAND.purple)}>Search</button>
               </div>
@@ -1273,7 +1282,7 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
                     <label style={lbl}>Difficulty</label>
                     <select value={bulk.difficulty} onChange={e => setBulk(b => ({ ...b, difficulty: e.target.value }))} style={inp}>
                       <option value="">— keep —</option>
-                      {DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
+                      {DIFFICULTIES.map(d => <option key={d} value={d}>{DIFF_LABEL[d] ?? d}</option>)}
                     </select>
                   </div>
                   <div>
@@ -1377,9 +1386,7 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
               <div>
                 <label style={lbl}>Difficulty *</label>
                 <select value={cqForm.difficulty} onChange={e => setCqForm(f => ({ ...f, difficulty: e.target.value }))} style={inp}>
-                  <option value="FOUNDATIONAL">Foundational</option>
-                  <option value="MODERATE">Moderate</option>
-                  <option value="ADVANCED">Advanced</option>
+                  {DIFFICULTIES.map(d => <option key={d} value={d}>{DIFF_LABEL[d] ?? d}</option>)}
                 </select>
               </div>
             </div>
@@ -1626,7 +1633,7 @@ function SingleEditModal({ item, taxoCategories, qTypes, difficulties, onSave, o
             <div>
               <label style={lbl}>Difficulty</label>
               <select value={f.difficulty} onChange={e => setF(p => ({ ...p, difficulty: e.target.value }))} style={inp}>
-                {difficulties.map(d => <option key={d} value={d}>{d}</option>)}
+                {difficulties.map(d => <option key={d} value={d}>{DIFF_LABEL[d] ?? d}</option>)}
               </select>
             </div>
             <div>
