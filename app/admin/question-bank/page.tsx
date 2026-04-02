@@ -1843,6 +1843,62 @@ export default function QuestionBankPage() {
                                         />
                                       </div>
                                     </div>
+                                    {/* ── Bilingual (Secondary Language) Fields ── */}
+                                    <div style={{ gridColumn: "1 / -1", borderTop: "1px dashed #e2e8f0", paddingTop: "0.625rem", marginTop: "0.125rem" }}>
+                                      <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#7c3aed", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                                        Bilingual / Secondary Language Fields <span style={{ fontWeight: 400, color: "#9ca3af", textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+                                      </div>
+                                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                                        {/* Stem Secondary */}
+                                        <div style={{ gridColumn: "1 / -1" }}>
+                                          <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "3px" }}>Question Stem (Secondary Language)</label>
+                                          <textarea
+                                            value={stripHtml(importEditDraft.stem_secondary || "")}
+                                            onChange={e => setImportEditDraft(prev => ({ ...prev, stem_secondary: e.target.value }))}
+                                            rows={2}
+                                            placeholder="Enter the question in the secondary language…"
+                                            style={{ width: "100%", padding: "0.4rem 0.6rem", borderRadius: "5px", border: "1px solid #d1d5db", fontSize: "0.78rem", resize: "vertical", boxSizing: "border-box" }}
+                                          />
+                                        </div>
+                                        {/* Secondary Options (MCQ only, up to 4) */}
+                                        {isMcq && (
+                                          <div style={{ gridColumn: "1 / -1" }}>
+                                            <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "5px" }}>Options (Secondary Language)</label>
+                                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                                              {["A","B","C","D"].map((letter, oi) => {
+                                                const secKey = `option${oi + 1}_secondary`;
+                                                const primKey = `option${oi + 1}`;
+                                                const hasPrimary = !!(importEditDraft[primKey] && String(importEditDraft[primKey]).trim());
+                                                if (!hasPrimary) return null;
+                                                return (
+                                                  <div key={letter} style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "#fafafa", border: "1px solid #e5e7eb", borderRadius: "5px", padding: "0.3rem 0.5rem" }}>
+                                                    <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "#7c3aed", minWidth: "14px" }}>{letter}.</span>
+                                                    <input
+                                                      type="text"
+                                                      value={stripHtml(importEditDraft[secKey] || "")}
+                                                      onChange={e => setImportEditDraft(prev => ({ ...prev, [secKey]: e.target.value }))}
+                                                      placeholder={`Option ${letter} in secondary language`}
+                                                      style={{ flex: 1, border: "none", background: "transparent", fontSize: "0.75rem", outline: "none", minWidth: 0 }}
+                                                    />
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                        )}
+                                        {/* Explanation Secondary */}
+                                        <div style={{ gridColumn: "1 / -1" }}>
+                                          <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "3px" }}>Explanation / Answer (Secondary Language)</label>
+                                          <textarea
+                                            value={stripHtml(importEditDraft.explanation_secondary || "")}
+                                            onChange={e => setImportEditDraft(prev => ({ ...prev, explanation_secondary: e.target.value }))}
+                                            rows={2}
+                                            placeholder="Enter the explanation in the secondary language…"
+                                            style={{ width: "100%", padding: "0.4rem 0.6rem", borderRadius: "5px", border: "1px solid #d1d5db", fontSize: "0.78rem", resize: "vertical", boxSizing: "border-box" }}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
                                     {/* Actions */}
                                     <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end", gap: "0.5rem", paddingTop: "0.25rem" }}>
                                       <button
