@@ -1868,11 +1868,15 @@ export default function QuestionBankPage() {
                                               {["A","B","C","D"].map((letter, oi) => {
                                                 const secKey = `option${oi + 1}_secondary`;
                                                 const primKey = `option${oi + 1}`;
+                                                const numIdx = String(oi + 1);
                                                 const hasPrimary = !!(importEditDraft[primKey] && String(importEditDraft[primKey]).trim());
                                                 if (!hasPrimary) return null;
+                                                // Mirror the primary correct-answer highlight — same index, no separate field needed
+                                                const correctParts = (importEditDraft.correct || "").toUpperCase().split(/[,\s]+/).map((x: string) => x.trim()).filter(Boolean);
+                                                const isCorrect = correctParts.some((p: string) => p === letter || p === numIdx);
                                                 return (
-                                                  <div key={letter} style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "#fafafa", border: "1px solid #e5e7eb", borderRadius: "5px", padding: "0.3rem 0.5rem" }}>
-                                                    <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "#7c3aed", minWidth: "14px" }}>{letter}.</span>
+                                                  <div key={letter} style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: isCorrect ? "#d1fae5" : "#fafafa", border: `1px solid ${isCorrect ? "#6ee7b7" : "#e5e7eb"}`, borderRadius: "5px", padding: "0.3rem 0.5rem" }}>
+                                                    <span style={{ fontSize: "0.72rem", fontWeight: 600, color: isCorrect ? "#065f46" : "#7c3aed", minWidth: "14px" }}>{letter}{isCorrect ? " ✓" : "."}</span>
                                                     <input
                                                       type="text"
                                                       value={stripHtml(importEditDraft[secKey] || "")}
