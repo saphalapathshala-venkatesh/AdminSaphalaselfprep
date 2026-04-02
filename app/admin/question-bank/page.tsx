@@ -1684,12 +1684,21 @@ export default function QuestionBankPage() {
                                           Options <span style={{ fontWeight: 400, color: "#6b7280" }}>(mark the correct answer)</span>
                                         </label>
                                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
-                                          {["A", "B", "C", "D"].map((letter, oi) => {
+                                          {(() => {
+                                            // Build option list dynamically: show all filled options + one blank for adding, up to 8
+                                            const letters = ["A","B","C","D","E","F","G","H"];
+                                            const filledCount = letters.reduce((max, _, i) => {
+                                              const v = importEditDraft[`option${i + 1}`];
+                                              return (v && String(v).trim()) ? i + 1 : max;
+                                            }, 0);
+                                            const showCount = Math.min(Math.max(filledCount + 1, 2), 8);
+                                            return letters.slice(0, showCount);
+                                          })().map((letter, oi) => {
                                             const key = `option${oi + 1}`;
-                                            const numIdx = String(oi + 1); // "1", "2", "3", "4"
+                                            const numIdx = String(oi + 1);
                                             // Support both letter ("B") and numeric ("2") format in current draft
                                             const correctParts = (importEditDraft.correct || "").toUpperCase().split(/[,\s]+/).map((x: string) => x.trim()).filter(Boolean);
-                                            const isCorrect = correctParts.some(p => p === letter || p === numIdx);
+                                            const isCorrect = correctParts.some((p: string) => p === letter || p === numIdx);
                                             return (
                                               <div key={letter} style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: isCorrect ? "#d1fae5" : "#fff", border: `1px solid ${isCorrect ? "#6ee7b7" : "#e5e7eb"}`, borderRadius: "5px", padding: "0.3rem 0.5rem" }}>
                                                 <input
