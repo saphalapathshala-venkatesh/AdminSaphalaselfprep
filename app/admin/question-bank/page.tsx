@@ -1391,6 +1391,8 @@ export default function QuestionBankPage() {
   async function openImportEdit(idx: number) {
     const row = importRows[idx];
     const data = row.editedData || row.rawData;
+    // resolvedTaxonomy has exact DB IDs — use them to avoid fragile name matching
+    const taxo = row.resolvedTaxonomy;
     setImportEditIdx(idx);
     setImportEditDraft({ ...data });
     setImportEditSubjects([]);
@@ -1401,29 +1403,23 @@ export default function QuestionBankPage() {
     const cat = categories.find((c: TaxItem) => c.name.toLowerCase() === (data.category || "").toLowerCase());
     if (!cat) return;
 
-    // Load subjects
     try {
+      // Step 1: load subjects for the category
       const sRes = await fetch(`/api/taxonomy?level=subject&parentId=${cat.id}`);
       const sJson = await sRes.json();
-      const subjects: TaxItem[] = sJson.data || [];
-      setImportEditSubjects(subjects);
+      setImportEditSubjects(sJson.data || []);
 
-      if (!data.subject) return;
-      const sub = subjects.find((s: TaxItem) => s.name.toLowerCase() === (data.subject || "").toLowerCase());
-      if (!sub) return;
-
-      // Load topics
-      const tRes = await fetch(`/api/taxonomy?level=topic&parentId=${sub.id}`);
+      // Step 2: load topics — use resolved subjectId (exact DB ID, no name match needed)
+      const subjectId = taxo?.subjectId;
+      if (!subjectId) return;
+      const tRes = await fetch(`/api/taxonomy?level=topic&parentId=${subjectId}`);
       const tJson = await tRes.json();
-      const topics: TaxItem[] = tJson.data || [];
-      setImportEditTopics(topics);
+      setImportEditTopics(tJson.data || []);
 
-      if (!data.topic) return;
-      const top = topics.find((t: TaxItem) => t.name.toLowerCase() === (data.topic || "").toLowerCase());
-      if (!top) return;
-
-      // Load subtopics
-      const stRes = await fetch(`/api/taxonomy?level=subtopic&parentId=${top.id}`);
+      // Step 3: load subtopics — use resolved topicId
+      const topicId = taxo?.topicId;
+      if (!topicId) return;
+      const stRes = await fetch(`/api/taxonomy?level=subtopic&parentId=${topicId}`);
       const stJson = await stRes.json();
       setImportEditSubtopics(stJson.data || []);
     } catch {}
