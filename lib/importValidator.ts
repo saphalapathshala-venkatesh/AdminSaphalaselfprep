@@ -611,8 +611,9 @@ export function parseDocxHtml(rawHtml: string): RawRow[] {
           const richFields = ["stem", "stem_secondary", "option1", "option2", "option3", "option4",
             "option1_secondary", "option2_secondary", "option3_secondary", "option4_secondary",
             "explanation", "explanation_secondary", "_passage", "_passage_secondary"];
-          if (richFields.includes(currentField) && prev) {
-            (currentRow as any)[currentField] = `${prev}<br>${seg.html}`;
+          if (richFields.includes(currentField)) {
+            // Allow continuation even when prev is "" (label on one line, value on next)
+            (currentRow as any)[currentField] = prev ? `${prev}<br>${seg.html}` : seg.html;
           }
         }
       }
@@ -678,7 +679,8 @@ export function parseDocxHtml(rawHtml: string): RawRow[] {
             "explanation", "explanation_secondary"];
           if (richFields.includes(currentField)) {
             const prev = (currentRow as any)[currentField] || "";
-            if (prev) (currentRow as any)[currentField] = `${prev}<br>${seg.html}`;
+            // Allow continuation even when prev is "" (label on one line, value on next)
+            (currentRow as any)[currentField] = prev ? `${prev}<br>${seg.html}` : seg.html;
           }
         }
       }
