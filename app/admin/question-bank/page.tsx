@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import { stripHtml, hasVisibleText } from "@/lib/htmlUtils";
 
@@ -171,9 +171,10 @@ export default function QuestionBankPage() {
   // ── DOCX Bulk Import ──────────────────────────────────────────────────────
   type QBImportStage = "upload" | "reviewing" | "committing" | "done";
   type QBImportRow = {
-    rowNumber: number; isValid: boolean;
+    id: string; rowNumber: number; isValid: boolean;
     errorField: string | null; errorMsg: string | null;
     rawData: Record<string, any>;
+    editedData?: Record<string, any> | null;
     resolvedTaxonomy: { categoryId: string | null; subjectId: string | null; topicId: string | null; subtopicId: string | null } | null;
   };
   const qbImportFileRef = useRef<HTMLInputElement>(null);
@@ -186,6 +187,12 @@ export default function QuestionBankPage() {
   const [importError, setImportError] = useState<string | null>(null);
   const [importParserWarnings, setImportParserWarnings] = useState<string[]>([]);
   const [importResult, setImportResult] = useState<{ importedCount: number; failedCount: number; groupsCreated: number; reportUrl: string | null } | null>(null);
+  const [importEditIdx, setImportEditIdx] = useState<number | null>(null);
+  const [importEditDraft, setImportEditDraft] = useState<Record<string, any>>({});
+  const [importEditSaving, setImportEditSaving] = useState(false);
+  const [importEditSubjects, setImportEditSubjects] = useState<TaxItem[]>([]);
+  const [importEditTopics, setImportEditTopics] = useState<TaxItem[]>([]);
+  const [importEditSubtopics, setImportEditSubtopics] = useState<TaxItem[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
@@ -1326,7 +1333,16 @@ export default function QuestionBankPage() {
       const res = await fetch("/api/imports/preview", { method: "POST", body: fd });
       const d = await res.json();
       if (!res.ok) { setImportError(d.error || "Upload failed — please check the file and try again."); return; }
-      const rows: QBImportRow[] = d.data?.rows || [];
+      const rows: QBImportRow[] = (d.data?.rows || []).map((r: any) => ({
+        id: r.id,
+        rowNumber: r.rowNumber,
+        isValid: r.isValid,
+        errorField: r.errorField,
+        errorMsg: r.errorMsg,
+        rawData: r.rawData,
+        editedData: r.editedData ?? null,
+        resolvedTaxonomy: r.resolvedTaxonomy ?? null,
+      }));
       if (rows.length === 0) { setImportError("No questions found in the file. Make sure you are using the correct DOCX template."); return; }
       setImportJobId(d.data.job.id);
       setImportRows(rows);
@@ -1364,7 +1380,75 @@ export default function QuestionBankPage() {
       setImportResult(null);
       setImportParserWarnings([]);
       setImportFilename("");
+      setImportEditIdx(null);
+      setImportEditDraft({});
+      setImportEditSubjects([]);
+      setImportEditTopics([]);
+      setImportEditSubtopics([]);
     }, 200);
+  }
+
+  function openImportEdit(idx: number) {
+    const row = importRows[idx];
+    const data = row.editedData || row.rawData;
+    setImportEditIdx(idx);
+    setImportEditDraft({ ...data });
+    setImportEditSubjects([]);
+    setImportEditTopics([]);
+    setImportEditSubtopics([]);
+    // Load subjects if category text is available
+    if (data.category) {
+      const cat = categories.find((c: TaxItem) => c.name.toLowerCase() === data.category.toLowerCase());
+      if (cat) loadImportEditSubjects(cat.id);
+    }
+  }
+
+  async function loadImportEditSubjects(categoryId: string) {
+    setImportEditSubjects([]);
+    setImportEditTopics([]);
+    setImportEditSubtopics([]);
+    try {
+      const r = await fetch(`/api/taxonomy?level=subject&parentId=${categoryId}`);
+      const d = await r.json();
+      setImportEditSubjects(d.data || []);
+    } catch {}
+  }
+
+  async function loadImportEditTopics(subjectId: string) {
+    setImportEditTopics([]);
+    setImportEditSubtopics([]);
+    try {
+      const r = await fetch(`/api/taxonomy?level=topic&parentId=${subjectId}`);
+      const d = await r.json();
+      setImportEditTopics(d.data || []);
+    } catch {}
+  }
+
+  async function loadImportEditSubtopics(topicId: string) {
+    setImportEditSubtopics([]);
+    try {
+      const r = await fetch(`/api/taxonomy?level=subtopic&parentId=${topicId}`);
+      const d = await r.json();
+      setImportEditSubtopics(d.data || []);
+    } catch {}
+  }
+
+  async function saveImportRowEdit() {
+    if (importEditIdx === null) return;
+    const row = importRows[importEditIdx];
+    setImportEditSaving(true);
+    try {
+      const res = await fetch(`/api/imports/rows/${row.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ editedData: importEditDraft }),
+      });
+      if (!res.ok) { const d = await res.json(); alert(d.error || "Save failed"); return; }
+      setImportRows(prev => prev.map((r, i) => i === importEditIdx ? { ...r, editedData: { ...importEditDraft } } : r));
+      setImportEditIdx(null);
+      setImportEditDraft({});
+    } catch { alert("Network error saving edits"); }
+    finally { setImportEditSaving(false); }
   }
 
   const foundationalCount = questions.filter(q => q.difficulty === "FOUNDATIONAL").length;
@@ -1460,45 +1544,277 @@ export default function QuestionBankPage() {
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.78rem" }}>
                     <thead>
                       <tr style={{ background: "#f8fafc" }}>
-                        {["#", "Stem", "Type", "Difficulty", "Taxonomy", "Status"].map(h => (
+                        {["#", "Stem", "Type", "Difficulty", "Taxonomy", "Status", ""].map(h => (
                           <th key={h} style={{ padding: "0.5rem 0.625rem", textAlign: "left", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e2e8f0", whiteSpace: "nowrap" }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {importRows.map((row) => {
+                      {importRows.map((row, rowIdx) => {
+                        const effective = row.editedData || row.rawData || {};
                         const raw = row.rawData || {};
-                        const stem = (raw.stem || "").trim();
-                        const type = (raw.type || raw.question_type || "MCQ_SINGLE").toUpperCase();
-                        const diff = (raw.difficulty || "").toUpperCase();
+                        const stem = (effective.stem || "").trim();
+                        const type = (effective.type || effective.question_type || "MCQ_SINGLE").toUpperCase();
+                        const diff = (effective.difficulty || "").toUpperCase();
                         const diffLabel = diff === "FOUNDATIONAL" ? "Easy" : diff === "PROFICIENT" ? "Moderate" : diff === "MASTERY" ? "Difficult" : diff || "—";
                         const taxo = row.resolvedTaxonomy;
-                        const catName = raw.category || "";
-                        const subName = raw.subject || "";
-                        const topName = raw.topic || "";
+                        const catName = effective.category || "";
+                        const subName = effective.subject || "";
+                        const topName = effective.topic || "";
                         const resolvedOk = !!(taxo?.categoryId);
+                        const isEditing = importEditIdx === rowIdx;
+                        const wasEdited = !!(row.editedData);
+                        const isMcq = type.startsWith("MCQ");
+
                         return (
-                          <tr key={row.rowNumber} style={{ borderBottom: "1px solid #f1f5f9", background: row.isValid ? "#fff" : "#fff5f5" }}>
-                            <td style={{ padding: "0.5rem 0.625rem", color: "#94a3b8", fontWeight: 600 }}>{row.rowNumber}</td>
-                            <td style={{ padding: "0.5rem 0.625rem", maxWidth: "280px" }}>
-                              {raw._groupKey && <span style={{ fontSize: "0.65rem", background: "#e0f2fe", color: "#0369a1", padding: "1px 4px", borderRadius: "3px", marginRight: "4px" }}>¶ Group</span>}
-                              <span style={{ display: "inline-block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "260px", verticalAlign: "middle" }}>{stripHtml(stem) || <span style={{ color: "#dc2626" }}>Missing stem</span>}</span>
-                            </td>
-                            <td style={{ padding: "0.5rem 0.625rem", whiteSpace: "nowrap" }}><span style={{ fontSize: "0.7rem", background: "#e0e7ff", color: "#3730a3", padding: "1px 5px", borderRadius: "4px" }}>{type}</span></td>
-                            <td style={{ padding: "0.5rem 0.625rem", whiteSpace: "nowrap" }}>{diffLabel}</td>
-                            <td style={{ padding: "0.5rem 0.625rem" }}>
-                              <span style={{ color: resolvedOk ? "#059669" : "#dc2626", fontSize: "0.7rem" }}>
-                                {catName ? `${catName}${subName ? ` › ${subName}` : ""}${topName ? ` › ${topName}` : ""}` : <span style={{ color: "#94a3b8" }}>No taxonomy</span>}
-                              </span>
-                              {catName && !resolvedOk && <span style={{ color: "#dc2626", marginLeft: "4px", fontSize: "0.68rem" }}>⚠ not found in DB</span>}
-                            </td>
-                            <td style={{ padding: "0.5rem 0.625rem", whiteSpace: "nowrap" }}>
-                              {row.isValid
-                                ? <span style={{ fontSize: "0.7rem", background: "#d1fae5", color: "#065f46", padding: "2px 6px", borderRadius: "10px", fontWeight: 600 }}>✓ Valid</span>
-                                : <span title={row.errorMsg || ""} style={{ fontSize: "0.7rem", background: "#fee2e2", color: "#991b1b", padding: "2px 6px", borderRadius: "10px", fontWeight: 600, cursor: "help" }}>✗ {row.errorMsg?.slice(0, 40) || "Invalid"}</span>
-                              }
-                            </td>
-                          </tr>
+                          <React.Fragment key={row.rowNumber}>
+                            <tr style={{ borderBottom: isEditing ? "none" : "1px solid #f1f5f9", background: isEditing ? "#f0f4ff" : row.isValid ? "#fff" : "#fff5f5" }}>
+                              <td style={{ padding: "0.5rem 0.625rem", color: "#94a3b8", fontWeight: 600 }}>{row.rowNumber}</td>
+                              <td style={{ padding: "0.5rem 0.625rem", maxWidth: "280px" }}>
+                                {raw._groupKey && <span style={{ fontSize: "0.65rem", background: "#e0f2fe", color: "#0369a1", padding: "1px 4px", borderRadius: "3px", marginRight: "4px" }}>¶ Group</span>}
+                                {wasEdited && !isEditing && <span style={{ fontSize: "0.65rem", background: "#fef3c7", color: "#92400e", padding: "1px 5px", borderRadius: "3px", marginRight: "4px", fontWeight: 600 }}>✏ Edited</span>}
+                                <span style={{ display: "inline-block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "230px", verticalAlign: "middle" }}>{stripHtml(stem) || <span style={{ color: "#dc2626" }}>Missing stem</span>}</span>
+                              </td>
+                              <td style={{ padding: "0.5rem 0.625rem", whiteSpace: "nowrap" }}><span style={{ fontSize: "0.7rem", background: "#e0e7ff", color: "#3730a3", padding: "1px 5px", borderRadius: "4px" }}>{type}</span></td>
+                              <td style={{ padding: "0.5rem 0.625rem", whiteSpace: "nowrap" }}>{diffLabel}</td>
+                              <td style={{ padding: "0.5rem 0.625rem" }}>
+                                <span style={{ color: resolvedOk ? "#059669" : "#dc2626", fontSize: "0.7rem" }}>
+                                  {catName ? `${catName}${subName ? ` › ${subName}` : ""}${topName ? ` › ${topName}` : ""}` : <span style={{ color: "#94a3b8" }}>No taxonomy</span>}
+                                </span>
+                                {catName && !resolvedOk && <span style={{ color: "#dc2626", marginLeft: "4px", fontSize: "0.68rem" }}>⚠ not found</span>}
+                              </td>
+                              <td style={{ padding: "0.5rem 0.625rem", whiteSpace: "nowrap" }}>
+                                {row.isValid
+                                  ? <span style={{ fontSize: "0.7rem", background: "#d1fae5", color: "#065f46", padding: "2px 6px", borderRadius: "10px", fontWeight: 600 }}>✓ Valid</span>
+                                  : <span title={row.errorMsg || ""} style={{ fontSize: "0.7rem", background: "#fee2e2", color: "#991b1b", padding: "2px 6px", borderRadius: "10px", fontWeight: 600, cursor: "help" }}>✗ {row.errorMsg?.slice(0, 30) || "Invalid"}</span>
+                                }
+                              </td>
+                              <td style={{ padding: "0.5rem 0.5rem", whiteSpace: "nowrap" }}>
+                                <button
+                                  onClick={() => isEditing ? setImportEditIdx(null) : openImportEdit(rowIdx)}
+                                  style={{ fontSize: "0.7rem", padding: "2px 8px", borderRadius: "5px", border: `1px solid ${isEditing ? "#7c3aed" : "#d1d5db"}`, background: isEditing ? "#ede9fe" : "#fff", color: isEditing ? "#7c3aed" : "#374151", cursor: "pointer", fontWeight: 600 }}
+                                >
+                                  {isEditing ? "✕ Close" : "✏ Edit"}
+                                </button>
+                              </td>
+                            </tr>
+                            {isEditing && (
+                              <tr>
+                                <td colSpan={7} style={{ padding: "1rem 1.25rem", background: "#f8f9ff", borderBottom: "1px solid #c7d2fe", borderTop: "1px solid #c7d2fe" }}>
+                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                                    {/* Stem */}
+                                    <div style={{ gridColumn: "1 / -1" }}>
+                                      <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "3px" }}>Question Stem</label>
+                                      <textarea
+                                        value={stripHtml(importEditDraft.stem || "")}
+                                        onChange={e => setImportEditDraft(prev => ({ ...prev, stem: e.target.value }))}
+                                        rows={3}
+                                        style={{ width: "100%", padding: "0.4rem 0.6rem", borderRadius: "5px", border: "1px solid #d1d5db", fontSize: "0.78rem", resize: "vertical", boxSizing: "border-box" }}
+                                      />
+                                    </div>
+                                    {/* Type */}
+                                    <div>
+                                      <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "3px" }}>Question Type</label>
+                                      <select
+                                        value={importEditDraft.type || "MCQ_SINGLE"}
+                                        onChange={e => setImportEditDraft(prev => ({ ...prev, type: e.target.value }))}
+                                        style={{ width: "100%", padding: "0.35rem 0.5rem", borderRadius: "5px", border: "1px solid #d1d5db", fontSize: "0.78rem" }}
+                                      >
+                                        <option value="MCQ_SINGLE">MCQ — Single correct</option>
+                                        <option value="MCQ_MULTIPLE">MCQ — Multiple correct</option>
+                                        <option value="TRUE_FALSE">True / False</option>
+                                        <option value="SHORT_ANSWER">Short Answer</option>
+                                        <option value="FILL_IN_THE_BLANK">Fill in the Blank</option>
+                                      </select>
+                                    </div>
+                                    {/* Difficulty */}
+                                    <div>
+                                      <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "3px" }}>Difficulty</label>
+                                      <select
+                                        value={importEditDraft.difficulty || "FOUNDATIONAL"}
+                                        onChange={e => setImportEditDraft(prev => ({ ...prev, difficulty: e.target.value }))}
+                                        style={{ width: "100%", padding: "0.35rem 0.5rem", borderRadius: "5px", border: "1px solid #d1d5db", fontSize: "0.78rem" }}
+                                      >
+                                        <option value="FOUNDATIONAL">Easy (Foundational)</option>
+                                        <option value="PROFICIENT">Moderate (Proficient)</option>
+                                        <option value="MASTERY">Difficult (Mastery)</option>
+                                      </select>
+                                    </div>
+                                    {/* Options (MCQ only) */}
+                                    {isMcq && (
+                                      <div style={{ gridColumn: "1 / -1" }}>
+                                        <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "5px" }}>
+                                          Options <span style={{ fontWeight: 400, color: "#6b7280" }}>(mark the correct answer)</span>
+                                        </label>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                                          {["A", "B", "C", "D"].map((letter, oi) => {
+                                            const key = `option${oi + 1}`;
+                                            const correctVal = (importEditDraft.correct || "").toUpperCase();
+                                            const isCorrect = type === "MCQ_MULTIPLE"
+                                              ? correctVal.split(/[,\s]+/).map((x: string) => x.trim()).includes(letter)
+                                              : correctVal === letter || correctVal === String(oi + 1);
+                                            return (
+                                              <div key={letter} style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: isCorrect ? "#d1fae5" : "#fff", border: `1px solid ${isCorrect ? "#6ee7b7" : "#e5e7eb"}`, borderRadius: "5px", padding: "0.3rem 0.5rem" }}>
+                                                <input
+                                                  type={type === "MCQ_MULTIPLE" ? "checkbox" : "radio"}
+                                                  name={`opt-correct-${rowIdx}`}
+                                                  checked={isCorrect}
+                                                  onChange={() => {
+                                                    if (type === "MCQ_MULTIPLE") {
+                                                      const cur = (importEditDraft.correct || "").toUpperCase().split(/[,\s]+/).map((x: string) => x.trim()).filter(Boolean);
+                                                      const next = cur.includes(letter) ? cur.filter((x: string) => x !== letter) : [...cur, letter];
+                                                      setImportEditDraft(prev => ({ ...prev, correct: next.join(",") }));
+                                                    } else {
+                                                      setImportEditDraft(prev => ({ ...prev, correct: letter }));
+                                                    }
+                                                  }}
+                                                  style={{ accentColor: "#7c3aed", cursor: "pointer", flexShrink: 0 }}
+                                                />
+                                                <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "#374151", minWidth: "14px" }}>{letter}.</span>
+                                                <input
+                                                  type="text"
+                                                  value={stripHtml(importEditDraft[key] || "")}
+                                                  onChange={e => setImportEditDraft(prev => ({ ...prev, [key]: e.target.value }))}
+                                                  placeholder={`Option ${letter}`}
+                                                  style={{ flex: 1, border: "none", background: "transparent", fontSize: "0.75rem", outline: "none", minWidth: 0 }}
+                                                />
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
+                                    {/* Taxonomy — Category */}
+                                    <div>
+                                      <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "3px" }}>Category (Exam)</label>
+                                      <select
+                                        value={categories.find((c: TaxItem) => c.name.toLowerCase() === (importEditDraft.category || "").toLowerCase())?.id || ""}
+                                        onChange={e => {
+                                          const cat = categories.find((c: TaxItem) => c.id === e.target.value);
+                                          setImportEditDraft(prev => ({ ...prev, category: cat?.name || "", subject: "", topic: "", subtopic: "" }));
+                                          if (cat) loadImportEditSubjects(cat.id);
+                                          else { setImportEditSubjects([]); setImportEditTopics([]); setImportEditSubtopics([]); }
+                                        }}
+                                        style={{ width: "100%", padding: "0.35rem 0.5rem", borderRadius: "5px", border: "1px solid #d1d5db", fontSize: "0.78rem" }}
+                                      >
+                                        <option value="">— Select category —</option>
+                                        {categories.map((c: TaxItem) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                      </select>
+                                    </div>
+                                    {/* Taxonomy — Subject */}
+                                    <div>
+                                      <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "3px" }}>Subject</label>
+                                      <select
+                                        value={importEditSubjects.find((s: TaxItem) => s.name.toLowerCase() === (importEditDraft.subject || "").toLowerCase())?.id || ""}
+                                        onChange={e => {
+                                          const sub = importEditSubjects.find((s: TaxItem) => s.id === e.target.value);
+                                          setImportEditDraft(prev => ({ ...prev, subject: sub?.name || "", topic: "", subtopic: "" }));
+                                          if (sub) loadImportEditTopics(sub.id);
+                                          else { setImportEditTopics([]); setImportEditSubtopics([]); }
+                                        }}
+                                        disabled={importEditSubjects.length === 0}
+                                        style={{ width: "100%", padding: "0.35rem 0.5rem", borderRadius: "5px", border: "1px solid #d1d5db", fontSize: "0.78rem" }}
+                                      >
+                                        <option value="">— Select subject —</option>
+                                        {importEditSubjects.map((s: TaxItem) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                      </select>
+                                    </div>
+                                    {/* Taxonomy — Topic */}
+                                    <div>
+                                      <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "3px" }}>Topic</label>
+                                      <select
+                                        value={importEditTopics.find((t: TaxItem) => t.name.toLowerCase() === (importEditDraft.topic || "").toLowerCase())?.id || ""}
+                                        onChange={e => {
+                                          const top = importEditTopics.find((t: TaxItem) => t.id === e.target.value);
+                                          setImportEditDraft(prev => ({ ...prev, topic: top?.name || "", subtopic: "" }));
+                                          if (top) loadImportEditSubtopics(top.id);
+                                          else setImportEditSubtopics([]);
+                                        }}
+                                        disabled={importEditTopics.length === 0}
+                                        style={{ width: "100%", padding: "0.35rem 0.5rem", borderRadius: "5px", border: "1px solid #d1d5db", fontSize: "0.78rem" }}
+                                      >
+                                        <option value="">— Select topic —</option>
+                                        {importEditTopics.map((t: TaxItem) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                      </select>
+                                    </div>
+                                    {/* Taxonomy — Subtopic */}
+                                    <div>
+                                      <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "3px" }}>Subtopic <span style={{ fontWeight: 400, color: "#9ca3af" }}>(optional)</span></label>
+                                      <select
+                                        value={importEditSubtopics.find((s: TaxItem) => s.name.toLowerCase() === (importEditDraft.subtopic || "").toLowerCase())?.id || ""}
+                                        onChange={e => {
+                                          const sub = importEditSubtopics.find((s: TaxItem) => s.id === e.target.value);
+                                          setImportEditDraft(prev => ({ ...prev, subtopic: sub?.name || "" }));
+                                        }}
+                                        disabled={importEditSubtopics.length === 0}
+                                        style={{ width: "100%", padding: "0.35rem 0.5rem", borderRadius: "5px", border: "1px solid #d1d5db", fontSize: "0.78rem" }}
+                                      >
+                                        <option value="">— None —</option>
+                                        {importEditSubtopics.map((s: TaxItem) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                      </select>
+                                    </div>
+                                    {/* Explanation */}
+                                    <div style={{ gridColumn: "1 / -1" }}>
+                                      <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "3px" }}>Explanation / Answer <span style={{ fontWeight: 400, color: "#9ca3af" }}>(optional)</span></label>
+                                      <textarea
+                                        value={stripHtml(importEditDraft.explanation || "")}
+                                        onChange={e => setImportEditDraft(prev => ({ ...prev, explanation: e.target.value }))}
+                                        rows={2}
+                                        style={{ width: "100%", padding: "0.4rem 0.6rem", borderRadius: "5px", border: "1px solid #d1d5db", fontSize: "0.78rem", resize: "vertical", boxSizing: "border-box" }}
+                                      />
+                                    </div>
+                                    {/* Tags */}
+                                    <div>
+                                      <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "3px" }}>Tags <span style={{ fontWeight: 400, color: "#9ca3af" }}>(comma-separated)</span></label>
+                                      <input
+                                        type="text"
+                                        value={Array.isArray(importEditDraft.tags) ? importEditDraft.tags.join(", ") : (importEditDraft.tags || "")}
+                                        onChange={e => setImportEditDraft(prev => ({ ...prev, tags: e.target.value.split(",").map((t: string) => t.trim()).filter(Boolean) }))}
+                                        style={{ width: "100%", padding: "0.35rem 0.6rem", borderRadius: "5px", border: "1px solid #d1d5db", fontSize: "0.78rem", boxSizing: "border-box" }}
+                                      />
+                                    </div>
+                                    {/* Marks */}
+                                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end" }}>
+                                      <div style={{ flex: 1 }}>
+                                        <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "3px" }}>Marks</label>
+                                        <input
+                                          type="number" min={0} step={0.5}
+                                          value={importEditDraft.marks ?? ""}
+                                          onChange={e => setImportEditDraft(prev => ({ ...prev, marks: e.target.value === "" ? undefined : Number(e.target.value) }))}
+                                          style={{ width: "100%", padding: "0.35rem 0.5rem", borderRadius: "5px", border: "1px solid #d1d5db", fontSize: "0.78rem", boxSizing: "border-box" }}
+                                        />
+                                      </div>
+                                      <div style={{ flex: 1 }}>
+                                        <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "3px" }}>Negative Marks</label>
+                                        <input
+                                          type="number" min={0} step={0.25}
+                                          value={importEditDraft.negative_marks ?? ""}
+                                          onChange={e => setImportEditDraft(prev => ({ ...prev, negative_marks: e.target.value === "" ? undefined : Number(e.target.value) }))}
+                                          style={{ width: "100%", padding: "0.35rem 0.5rem", borderRadius: "5px", border: "1px solid #d1d5db", fontSize: "0.78rem", boxSizing: "border-box" }}
+                                        />
+                                      </div>
+                                    </div>
+                                    {/* Actions */}
+                                    <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end", gap: "0.5rem", paddingTop: "0.25rem" }}>
+                                      <button
+                                        onClick={() => { setImportEditIdx(null); setImportEditDraft({}); }}
+                                        style={{ padding: "0.35rem 0.875rem", borderRadius: "6px", border: "1px solid #d1d5db", background: "#fff", color: "#374151", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer" }}
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button
+                                        onClick={saveImportRowEdit}
+                                        disabled={importEditSaving}
+                                        style={{ padding: "0.35rem 1rem", borderRadius: "6px", border: "none", background: importEditSaving ? "#a5b4fc" : "#7c3aed", color: "#fff", fontSize: "0.78rem", fontWeight: 700, cursor: importEditSaving ? "wait" : "pointer" }}
+                                      >
+                                        {importEditSaving ? "Saving…" : "Save Changes"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         );
                       })}
                     </tbody>
