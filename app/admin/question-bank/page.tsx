@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import { stripHtml, hasVisibleText } from "@/lib/htmlUtils";
 
@@ -167,6 +167,25 @@ export default function QuestionBankPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; stem: string } | null>(null);
   const [deleteUsageWarning, setDeleteUsageWarning] = useState<{ id: string; stem: string; usageCount: number; message: string } | null>(null);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+
+  // ── DOCX Bulk Import ──────────────────────────────────────────────────────
+  type QBImportStage = "upload" | "reviewing" | "committing" | "done";
+  type QBImportRow = {
+    rowNumber: number; isValid: boolean;
+    errorField: string | null; errorMsg: string | null;
+    rawData: Record<string, any>;
+    resolvedTaxonomy: { categoryId: string | null; subjectId: string | null; topicId: string | null; subtopicId: string | null } | null;
+  };
+  const qbImportFileRef = useRef<HTMLInputElement>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importStage, setImportStage] = useState<QBImportStage>("upload");
+  const [importUploading, setImportUploading] = useState(false);
+  const [importFilename, setImportFilename] = useState("");
+  const [importJobId, setImportJobId] = useState<string | null>(null);
+  const [importRows, setImportRows] = useState<QBImportRow[]>([]);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importParserWarnings, setImportParserWarnings] = useState<string[]>([]);
+  const [importResult, setImportResult] = useState<{ importedCount: number; failedCount: number; groupsCreated: number; reportUrl: string | null } | null>(null);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
@@ -1293,12 +1312,251 @@ export default function QuestionBankPage() {
     );
   }
 
+  // ── DOCX Bulk Import Handlers ─────────────────────────────────────────────
+  async function handleQBDocxUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportFilename(file.name);
+    setImportUploading(true);
+    setImportError(null);
+    setImportParserWarnings([]);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/imports/preview", { method: "POST", body: fd });
+      const d = await res.json();
+      if (!res.ok) { setImportError(d.error || "Upload failed — please check the file and try again."); return; }
+      const rows: QBImportRow[] = d.data?.rows || [];
+      if (rows.length === 0) { setImportError("No questions found in the file. Make sure you are using the correct DOCX template."); return; }
+      setImportJobId(d.data.job.id);
+      setImportRows(rows);
+      if (d.data.parserWarnings?.length) setImportParserWarnings(d.data.parserWarnings);
+      setImportStage("reviewing");
+    } catch { setImportError("Unexpected error while processing the file. Please try again."); }
+    finally { setImportUploading(false); e.target.value = ""; }
+  }
+
+  async function handleQBCommit() {
+    if (!importJobId) return;
+    setImportError(null);
+    setImportStage("committing");
+    try {
+      const res = await fetch("/api/imports/commit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ importJobId }),
+      });
+      const d = await res.json();
+      if (!res.ok) { setImportStage("reviewing"); setImportError(d.error || "Commit failed"); return; }
+      setImportResult(d.data);
+      setImportStage("done");
+      fetchQuestions();
+    } catch { setImportStage("reviewing"); setImportError("Network error during commit. Please try again."); }
+  }
+
+  function closeImportModal() {
+    setImportOpen(false);
+    setTimeout(() => {
+      setImportStage("upload");
+      setImportJobId(null);
+      setImportRows([]);
+      setImportError(null);
+      setImportResult(null);
+      setImportParserWarnings([]);
+      setImportFilename("");
+    }, 200);
+  }
+
   const foundationalCount = questions.filter(q => q.difficulty === "FOUNDATIONAL").length;
   const proficientCount = questions.filter(q => q.difficulty === "PROFICIENT").length;
   const masteryCount = questions.filter(q => q.difficulty === "MASTERY").length;
 
   return (
     <div style={{ fontFamily: "system-ui, sans-serif" }}>
+
+      {/* ── DOCX Bulk Import Modal ─────────────────────────────────────────── */}
+      {importOpen && (
+        <div onClick={(e) => e.target === e.currentTarget && closeImportModal()} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
+          <div style={{ background: "#fff", borderRadius: "12px", width: "100%", maxWidth: "820px", maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}>
+            {/* Modal Header */}
+            <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fafafa", borderRadius: "12px 12px 0 0", flexShrink: 0 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "1rem", color: "#111" }}>📥 Bulk Import Questions (DOCX)</div>
+                <div style={{ fontSize: "0.78rem", color: "#6b7280", marginTop: "2px" }}>
+                  {importStage === "upload" && "Upload a .docx file to import questions into the Question Bank"}
+                  {importStage === "reviewing" && `${importRows.length} question${importRows.length !== 1 ? "s" : ""} parsed — review before committing`}
+                  {importStage === "committing" && "Importing questions into the bank…"}
+                  {importStage === "done" && "Import complete"}
+                </div>
+              </div>
+              <button onClick={closeImportModal} style={{ background: "none", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#6b7280", padding: "0.25rem" }}>✕</button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ flex: 1, overflow: "auto", padding: "1.25rem" }}>
+
+              {/* ── Stage: Upload ── */}
+              {importStage === "upload" && (<>
+                {/* Instructions */}
+                <div style={{ padding: "0.875rem 1rem", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px", marginBottom: "1rem" }}>
+                  <div style={{ fontWeight: 700, fontSize: "0.8rem", color: "#374151", marginBottom: "0.4rem" }}>How to bulk-import via DOCX</div>
+                  <ol style={{ margin: 0, padding: "0 0 0 1.2rem", fontSize: "0.78rem", color: "#4b5563", lineHeight: 1.8 }}>
+                    <li>Download the template below and fill in your questions — one question per section.</li>
+                    <li>Include <strong>Category, Subject, Topic, Subtopic</strong> fields so taxonomy is resolved automatically.</li>
+                    <li>Set <strong>Difficulty</strong> to <code style={{ background: "#f1f5f9", padding: "0.1em 0.3em", borderRadius: "3px" }}>FOUNDATIONAL</code>, <code style={{ background: "#f1f5f9", padding: "0.1em 0.3em", borderRadius: "3px" }}>PROFICIENT</code>, or <code style={{ background: "#f1f5f9", padding: "0.1em 0.3em", borderRadius: "3px" }}>MASTERY</code>.</li>
+                    <li>Save as <strong>.docx</strong> and upload it here.</li>
+                    <li>Review each parsed question before confirming the import.</li>
+                  </ol>
+                </div>
+                {/* Templates */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "1.25rem" }}>
+                  <a href="/downloads/saphala_single_question_template_v3.docx" download style={{ padding: "0.35rem 0.875rem", borderRadius: "6px", background: "#7c3aed", color: "#fff", textDecoration: "none", fontSize: "0.8rem", fontWeight: 600 }}>⬇ Single Question Template</a>
+                  <a href="/downloads/saphala_group_question_template_v3.docx" download style={{ padding: "0.35rem 0.875rem", borderRadius: "6px", background: "#059669", color: "#fff", textDecoration: "none", fontSize: "0.8rem", fontWeight: 600 }}>⬇ Paragraph Group Template</a>
+                </div>
+                {/* Drop zone */}
+                <div
+                  onClick={() => !importUploading && qbImportFileRef.current?.click()}
+                  style={{ border: `2px dashed ${importUploading ? "#a78bfa" : "#c4b5fd"}`, borderRadius: "10px", padding: "2.5rem 1rem", textAlign: "center", cursor: importUploading ? "wait" : "pointer", background: importUploading ? "#f5f3ff" : "#faf5ff", transition: "background 0.15s" }}>
+                  <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>{importUploading ? "⏳" : "📄"}</div>
+                  <div style={{ fontWeight: 600, fontSize: "0.9rem", color: "#5b21b6", marginBottom: "0.25rem" }}>
+                    {importUploading ? "Parsing your file…" : importFilename ? `✔ ${importFilename}` : "Click to upload a .docx file"}
+                  </div>
+                  <div style={{ fontSize: "0.78rem", color: "#7c3aed" }}>{importUploading ? "This may take a few seconds." : "DOCX only · up to 5000 questions"}</div>
+                  <input ref={qbImportFileRef} type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style={{ display: "none" }} onChange={handleQBDocxUpload} />
+                </div>
+                {importError && <div style={{ marginTop: "0.875rem", padding: "0.625rem 0.875rem", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px", color: "#dc2626", fontSize: "0.8rem" }}>{importError}</div>}
+              </>)}
+
+              {/* ── Stage: Reviewing ── */}
+              {importStage === "reviewing" && (<>
+                {/* Parser warnings */}
+                {importParserWarnings.length > 0 && (
+                  <div style={{ padding: "0.625rem 0.875rem", background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: "6px", marginBottom: "0.875rem", fontSize: "0.78rem", color: "#92400e" }}>
+                    {importParserWarnings.map((w, i) => <div key={i}>{w}</div>)}
+                  </div>
+                )}
+                {/* Summary bar */}
+                {(() => {
+                  const validCount = importRows.filter(r => r.isValid).length;
+                  const invalidCount = importRows.length - validCount;
+                  return (
+                    <div style={{ display: "flex", gap: "0.625rem", marginBottom: "0.875rem", flexWrap: "wrap" }}>
+                      {[
+                        { label: "Total Parsed", val: importRows.length, color: "#5b21b6", bg: "#f5f3ff" },
+                        { label: "Will Import", val: validCount, color: "#065f46", bg: "#d1fae5" },
+                        { label: "Will Skip (invalid)", val: invalidCount, color: "#991b1b", bg: "#fee2e2" },
+                      ].map(s => (
+                        <div key={s.label} style={{ background: s.bg, borderRadius: "7px", padding: "0.375rem 0.75rem", minWidth: "100px" }}>
+                          <div style={{ fontSize: "0.65rem", color: s.color, fontWeight: 600, textTransform: "uppercase" }}>{s.label}</div>
+                          <div style={{ fontSize: "1.125rem", fontWeight: 700, color: s.color }}>{s.val}</div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+                {importError && <div style={{ marginBottom: "0.75rem", padding: "0.625rem 0.875rem", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px", color: "#dc2626", fontSize: "0.8rem" }}>{importError}</div>}
+                {/* Questions table */}
+                <div style={{ overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: "8px" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.78rem" }}>
+                    <thead>
+                      <tr style={{ background: "#f8fafc" }}>
+                        {["#", "Stem", "Type", "Difficulty", "Taxonomy", "Status"].map(h => (
+                          <th key={h} style={{ padding: "0.5rem 0.625rem", textAlign: "left", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e2e8f0", whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importRows.map((row) => {
+                        const raw = row.rawData || {};
+                        const stem = (raw.stem || "").trim();
+                        const type = (raw.type || raw.question_type || "MCQ_SINGLE").toUpperCase();
+                        const diff = (raw.difficulty || "").toUpperCase();
+                        const diffLabel = diff === "FOUNDATIONAL" ? "Easy" : diff === "PROFICIENT" ? "Moderate" : diff === "MASTERY" ? "Difficult" : diff || "—";
+                        const taxo = row.resolvedTaxonomy;
+                        const catName = raw.category || "";
+                        const subName = raw.subject || "";
+                        const topName = raw.topic || "";
+                        const resolvedOk = !!(taxo?.categoryId);
+                        return (
+                          <tr key={row.rowNumber} style={{ borderBottom: "1px solid #f1f5f9", background: row.isValid ? "#fff" : "#fff5f5" }}>
+                            <td style={{ padding: "0.5rem 0.625rem", color: "#94a3b8", fontWeight: 600 }}>{row.rowNumber}</td>
+                            <td style={{ padding: "0.5rem 0.625rem", maxWidth: "280px" }}>
+                              {raw._groupKey && <span style={{ fontSize: "0.65rem", background: "#e0f2fe", color: "#0369a1", padding: "1px 4px", borderRadius: "3px", marginRight: "4px" }}>¶ Group</span>}
+                              <span style={{ display: "inline-block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "260px", verticalAlign: "middle" }}>{stripHtml(stem) || <span style={{ color: "#dc2626" }}>Missing stem</span>}</span>
+                            </td>
+                            <td style={{ padding: "0.5rem 0.625rem", whiteSpace: "nowrap" }}><span style={{ fontSize: "0.7rem", background: "#e0e7ff", color: "#3730a3", padding: "1px 5px", borderRadius: "4px" }}>{type}</span></td>
+                            <td style={{ padding: "0.5rem 0.625rem", whiteSpace: "nowrap" }}>{diffLabel}</td>
+                            <td style={{ padding: "0.5rem 0.625rem" }}>
+                              <span style={{ color: resolvedOk ? "#059669" : "#dc2626", fontSize: "0.7rem" }}>
+                                {catName ? `${catName}${subName ? ` › ${subName}` : ""}${topName ? ` › ${topName}` : ""}` : <span style={{ color: "#94a3b8" }}>No taxonomy</span>}
+                              </span>
+                              {catName && !resolvedOk && <span style={{ color: "#dc2626", marginLeft: "4px", fontSize: "0.68rem" }}>⚠ not found in DB</span>}
+                            </td>
+                            <td style={{ padding: "0.5rem 0.625rem", whiteSpace: "nowrap" }}>
+                              {row.isValid
+                                ? <span style={{ fontSize: "0.7rem", background: "#d1fae5", color: "#065f46", padding: "2px 6px", borderRadius: "10px", fontWeight: 600 }}>✓ Valid</span>
+                                : <span title={row.errorMsg || ""} style={{ fontSize: "0.7rem", background: "#fee2e2", color: "#991b1b", padding: "2px 6px", borderRadius: "10px", fontWeight: 600, cursor: "help" }}>✗ {row.errorMsg?.slice(0, 40) || "Invalid"}</span>
+                              }
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>)}
+
+              {/* ── Stage: Committing ── */}
+              {importStage === "committing" && (
+                <div style={{ textAlign: "center", padding: "3rem 1rem" }}>
+                  <div style={{ fontSize: "2.5rem", marginBottom: "1rem" }}>⏳</div>
+                  <div style={{ fontWeight: 600, fontSize: "1rem", color: "#374151" }}>Importing questions into the bank…</div>
+                  <div style={{ fontSize: "0.8rem", color: "#6b7280", marginTop: "0.5rem" }}>This may take a moment for large files.</div>
+                </div>
+              )}
+
+              {/* ── Stage: Done ── */}
+              {importStage === "done" && importResult && (
+                <div style={{ textAlign: "center", padding: "2.5rem 1rem" }}>
+                  <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>{importResult.failedCount === 0 ? "✅" : "⚠️"}</div>
+                  <div style={{ fontWeight: 700, fontSize: "1.125rem", color: "#111", marginBottom: "0.5rem" }}>Import Complete</div>
+                  <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", marginBottom: "1rem", flexWrap: "wrap" }}>
+                    <span style={{ background: "#d1fae5", color: "#065f46", padding: "0.375rem 0.875rem", borderRadius: "20px", fontWeight: 700, fontSize: "0.875rem" }}>✓ {importResult.importedCount} imported</span>
+                    {importResult.failedCount > 0 && <span style={{ background: "#fee2e2", color: "#991b1b", padding: "0.375rem 0.875rem", borderRadius: "20px", fontWeight: 700, fontSize: "0.875rem" }}>✗ {importResult.failedCount} skipped</span>}
+                    {importResult.groupsCreated > 0 && <span style={{ background: "#e0f2fe", color: "#0369a1", padding: "0.375rem 0.875rem", borderRadius: "20px", fontWeight: 700, fontSize: "0.875rem" }}>¶ {importResult.groupsCreated} passage groups</span>}
+                  </div>
+                  {importResult.reportUrl && (
+                    <a href={importResult.reportUrl} download style={{ display: "inline-block", marginBottom: "1rem", padding: "0.4rem 1rem", borderRadius: "6px", background: "#fef3c7", color: "#92400e", textDecoration: "none", fontSize: "0.8rem", fontWeight: 600, border: "1px solid #fcd34d" }}>
+                      ⬇ Download Error Report ({importResult.failedCount} rows)
+                    </a>
+                  )}
+                  <div>
+                    <button onClick={closeImportModal} style={{ padding: "0.5rem 1.5rem", borderRadius: "7px", background: "#7c3aed", color: "#fff", border: "none", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}>Done</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            {(importStage === "reviewing" || importStage === "upload") && (
+              <div style={{ padding: "0.875rem 1.25rem", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fafafa", borderRadius: "0 0 12px 12px", flexShrink: 0 }}>
+                <button onClick={importStage === "reviewing" ? () => { setImportStage("upload"); setImportRows([]); setImportJobId(null); setImportError(null); } : closeImportModal} style={{ padding: "0.4rem 1rem", borderRadius: "6px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontWeight: 600, fontSize: "0.8rem", color: "#374151" }}>
+                  {importStage === "reviewing" ? "← Back" : "Cancel"}
+                </button>
+                {importStage === "reviewing" && (() => {
+                  const validCount = importRows.filter(r => r.isValid).length;
+                  return (
+                    <button onClick={handleQBCommit} disabled={validCount === 0} style={{ padding: "0.4rem 1.25rem", borderRadius: "6px", background: validCount === 0 ? "#e2e8f0" : "#7c3aed", color: validCount === 0 ? "#94a3b8" : "#fff", border: "none", cursor: validCount === 0 ? "not-allowed" : "pointer", fontWeight: 700, fontSize: "0.875rem" }}>
+                      Import {validCount} Question{validCount !== 1 ? "s" : ""} to Bank →
+                    </button>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
         <h1 style={{ fontSize: "1.5rem", fontWeight: 600, color: "#111", margin: 0 }}>
           Question Bank
@@ -1314,6 +1572,7 @@ export default function QuestionBankPage() {
               </button>
             </>
           )}
+          <button onClick={() => { setImportOpen(true); setImportStage("upload"); }} style={{ ...btnStyle, backgroundColor: "#0369a1" }}>📥 Bulk Import (DOCX)</button>
           <button onClick={startCreate} style={btnStyle}>+ New Question</button>
         </div>
       </div>
