@@ -1900,6 +1900,17 @@ export default function TestsPage() {
     } catch { showToast("Failed", "error"); }
   }
 
+  async function handleDuplicateTest(id: string, title: string) {
+    if (!confirm(`Duplicate "${title}"? A copy will be created as a Draft.`)) return;
+    try {
+      const res = await fetch(`/api/tests/${id}/duplicate`, { method: "POST" });
+      const d = await res.json();
+      if (!res.ok) { showToast(d.error || "Duplicate failed", "error"); return; }
+      showToast(`Duplicated → "${d.data.title}"`, "success");
+      fetchList();
+    } catch { showToast("Duplicate failed", "error"); }
+  }
+
   function addTopLevelSection() {
     setSections(prev => {
       const topCount = prev.filter(s => s.parentIndex === null).length;
@@ -2630,6 +2641,7 @@ export default function TestsPage() {
                   <td style={td}>
                     <div style={{ display: "flex", gap: "0.375rem" }}>
                       <button onClick={() => openEdit(item.id)} style={btn(BRAND.purple)}>Edit</button>
+                      <button onClick={() => handleDuplicateTest(item.id, item.title)} style={btn("#0369a1")}>Duplicate</button>
                       <button onClick={() => handleDelete(item.id, item.title)} style={btn("#dc2626")}>Delete</button>
                     </div>
                   </td>
