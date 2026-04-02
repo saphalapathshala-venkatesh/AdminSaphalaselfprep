@@ -296,7 +296,9 @@ export async function POST(req: NextRequest) {
             difficulty: nr.difficulty as any,
             status: nr.status as any,
             stem: nr.stem,
+            stemSecondary: nr.stemSecondary ?? null,
             explanation: nr.explanation,
+            explanationSecondary: nr.explanationSecondary ?? null,
             tags: nr.tags,
             contentHash: nr.contentHash,
             categoryId,
@@ -308,6 +310,7 @@ export async function POST(req: NextRequest) {
               ? {
                   create: nr.options.map((o) => ({
                     text: o.text,
+                    textSecondary: o.textSecondary ?? null,
                     isCorrect: o.isCorrect,
                     order: o.order,
                   })),

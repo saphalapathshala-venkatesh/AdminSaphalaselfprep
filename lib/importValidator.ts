@@ -52,8 +52,10 @@ export interface ValidationResult {
 export interface NormalizedRow {
   type: string;
   stem: string;
-  options: { text: string; isCorrect: boolean; order: number }[];
+  stemSecondary: string | null;
+  options: { text: string; textSecondary: string | null; isCorrect: boolean; order: number }[];
   explanation: string | null;
+  explanationSecondary: string | null;
   difficulty: string;
   status: string;
   tags: string[];
@@ -63,6 +65,13 @@ export interface NormalizedRow {
   subtopic: string | null;
   contentHash: string;
 }
+
+/** Maps display difficulty labels from DOCX templates to the DB DifficultyLevel enum values. */
+const DIFFICULTY_DISPLAY_MAP: Record<string, string> = {
+  EASY: "FOUNDATIONAL",
+  MEDIUM: "PROFICIENT",
+  HARD: "MASTERY",
+};
 
 // ── Column-name normaliser (maps UPDATED template names → internal RawRow) ────
 export function normalizeColumnNames(raw: Record<string, any>): RawRow {
@@ -156,16 +165,20 @@ export function validateRow(rawInput: RawRow): ValidationResult {
     };
   }
 
+  // ── Map display difficulty labels → DB enum values ────────────────────────
+  const dbDifficulty = DIFFICULTY_DISPLAY_MAP[difficulty] ?? difficulty;
+
   const isMCQ = MCQ_TYPES.includes(type);
-  const options: { text: string; isCorrect: boolean; order: number }[] = [];
+  const options: { text: string; textSecondary: string | null; isCorrect: boolean; order: number }[] = [];
 
   if (isMCQ) {
-    const optTexts: string[] = [];
+    // Track raw slot indices so we can pair secondary options by position
+    const optSlots: { idx: number; text: string }[] = [];
     for (let i = 1; i <= 8; i++) {
       const val = raw[`option${i}`] || "";
-      if (hasVisibleText(val)) optTexts.push(val);
+      if (hasVisibleText(val)) optSlots.push({ idx: i, text: val });
     }
-    if (optTexts.length < 2) {
+    if (optSlots.length < 2) {
       return {
         isValid: false,
         errorField: "options",
@@ -198,11 +211,11 @@ export function validateRow(rawInput: RawRow): ValidationResult {
     }
 
     for (const idx of correctIndexes) {
-      if (idx < 1 || idx > optTexts.length) {
+      if (idx < 1 || idx > optSlots.length) {
         return {
           isValid: false,
           errorField: "correct",
-          errorMsg: `Correct index ${idx} out of range (1-${optTexts.length})`,
+          errorMsg: `Correct index ${idx} out of range (1-${optSlots.length})`,
           normalizedRow: null,
         };
       }
@@ -217,8 +230,14 @@ export function validateRow(rawInput: RawRow): ValidationResult {
       };
     }
 
-    for (let i = 0; i < optTexts.length; i++) {
-      options.push({ text: optTexts[i], isCorrect: correctIndexes.includes(i + 1), order: i });
+    for (let i = 0; i < optSlots.length; i++) {
+      const secRaw = raw[`option${optSlots[i].idx}_secondary`] || "";
+      options.push({
+        text: optSlots[i].text,
+        textSecondary: secRaw.trim() ? secRaw : null,
+        isCorrect: correctIndexes.includes(i + 1),
+        order: i,
+      });
     }
   }
 
@@ -230,6 +249,7 @@ export function validateRow(rawInput: RawRow): ValidationResult {
   const contentHash = computeContentHash(stem, options, type);
 
   const explanation = raw.explanation || "";
+  const explanationSecondary = raw.explanation_secondary || "";
 
   return {
     isValid: true,
@@ -238,9 +258,11 @@ export function validateRow(rawInput: RawRow): ValidationResult {
     normalizedRow: {
       type,
       stem,
+      stemSecondary: (raw.stem_secondary || "").trim() || null,
       options,
       explanation: hasVisibleText(explanation) ? explanation : null,
-      difficulty,
+      explanationSecondary: hasVisibleText(explanationSecondary) ? explanationSecondary : null,
+      difficulty: dbDifficulty,
       status,
       tags,
       category: (raw.category || "").trim() || null,
