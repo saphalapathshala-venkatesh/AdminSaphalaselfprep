@@ -182,6 +182,7 @@ export default function QuestionBankPage() {
   const [importStage, setImportStage] = useState<QBImportStage>("upload");
   const [importUploading, setImportUploading] = useState(false);
   const [importFilename, setImportFilename] = useState("");
+  const [importDefaultStatus, setImportDefaultStatus] = useState<"DRAFT" | "APPROVED">("DRAFT");
   const [importJobId, setImportJobId] = useState<string | null>(null);
   const [importRows, setImportRows] = useState<QBImportRow[]>([]);
   const [importError, setImportError] = useState<string | null>(null);
@@ -1360,7 +1361,7 @@ export default function QuestionBankPage() {
       const res = await fetch("/api/imports/commit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ importJobId }),
+        body: JSON.stringify({ importJobId, overrideStatus: importDefaultStatus }),
       });
       const d = await res.json();
       if (!res.ok) { setImportStage("reviewing"); setImportError(d.error || "Commit failed"); return; }
@@ -1380,6 +1381,7 @@ export default function QuestionBankPage() {
       setImportResult(null);
       setImportParserWarnings([]);
       setImportFilename("");
+      setImportDefaultStatus("DRAFT");
       setImportEditIdx(null);
       setImportEditDraft({});
       setImportEditSubjects([]);
@@ -1964,16 +1966,40 @@ export default function QuestionBankPage() {
 
             {/* Modal Footer */}
             {(importStage === "reviewing" || importStage === "upload") && (
-              <div style={{ padding: "0.875rem 1.25rem", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fafafa", borderRadius: "0 0 12px 12px", flexShrink: 0 }}>
+              <div style={{ padding: "0.875rem 1.25rem", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fafafa", borderRadius: "0 0 12px 12px", flexShrink: 0, gap: "0.75rem" }}>
                 <button onClick={importStage === "reviewing" ? () => { setImportStage("upload"); setImportRows([]); setImportJobId(null); setImportError(null); } : closeImportModal} style={{ padding: "0.4rem 1rem", borderRadius: "6px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontWeight: 600, fontSize: "0.8rem", color: "#374151" }}>
                   {importStage === "reviewing" ? "← Back" : "Cancel"}
                 </button>
                 {importStage === "reviewing" && (() => {
                   const validCount = importRows.filter(r => r.isValid).length;
                   return (
-                    <button onClick={handleQBCommit} disabled={validCount === 0} style={{ padding: "0.4rem 1.25rem", borderRadius: "6px", background: validCount === 0 ? "#e2e8f0" : "#7c3aed", color: validCount === 0 ? "#94a3b8" : "#fff", border: "none", cursor: validCount === 0 ? "not-allowed" : "pointer", fontWeight: 700, fontSize: "0.875rem" }}>
-                      Import {validCount} Question{validCount !== 1 ? "s" : ""} to Bank →
-                    </button>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flex: 1, justifyContent: "flex-end" }}>
+                      {/* Status override toggle */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "#f5f3ff", border: "1px solid #e9d5ff", borderRadius: "7px", padding: "0.25rem 0.5rem" }}>
+                        <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "#6b21a8", whiteSpace: "nowrap" }}>Import as:</span>
+                        {(["DRAFT", "APPROVED"] as const).map(s => (
+                          <button
+                            key={s}
+                            onClick={() => setImportDefaultStatus(s)}
+                            style={{
+                              padding: "0.2rem 0.625rem",
+                              borderRadius: "5px",
+                              border: "none",
+                              fontSize: "0.72rem",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              background: importDefaultStatus === s ? (s === "APPROVED" ? "#059669" : "#64748b") : "transparent",
+                              color: importDefaultStatus === s ? "#fff" : "#6b7280",
+                            }}
+                          >
+                            {s === "APPROVED" ? "✓ Approved" : "Draft"}
+                          </button>
+                        ))}
+                      </div>
+                      <button onClick={handleQBCommit} disabled={validCount === 0} style={{ padding: "0.4rem 1.25rem", borderRadius: "6px", background: validCount === 0 ? "#e2e8f0" : "#7c3aed", color: validCount === 0 ? "#94a3b8" : "#fff", border: "none", cursor: validCount === 0 ? "not-allowed" : "pointer", fontWeight: 700, fontSize: "0.875rem", whiteSpace: "nowrap" }}>
+                        Import {validCount} Question{validCount !== 1 ? "s" : ""} to Bank →
+                      </button>
+                    </div>
                   );
                 })()}
               </div>
@@ -1989,6 +2015,30 @@ export default function QuestionBankPage() {
         <div style={{ display: "flex", gap: "0.5rem" }}>
           {selected.size > 0 && (
             <>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch("/api/questions/bulk", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ ids: Array.from(selected), updates: { status: "APPROVED" } }),
+                    });
+                    if (res.ok) {
+                      setSelected(new Set());
+                      fetchQuestions();
+                      showToast(`${selected.size} question${selected.size !== 1 ? "s" : ""} approved`, "success");
+                    } else {
+                      const d = await res.json();
+                      showToast(d.error || "Bulk approve failed", "error");
+                    }
+                  } catch {
+                    showToast("Network error", "error");
+                  }
+                }}
+                style={{ ...btnStyle, backgroundColor: "#059669" }}
+              >
+                ✓ Approve ({selected.size})
+              </button>
               <button onClick={openBulkEdit} style={{ ...btnStyle, backgroundColor: "#7c3aed" }}>
                 Bulk Edit ({selected.size})
               </button>

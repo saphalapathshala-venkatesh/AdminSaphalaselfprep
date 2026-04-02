@@ -55,11 +55,15 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { importJobId } = body;
+    const { importJobId, overrideStatus } = body;
 
     if (!importJobId) {
       return NextResponse.json({ error: "importJobId is required" }, { status: 400 });
     }
+
+    // Validate overrideStatus if provided
+    const statusOverride: "DRAFT" | "APPROVED" | null =
+      overrideStatus === "APPROVED" ? "APPROVED" : overrideStatus === "DRAFT" ? "DRAFT" : null;
 
     const job = await prisma.importJob.findUnique({ where: { id: importJobId } });
     if (!job) {
@@ -294,7 +298,7 @@ export async function POST(req: NextRequest) {
           data: {
             type: nr.type as any,
             difficulty: nr.difficulty as any,
-            status: nr.status as any,
+            status: (statusOverride ?? nr.status) as any,
             stem: nr.stem,
             stemSecondary: nr.stemSecondary ?? null,
             explanation: nr.explanation,
