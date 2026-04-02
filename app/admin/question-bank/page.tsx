@@ -1460,13 +1460,28 @@ export default function QuestionBankPage() {
     const row = importRows[importEditIdx];
     setImportEditSaving(true);
     try {
+      // Normalize `correct` to numeric format (the validator uses parseInt and only accepts numbers)
+      // Convert any letter answers ("A","B","C","D") to numeric ("1","2","3","4")
+      const draftToSave = { ...importEditDraft };
+      if (typeof draftToSave.correct === "string" && draftToSave.correct) {
+        const normalised = draftToSave.correct
+          .split(",")
+          .map((p: string) => {
+            const t = p.trim().toUpperCase();
+            if (/^[A-H]$/.test(t)) return String(t.charCodeAt(0) - 64); // A→1, B→2, …
+            return t;
+          })
+          .filter(Boolean)
+          .join(",");
+        draftToSave.correct = normalised;
+      }
       const res = await fetch(`/api/imports/rows/${row.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ editedData: importEditDraft }),
+        body: JSON.stringify({ editedData: draftToSave }),
       });
       if (!res.ok) { const d = await res.json(); alert(d.error || "Save failed"); return; }
-      setImportRows(prev => prev.map((r, i) => i === importEditIdx ? { ...r, editedData: { ...importEditDraft } } : r));
+      setImportRows(prev => prev.map((r, i) => i === importEditIdx ? { ...r, editedData: { ...draftToSave } } : r));
       setImportEditIdx(null);
       setImportEditDraft({});
     } catch { alert("Network error saving edits"); }
@@ -1671,10 +1686,10 @@ export default function QuestionBankPage() {
                                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
                                           {["A", "B", "C", "D"].map((letter, oi) => {
                                             const key = `option${oi + 1}`;
-                                            const correctVal = (importEditDraft.correct || "").toUpperCase();
-                                            const isCorrect = type === "MCQ_MULTIPLE"
-                                              ? correctVal.split(/[,\s]+/).map((x: string) => x.trim()).includes(letter)
-                                              : correctVal === letter || correctVal === String(oi + 1);
+                                            const numIdx = String(oi + 1); // "1", "2", "3", "4"
+                                            // Support both letter ("B") and numeric ("2") format in current draft
+                                            const correctParts = (importEditDraft.correct || "").toUpperCase().split(/[,\s]+/).map((x: string) => x.trim()).filter(Boolean);
+                                            const isCorrect = correctParts.some(p => p === letter || p === numIdx);
                                             return (
                                               <div key={letter} style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: isCorrect ? "#d1fae5" : "#fff", border: `1px solid ${isCorrect ? "#6ee7b7" : "#e5e7eb"}`, borderRadius: "5px", padding: "0.3rem 0.5rem" }}>
                                                 <input
@@ -1682,12 +1697,15 @@ export default function QuestionBankPage() {
                                                   name={`opt-correct-${rowIdx}`}
                                                   checked={isCorrect}
                                                   onChange={() => {
+                                                    // Always save as numeric index so the validator (parseInt-based) accepts it
                                                     if (type === "MCQ_MULTIPLE") {
-                                                      const cur = (importEditDraft.correct || "").toUpperCase().split(/[,\s]+/).map((x: string) => x.trim()).filter(Boolean);
-                                                      const next = cur.includes(letter) ? cur.filter((x: string) => x !== letter) : [...cur, letter];
+                                                      // Normalise existing parts to numeric before toggling
+                                                      const curNums = correctParts.map((p: string) => /^[A-H]$/.test(p) ? String(p.charCodeAt(0) - 64) : p);
+                                                      const next = curNums.includes(numIdx) ? curNums.filter((x: string) => x !== numIdx) : [...curNums, numIdx];
                                                       setImportEditDraft(prev => ({ ...prev, correct: next.join(",") }));
                                                     } else {
-                                                      setImportEditDraft(prev => ({ ...prev, correct: letter }));
+                                                      // Save numeric index: A→1, B→2, C→3, D→4
+                                                      setImportEditDraft(prev => ({ ...prev, correct: numIdx }));
                                                     }
                                                   }}
                                                   style={{ accentColor: "#7c3aed", cursor: "pointer", flexShrink: 0 }}
