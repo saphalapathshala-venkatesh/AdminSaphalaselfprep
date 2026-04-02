@@ -1388,7 +1388,7 @@ export default function QuestionBankPage() {
     }, 200);
   }
 
-  function openImportEdit(idx: number) {
+  async function openImportEdit(idx: number) {
     const row = importRows[idx];
     const data = row.editedData || row.rawData;
     setImportEditIdx(idx);
@@ -1396,11 +1396,37 @@ export default function QuestionBankPage() {
     setImportEditSubjects([]);
     setImportEditTopics([]);
     setImportEditSubtopics([]);
-    // Load subjects if category text is available
-    if (data.category) {
-      const cat = categories.find((c: TaxItem) => c.name.toLowerCase() === data.category.toLowerCase());
-      if (cat) loadImportEditSubjects(cat.id);
-    }
+
+    if (!data.category) return;
+    const cat = categories.find((c: TaxItem) => c.name.toLowerCase() === (data.category || "").toLowerCase());
+    if (!cat) return;
+
+    // Load subjects
+    try {
+      const sRes = await fetch(`/api/taxonomy?level=subject&parentId=${cat.id}`);
+      const sJson = await sRes.json();
+      const subjects: TaxItem[] = sJson.data || [];
+      setImportEditSubjects(subjects);
+
+      if (!data.subject) return;
+      const sub = subjects.find((s: TaxItem) => s.name.toLowerCase() === (data.subject || "").toLowerCase());
+      if (!sub) return;
+
+      // Load topics
+      const tRes = await fetch(`/api/taxonomy?level=topic&parentId=${sub.id}`);
+      const tJson = await tRes.json();
+      const topics: TaxItem[] = tJson.data || [];
+      setImportEditTopics(topics);
+
+      if (!data.topic) return;
+      const top = topics.find((t: TaxItem) => t.name.toLowerCase() === (data.topic || "").toLowerCase());
+      if (!top) return;
+
+      // Load subtopics
+      const stRes = await fetch(`/api/taxonomy?level=subtopic&parentId=${top.id}`);
+      const stJson = await stRes.json();
+      setImportEditSubtopics(stJson.data || []);
+    } catch {}
   }
 
   async function loadImportEditSubjects(categoryId: string) {
