@@ -18,19 +18,27 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   });
   const excludeMap: Record<string, string[]> = {};
   for (const e of existing) {
-    if (!e.sourceId) continue; // EXTERNAL_LINK items have no sourceId
+    if (!e.sourceId) continue;
     if (!excludeMap[e.itemType]) excludeMap[e.itemType] = [];
     excludeMap[e.itemType].push(e.sourceId);
   }
 
   const take = 50;
 
+  // Primary taxonomy filter: subjectId takes precedence over categoryId.
+  // When subjectId is present, filter by subject alone (items may span categories).
+  // When no subjectId is given, fall back to categoryId if provided.
+  const taxonomyFilter = subjectId
+    ? { subjectId }
+    : categoryId
+    ? { categoryId }
+    : {};
+
   if (itemType === "VIDEO") {
     const rows = await prisma.video.findMany({
       where: {
         status: { in: ["READY", "PUBLISHED"] },
-        ...(categoryId ? { categoryId } : {}),
-        ...(subjectId ? { subjectId } : {}),
+        ...taxonomyFilter,
         ...(search ? { title: { contains: search, mode: "insensitive" } } : {}),
         id: { notIn: excludeMap["VIDEO"] || [] },
       },
@@ -45,8 +53,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const rows = await prisma.contentPage.findMany({
       where: {
         isPublished: true,
-        ...(categoryId ? { categoryId } : {}),
-        ...(subjectId ? { subjectId } : {}),
+        ...taxonomyFilter,
         ...(search ? { title: { contains: search, mode: "insensitive" } } : {}),
         id: { notIn: excludeMap["HTML_PAGE"] || [] },
       },
@@ -61,8 +68,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const rows = await prisma.pdfAsset.findMany({
       where: {
         isPublished: true,
-        ...(categoryId ? { categoryId } : {}),
-        ...(subjectId ? { subjectId } : {}),
+        ...taxonomyFilter,
         ...(search ? { title: { contains: search, mode: "insensitive" } } : {}),
         id: { notIn: excludeMap["PDF"] || [] },
       },
@@ -77,8 +83,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const rows = await prisma.flashcardDeck.findMany({
       where: {
         isPublished: true,
-        ...(categoryId ? { categoryId } : {}),
-        ...(subjectId ? { subjectId } : {}),
+        ...taxonomyFilter,
         ...(search ? { title: { contains: search, mode: "insensitive" } } : {}),
         id: { notIn: excludeMap["FLASHCARD_DECK"] || [] },
       },

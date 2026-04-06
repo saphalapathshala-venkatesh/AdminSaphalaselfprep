@@ -120,9 +120,11 @@ export default function CurriculumPage() {
       const params = new URLSearchParams({
         itemType: addItemType,
         search: candidateSearch,
+        // categoryId is always sent as a fallback; the API ignores it when subjectId is present
         ...(addItemPanel.categoryId ? { categoryId: addItemPanel.categoryId } : {}),
-        // Only apply subject filter when active; searching or toggled-off shows all in category
-        ...(subjectFilterActive && addItemPanel.subjectId && !candidateSearch ? { subjectId: addItemPanel.subjectId } : {}),
+        // subjectId is the PRIMARY filter — sent whenever active (including during search).
+        // Toggling off ("Show all") falls back to categoryId only.
+        ...(subjectFilterActive && addItemPanel.subjectId ? { subjectId: addItemPanel.subjectId } : {}),
       });
       const res = await fetch(`/api/lessons/${addItemPanel.lessonId}/candidates?${params}`);
       if (!res.ok) return;
@@ -814,9 +816,9 @@ export default function CurriculumPage() {
             <div style={{ padding: "0.5rem 1rem", background: subjectFilterActive ? "#f5f3ff" : "#fefce8", borderBottom: "1px solid #ede9fe", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, fontSize: "0.75rem", color: subjectFilterActive ? "#5b21b6" : "#854d0e" }}>
               <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <span>🔍</span>
-                {subjectFilterActive && !candidateSearch
-                  ? <span>Showing content tagged to subject: <strong>{addItemPanel.subjectName || "All"}</strong></span>
-                  : <span>Showing <strong>all</strong> content in this category {candidateSearch ? `matching "${candidateSearch}"` : ""}</span>
+                {subjectFilterActive && addItemPanel.subjectId
+                  ? <span>Subject: <strong>{addItemPanel.subjectName}</strong>{candidateSearch ? ` · searching "${candidateSearch}"` : ""}</span>
+                  : <span>Showing <strong>all</strong> in category{candidateSearch ? ` · "${candidateSearch}"` : ""}</span>
                 }
               </span>
               {addItemPanel.subjectId && (
