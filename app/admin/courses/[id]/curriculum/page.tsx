@@ -48,6 +48,7 @@ export default function CurriculumPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [candidateSearch, setCandidateSearch] = useState("");
   const [candidatesLoading, setCandidatesLoading] = useState(false);
+  const [subjectFilterActive, setSubjectFilterActive] = useState(true);
   // External link form (used when addItemType === "EXTERNAL_LINK")
   const [extLinkForm, setExtLinkForm] = useState({ title: "", url: "", description: "", unlockAt: "" });
   const [extLinkSaving, setExtLinkSaving] = useState(false);
@@ -120,16 +121,23 @@ export default function CurriculumPage() {
         itemType: addItemType,
         search: candidateSearch,
         ...(addItemPanel.categoryId ? { categoryId: addItemPanel.categoryId } : {}),
-        ...(addItemPanel.subjectId ? { subjectId: addItemPanel.subjectId } : {}),
+        // Only apply subject filter when active; searching or toggled-off shows all in category
+        ...(subjectFilterActive && addItemPanel.subjectId && !candidateSearch ? { subjectId: addItemPanel.subjectId } : {}),
       });
       const res = await fetch(`/api/lessons/${addItemPanel.lessonId}/candidates?${params}`);
       if (!res.ok) return;
       setCandidates(await res.json());
     } catch { /* ignore */ }
     finally { setCandidatesLoading(false); }
-  }, [addItemPanel, addItemType, candidateSearch]);
+  }, [addItemPanel, addItemType, candidateSearch, subjectFilterActive]);
 
-  useEffect(() => { if (addItemPanel && addItemType) loadCandidates(); }, [addItemPanel, addItemType, candidateSearch, loadCandidates]);
+  // Reset subject filter and search when panel or type changes
+  useEffect(() => {
+    setSubjectFilterActive(true);
+    setCandidateSearch("");
+  }, [addItemPanel?.lessonId, addItemType]);
+
+  useEffect(() => { if (addItemPanel && addItemType) loadCandidates(); }, [addItemPanel, addItemType, candidateSearch, subjectFilterActive, loadCandidates]);
 
   // ─── Linked content actions ─────────────────────────────────
 
@@ -803,9 +811,22 @@ export default function CurriculumPage() {
               <button onClick={() => setAddItemPanel(null)} style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", fontSize: "1.125rem", color: "#64748b" }}>×</button>
             </div>
             {/* Active filter context banner */}
-            <div style={{ padding: "0.5rem 1rem", background: "#f5f3ff", borderBottom: "1px solid #ede9fe", display: "flex", alignItems: "center", gap: 6, fontSize: "0.75rem", color: "#5b21b6" }}>
-              <span>🔍</span>
-              <span>Showing content tagged to subject: <strong>{addItemPanel.subjectName || "All"}</strong></span>
+            <div style={{ padding: "0.5rem 1rem", background: subjectFilterActive ? "#f5f3ff" : "#fefce8", borderBottom: "1px solid #ede9fe", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, fontSize: "0.75rem", color: subjectFilterActive ? "#5b21b6" : "#854d0e" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <span>🔍</span>
+                {subjectFilterActive && !candidateSearch
+                  ? <span>Showing content tagged to subject: <strong>{addItemPanel.subjectName || "All"}</strong></span>
+                  : <span>Showing <strong>all</strong> content in this category {candidateSearch ? `matching "${candidateSearch}"` : ""}</span>
+                }
+              </span>
+              {addItemPanel.subjectId && (
+                <button
+                  onClick={() => setSubjectFilterActive(v => !v)}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.7rem", fontWeight: 700, color: subjectFilterActive ? "#7c3aed" : "#92400e", textDecoration: "underline", padding: 0, whiteSpace: "nowrap" }}
+                >
+                  {subjectFilterActive ? "Show all →" : "← Subject only"}
+                </button>
+              )}
             </div>
 
             {/* Type selector */}
@@ -888,8 +909,15 @@ export default function CurriculumPage() {
                     </div>
                     <div style={{ color: "#94a3b8", fontSize: "0.76rem", lineHeight: 1.5 }}>
                       {candidateSearch
-                        ? <>No results for "{candidateSearch}".</>
-                        : <>No published {contentTypeLabel(addItemType as "VIDEO")} are tagged to the subject <strong style={{ color: "#5b21b6" }}>{addItemPanel?.subjectName}</strong>. Go to the {contentTypeLabel(addItemType as "VIDEO")} section, create or edit content, and assign it to this subject.</>
+                        ? <>No results for &ldquo;{candidateSearch}&rdquo;.</>
+                        : subjectFilterActive && addItemPanel?.subjectId
+                          ? <>
+                              No published {contentTypeLabel(addItemType as "VIDEO")} are tagged to the subject <strong style={{ color: "#5b21b6" }}>{addItemPanel?.subjectName}</strong>.{" "}
+                              <button onClick={() => setSubjectFilterActive(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#7c3aed", fontWeight: 700, fontSize: "0.76rem", textDecoration: "underline", padding: 0 }}>
+                                Show all in this category →
+                              </button>
+                            </>
+                          : <>No published {contentTypeLabel(addItemType as "VIDEO")} found in this category.</>
                       }
                     </div>
                   </div>
