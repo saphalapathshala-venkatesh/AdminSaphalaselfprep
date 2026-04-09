@@ -159,3 +159,111 @@ function generatePassword(): string {
   const raw = Math.random().toString(36).slice(2).padEnd(6, "0");
   return raw.slice(0, 6).toUpperCase();
 }
+
+// ─── Zoom Poll Helpers ────────────────────────────────────────────────────────
+
+export interface ZoomPollQuestion {
+  name: string;
+  /** "single" = one answer, "multiple" = multiple answers allowed */
+  type: "single" | "multiple";
+  answers: string[];
+}
+
+export interface ZoomPoll {
+  id: string;
+  title: string;
+  questions: ZoomPollQuestion[];
+}
+
+/**
+ * List all polls for a Zoom meeting.
+ */
+export async function listZoomPolls(meetingId: string): Promise<ZoomPoll[]> {
+  const token = await getAccessToken();
+  const res = await fetch(`https://api.zoom.us/v2/meetings/${meetingId}/polls`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    if (res.status === 404) return [];
+    const err = await res.text();
+    throw new Error(`Zoom list polls error ${res.status}: ${err}`);
+  }
+  const data = await res.json();
+  return (data.polls || []) as ZoomPoll[];
+}
+
+/**
+ * Create a poll for a Zoom meeting.
+ * Each poll has a title and one or more questions with answer options.
+ */
+export async function createZoomPoll(
+  meetingId: string,
+  input: { title: string; questions: ZoomPollQuestion[] }
+): Promise<ZoomPoll> {
+  const token = await getAccessToken();
+  const res = await fetch(`https://api.zoom.us/v2/meetings/${meetingId}/polls`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      title: input.title,
+      questions: input.questions.map(q => ({
+        name: q.name,
+        type: q.type,
+        answers: q.answers,
+      })),
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Zoom create poll error ${res.status}: ${err}`);
+  }
+  return await res.json() as ZoomPoll;
+}
+
+/**
+ * Update an existing Zoom poll.
+ */
+export async function updateZoomPoll(
+  meetingId: string,
+  pollId: string,
+  input: { title: string; questions: ZoomPollQuestion[] }
+): Promise<void> {
+  const token = await getAccessToken();
+  const res = await fetch(`https://api.zoom.us/v2/meetings/${meetingId}/polls/${pollId}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      title: input.title,
+      questions: input.questions.map(q => ({
+        name: q.name,
+        type: q.type,
+        answers: q.answers,
+      })),
+    }),
+  });
+  if (!res.ok && res.status !== 204) {
+    const err = await res.text();
+    throw new Error(`Zoom update poll error ${res.status}: ${err}`);
+  }
+}
+
+/**
+ * Delete a Zoom poll. Silently ignores 404.
+ */
+export async function deleteZoomPoll(meetingId: string, pollId: string): Promise<void> {
+  const token = await getAccessToken();
+  const res = await fetch(`https://api.zoom.us/v2/meetings/${meetingId}/polls/${pollId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok && res.status !== 404 && res.status !== 204) {
+    const err = await res.text();
+    throw new Error(`Zoom delete poll error ${res.status}: ${err}`);
+  }
+}
