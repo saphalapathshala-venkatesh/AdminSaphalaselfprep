@@ -22,9 +22,10 @@ export async function GET(req: NextRequest) {
   const where: any = { tenantId: "default" };
   if (search) where.title = { contains: search, mode: "insensitive" };
   if (status) where.status = status;
-  if (courseId) where.courseId = courseId;
   if (facultyId) where.facultyId = facultyId;
   if (platform) where.platform = platform;
+  // courseId filter: match either the legacy field OR the junction table
+  if (courseId) where.OR = [{ courseId }, { courses: { some: { courseId } } }];
 
   try {
     const [items, total] = await Promise.all([
@@ -36,6 +37,7 @@ export async function GET(req: NextRequest) {
         include: {
           faculty: { select: { id: true, name: true } },
           course: { select: { id: true, name: true } },
+          courses: { select: { courseId: true, course: { select: { id: true, name: true } } } },
           createdBy: { select: { id: true, email: true } },
         },
       }),
@@ -55,7 +57,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      title, description, facultyId, courseId, categoryId, examId, subjectId, topicId, subtopicId,
+      title, description, facultyId, courseIds, categoryId, examId, subjectId, topicId, subtopicId,
       sessionDate, startTime, endTime, accessType, status,
       platform, joinUrl, sessionCode, thumbnailUrl,
       notifyLearners, recordingPolicy, unlockAt,
@@ -63,13 +65,16 @@ export async function POST(req: NextRequest) {
 
     if (!title?.trim()) return NextResponse.json({ error: "title is required" }, { status: 400 });
 
+    const selectedCourseIds: string[] = Array.isArray(courseIds) ? courseIds.filter(Boolean) : [];
+
     const lc = await prisma.liveClass.create({
       data: {
         tenantId: "default",
         title: title.trim(),
         description: description?.trim() || null,
         facultyId: facultyId || null,
-        courseId: courseId || null,
+        // legacy single courseId — keep first selected course for backward compat
+        courseId: selectedCourseIds[0] || null,
         categoryId: categoryId || null,
         examId: examId || null,
         subjectId: subjectId || null,
@@ -88,10 +93,15 @@ export async function POST(req: NextRequest) {
         recordingPolicy: recordingPolicy || "NO_RECORD",
         unlockAt: unlockAt ? new Date(unlockAt) : null,
         createdById: user.id,
+        // create junction records for all selected courses
+        courses: selectedCourseIds.length > 0
+          ? { create: selectedCourseIds.map(cid => ({ courseId: cid })) }
+          : undefined,
       },
       include: {
         faculty: { select: { id: true, name: true } },
         course: { select: { id: true, name: true } },
+        courses: { select: { courseId: true, course: { select: { id: true, name: true } } } },
       },
     });
 

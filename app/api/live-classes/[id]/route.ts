@@ -15,6 +15,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     include: {
       faculty: { select: { id: true, name: true, title: true } },
       course: { select: { id: true, name: true } },
+      courses: { select: { courseId: true, course: { select: { id: true, name: true } } } },
       createdBy: { select: { id: true, email: true } },
     },
   });
@@ -32,7 +33,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const {
-      title, description, facultyId, courseId, categoryId, examId, subjectId, topicId, subtopicId,
+      title, description, facultyId, courseIds, categoryId, examId, subjectId, topicId, subtopicId,
       sessionDate, startTime, endTime, accessType, status,
       platform, joinUrl, sessionCode, thumbnailUrl,
       notifyLearners, recordingPolicy, replayVideoId, publishedAt, unlockAt,
@@ -40,13 +41,21 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
     const wasPublished = existing.status !== "PUBLISHED" && status === "PUBLISHED";
 
+    // Handle courseIds sync if provided
+    const selectedCourseIds: string[] | undefined = Array.isArray(courseIds)
+      ? courseIds.filter(Boolean)
+      : undefined;
+
     const updated = await prisma.liveClass.update({
       where: { id: params.id },
       data: {
         title: title?.trim() || existing.title,
         description: description !== undefined ? (description?.trim() || null) : existing.description,
         facultyId: facultyId !== undefined ? (facultyId || null) : existing.facultyId,
-        courseId: courseId !== undefined ? (courseId || null) : existing.courseId,
+        // legacy courseId stays in sync with first selected course
+        courseId: selectedCourseIds !== undefined
+          ? (selectedCourseIds[0] || null)
+          : (body.courseId !== undefined ? (body.courseId || null) : existing.courseId),
         categoryId: categoryId !== undefined ? (categoryId || null) : existing.categoryId,
         examId: examId !== undefined ? (examId || null) : existing.examId,
         subjectId: subjectId !== undefined ? (subjectId || null) : existing.subjectId,
@@ -66,10 +75,18 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         replayVideoId: replayVideoId !== undefined ? (replayVideoId || null) : existing.replayVideoId,
         publishedAt: wasPublished ? new Date() : (publishedAt !== undefined ? (publishedAt ? new Date(publishedAt) : null) : existing.publishedAt),
         unlockAt: unlockAt !== undefined ? (unlockAt ? new Date(unlockAt) : null) : existing.unlockAt,
+        // sync junction table when courseIds is explicitly sent
+        ...(selectedCourseIds !== undefined ? {
+          courses: {
+            deleteMany: {},
+            create: selectedCourseIds.map(cid => ({ courseId: cid })),
+          },
+        } : {}),
       },
       include: {
         faculty: { select: { id: true, name: true } },
         course: { select: { id: true, name: true } },
+        courses: { select: { courseId: true, course: { select: { id: true, name: true } } } },
       },
     });
 
@@ -97,8 +114,6 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       return NextResponse.json({ error: "Only SUPER_ADMIN can delete a published or completed session" }, { status: 403 });
     }
 
-    // Fire-and-forget: clean up the Zoom meeting before deleting the record.
-    // Silently swallowed — never blocks deletion even if Zoom API is unavailable.
     if (existing.zoomMeetingId) {
       deleteZoomMeeting(existing.zoomMeetingId).catch(err =>
         console.warn(`[Zoom] Could not delete meeting ${existing.zoomMeetingId} for LiveClass ${params.id}:`, err)

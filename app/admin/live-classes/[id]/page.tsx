@@ -37,8 +37,17 @@ export default function EditLiveClassPage() {
   const [subtopics, setSubtopics] = useState<TaxOption[]>([]);
   const [videos, setVideos] = useState<{ id: string; title: string }[]>([]);
 
+  // Multi-course selection
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
+  const [courseSearch, setCourseSearch] = useState("");
+
+  // Add Faculty inline modal
+  const [showAddFaculty, setShowAddFaculty] = useState(false);
+  const [addFacultyForm, setAddFacultyForm] = useState({ name: "", title: "" });
+  const [addFacultyLoading, setAddFacultyLoading] = useState(false);
+
   const [form, setForm] = useState({
-    title: "", description: "", facultyId: "", courseId: "",
+    title: "", description: "", facultyId: "",
     categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "",
     sessionDate: "", startTime: "", endTime: "",
     accessType: "FREE", status: "DRAFT",
@@ -72,7 +81,7 @@ export default function EditLiveClassPage() {
         if (lc.unlockAt) unlockAt = new Date(lc.unlockAt).toISOString().slice(0, 16);
         setForm({
           title: lc.title || "", description: lc.description || "",
-          facultyId: lc.facultyId || "", courseId: lc.courseId || "",
+          facultyId: lc.facultyId || "",
           categoryId: lc.categoryId || "", examId: lc.examId || "",
           subjectId: lc.subjectId || "", topicId: lc.topicId || "", subtopicId: lc.subtopicId || "",
           sessionDate, startTime: lc.startTime || "", endTime: lc.endTime || "",
@@ -85,6 +94,12 @@ export default function EditLiveClassPage() {
           replayVideoId: lc.replayVideoId || "",
           unlockAt,
         });
+        // Populate selected courses from junction table
+        const junctionIds: string[] = (lc.courses || []).map((c: any) => c.courseId);
+        // Also include legacy courseId if not already in junction
+        if (lc.courseId && !junctionIds.includes(lc.courseId)) junctionIds.push(lc.courseId);
+        setSelectedCourseIds(junctionIds);
+
         setZoom({ meetingId: lc.zoomMeetingId || null, password: lc.zoomPassword || null, startUrl: lc.zoomStartUrl || null });
         if (lc.categoryId) fetch(`/api/taxonomy?level=subject&parentId=${lc.categoryId}`).then(r => r.json()).then(j => setSubjects(j.data || []));
         if (lc.subjectId) fetch(`/api/taxonomy?level=topic&parentId=${lc.subjectId}`).then(r => r.json()).then(j => setTopics(j.data || []));
@@ -117,6 +132,36 @@ export default function EditLiveClassPage() {
     if (val) fetch(`/api/taxonomy?level=subtopic&parentId=${val}`).then(r => r.json()).then(j => setSubtopics(j.data || []));
   }
 
+  function toggleCourse(courseId: string) {
+    setSelectedCourseIds(prev =>
+      prev.includes(courseId) ? prev.filter(i => i !== courseId) : [...prev, courseId]
+    );
+  }
+
+  async function handleAddFaculty() {
+    if (!addFacultyForm.name.trim()) return;
+    setAddFacultyLoading(true);
+    try {
+      const res = await fetch("/api/faculty", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: addFacultyForm.name.trim(), title: addFacultyForm.title.trim() || undefined }),
+      });
+      const json = await res.json();
+      if (!res.ok) { showToast(json.error || "Failed to create faculty", false); return; }
+      const newFaculty = json.data;
+      setFaculties(prev => [...prev, { id: newFaculty.id, name: newFaculty.name, title: newFaculty.title }].sort((a, b) => a.name.localeCompare(b.name)));
+      set("facultyId", newFaculty.id);
+      setShowAddFaculty(false);
+      setAddFacultyForm({ name: "", title: "" });
+      showToast(`Faculty "${newFaculty.name}" added`);
+    } catch {
+      showToast("Failed to create faculty", false);
+    } finally {
+      setAddFacultyLoading(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.title.trim()) { showToast("Title is required", false); return; }
@@ -124,7 +169,7 @@ export default function EditLiveClassPage() {
     const payload = {
       ...form,
       facultyId: form.facultyId || null,
-      courseId: form.courseId || null,
+      courseIds: selectedCourseIds,
       categoryId: form.categoryId || null,
       examId: form.examId || null,
       replayVideoId: form.replayVideoId || null,
@@ -163,10 +208,7 @@ export default function EditLiveClassPage() {
     });
     const json = await res.json();
     setZoomWorking(false);
-    if (!res.ok) {
-      showToast(json.error || "Zoom error", false);
-      return;
-    }
+    if (!res.ok) { showToast(json.error || "Zoom error", false); return; }
     if (action === "create") {
       const d = json.data;
       setZoom({ meetingId: d.zoomMeetingId, password: d.password, startUrl: d.startUrl });
@@ -185,10 +227,52 @@ export default function EditLiveClassPage() {
 
   const hasZoomMeeting = Boolean(zoom.meetingId);
   const isZoomPlatform = form.platform === "ZOOM";
+  const filteredCourses = courses.filter(c =>
+    !courseSearch || c.name.toLowerCase().includes(courseSearch.toLowerCase())
+  );
 
   return (
     <div style={{ maxWidth: 860 }}>
       {toast && <div style={{ position: "fixed", top: 20, right: 24, zIndex: 9999, background: toast.ok ? "#15803d" : "#991b1b", color: "#fff", padding: "0.625rem 1.25rem", borderRadius: "8px", fontSize: "0.875rem", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>{toast.msg}</div>}
+
+      {/* Add Faculty Modal */}
+      {showAddFaculty && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#fff", borderRadius: "12px", padding: "1.75rem", width: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ margin: "0 0 1.25rem", fontSize: "1rem", fontWeight: 700, color: "#0f172a" }}>Add New Faculty</h3>
+            <div style={{ marginBottom: "0.875rem" }}>
+              <label style={labelStyle}>Name *</label>
+              <input
+                autoFocus
+                value={addFacultyForm.name}
+                onChange={e => setAddFacultyForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="e.g. Dr. Ramesh Kumar"
+                style={inputStyle}
+                onKeyDown={e => e.key === "Enter" && handleAddFaculty()}
+              />
+            </div>
+            <div style={{ marginBottom: "1.25rem" }}>
+              <label style={labelStyle}>Title / Designation <span style={{ fontWeight: 400, color: "#94a3b8" }}>(optional)</span></label>
+              <input
+                value={addFacultyForm.title}
+                onChange={e => setAddFacultyForm(f => ({ ...f, title: e.target.value }))}
+                placeholder="e.g. Maths Expert · 15 yrs experience"
+                style={inputStyle}
+              />
+            </div>
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+              <button type="button" onClick={() => { setShowAddFaculty(false); setAddFacultyForm({ name: "", title: "" }); }}
+                style={{ padding: "0.5rem 1.25rem", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem", color: "#475569" }}>
+                Cancel
+              </button>
+              <button type="button" onClick={handleAddFaculty} disabled={addFacultyLoading || !addFacultyForm.name.trim()}
+                style={{ padding: "0.5rem 1.25rem", borderRadius: "8px", border: "none", background: PURPLE, color: "#fff", cursor: (!addFacultyForm.name.trim() || addFacultyLoading) ? "not-allowed" : "pointer", fontWeight: 700, fontSize: "0.875rem", opacity: !addFacultyForm.name.trim() ? 0.6 : 1 }}>
+                {addFacultyLoading ? "Adding…" : "Add Faculty"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirmDelete && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -231,22 +315,22 @@ export default function EditLiveClassPage() {
             <label style={labelStyle}>Description</label>
             <textarea value={form.description} onChange={e => set("description", e.target.value)} rows={3} style={{ ...inputStyle, resize: "vertical" }} />
           </div>
-          <div style={rowStyle}>
-            <div>
-              <label style={labelStyle}>Faculty</label>
-              <select value={form.facultyId} onChange={e => set("facultyId", e.target.value)} style={inputStyle}>
-                <option value="">— Select Faculty —</option>
-                {faculties.map(f => <option key={f.id} value={f.id}>{f.name}{f.title ? ` (${f.title})` : ""}</option>)}
-              </select>
+
+          {/* Faculty row with Add Faculty button */}
+          <div style={{ marginBottom: "1rem" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.375rem" }}>
+              <label style={{ ...labelStyle, marginBottom: 0 }}>Faculty</label>
+              <button type="button" onClick={() => setShowAddFaculty(true)}
+                style={{ display: "flex", alignItems: "center", gap: 4, padding: "0.25rem 0.625rem", borderRadius: "6px", border: `1px solid ${PURPLE}`, background: "#f5f3ff", color: PURPLE, cursor: "pointer", fontSize: "0.75rem", fontWeight: 700 }}>
+                + Add Faculty
+              </button>
             </div>
-            <div>
-              <label style={labelStyle}>Course</label>
-              <select value={form.courseId} onChange={e => set("courseId", e.target.value)} style={inputStyle}>
-                <option value="">— Select Course —</option>
-                {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
+            <select value={form.facultyId} onChange={e => set("facultyId", e.target.value)} style={inputStyle}>
+              <option value="">— Select Faculty —</option>
+              {faculties.map(f => <option key={f.id} value={f.id}>{f.name}{f.title ? ` (${f.title})` : ""}</option>)}
+            </select>
           </div>
+
           <div style={rowStyle}>
             <div>
               <label style={labelStyle}>Category</label>
@@ -285,6 +369,55 @@ export default function EditLiveClassPage() {
               <option value="">— No Subtopic —</option>
               {subtopics.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
+          </div>
+        </div>
+
+        {/* Courses section — multi-checkbox */}
+        <div style={sectionStyle}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem", paddingBottom: "0.75rem", borderBottom: "1px solid #f1f5f9" }}>
+            <div style={{ fontSize: "0.9375rem", fontWeight: 700, color: "#0f172a" }}>
+              Courses
+              {selectedCourseIds.length > 0 && (
+                <span style={{ marginLeft: 8, background: PURPLE, color: "#fff", borderRadius: "999px", padding: "0.1rem 0.5rem", fontSize: "0.7rem", fontWeight: 700 }}>
+                  {selectedCourseIds.length} selected
+                </span>
+              )}
+            </div>
+            {selectedCourseIds.length > 0 && (
+              <button type="button" onClick={() => setSelectedCourseIds([])}
+                style={{ fontSize: "0.75rem", color: "#dc2626", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+                Clear all
+              </button>
+            )}
+          </div>
+          <p style={{ margin: "0 0 0.875rem", fontSize: "0.8rem", color: "#64748b" }}>
+            Check any number of courses to include this live class. Changes take effect on Save.
+          </p>
+          <input
+            value={courseSearch}
+            onChange={e => setCourseSearch(e.target.value)}
+            placeholder="Search courses…"
+            style={{ ...inputStyle, marginBottom: "0.75rem" }}
+          />
+          <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: "8px" }}>
+            {filteredCourses.length === 0 && (
+              <div style={{ padding: "1rem", color: "#94a3b8", fontSize: "0.8rem", textAlign: "center" }}>
+                {courseSearch ? `No courses matching "${courseSearch}"` : "No courses available"}
+              </div>
+            )}
+            {filteredCourses.map((c, i) => (
+              <label key={c.id} style={{ display: "flex", alignItems: "center", gap: "0.625rem", padding: "0.625rem 0.875rem", cursor: "pointer", background: selectedCourseIds.includes(c.id) ? "#f5f3ff" : i % 2 === 0 ? "#fafafa" : "#fff", borderBottom: i < filteredCourses.length - 1 ? "1px solid #f1f5f9" : "none" }}>
+                <input
+                  type="checkbox"
+                  checked={selectedCourseIds.includes(c.id)}
+                  onChange={() => toggleCourse(c.id)}
+                  style={{ width: 16, height: 16, accentColor: PURPLE, flexShrink: 0 }}
+                />
+                <span style={{ fontSize: "0.875rem", color: selectedCourseIds.includes(c.id) ? PURPLE : "#374151", fontWeight: selectedCourseIds.includes(c.id) ? 600 : 400 }}>
+                  {c.name}
+                </span>
+              </label>
+            ))}
           </div>
         </div>
 

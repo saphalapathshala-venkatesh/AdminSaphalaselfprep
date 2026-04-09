@@ -22,7 +22,7 @@ The console uses a consistent brand palette with purple as the primary CTA color
     - **Admin & User Management**: Secure login/logout, session management, role-based access control, full CRUD for users, roles, devices, and activity logs.
     - **Content Management**: Full CRUD for Taxonomy (Board, Grade, Subject, Topic, Subtopic), Question Bank, Test Series & Tests, Flashcards, and Content Library (HTML pages, PDF asset management). Supports rich content, KaTeX equations, and bilingual questions. Includes content unlock scheduling.
     - **Course Management**: Comprehensive course creation (STANDARD, PACKAGE types) with structured curriculum and an Admin curriculum builder. Supports various course validity types.
-    - **Media Modules**: Full CRUD for Videos (multi-provider support, status lifecycle) and Live Classes (scheduling, platform support, Zoom integration).
+    - **Media Modules**: Full CRUD for Videos (multi-provider support, status lifecycle) and Live Classes (scheduling, platform support, Zoom integration). Live Classes support many-to-many course linking via `LiveClassCourse` junction table (`liveClassId`, `courseId`, `@@unique`). The create/edit forms include an inline "Add Faculty" modal (POST `/api/faculty` inline) and a multi-checkbox course picker. Legacy `LiveClass.courseId` is kept in sync with the first selected course for backward compat.
     - **XP Reward System**: Manages user wallets, source progress, achievements, and ledgers with earning rules and redemption.
     - **Protected Content Gate**: Consent system with logging and watermarking.
     - **Rich Text Editor**: Custom `contentEditable`-based editor for various content fields.
