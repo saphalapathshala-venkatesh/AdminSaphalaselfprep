@@ -1092,6 +1092,7 @@ model Course {
   createdAt               DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   videos         Video[]
+  videoLinks     VideoCourse[]
   liveClasses    LiveClass[]
   liveClassLinks LiveClassCourse[]
   doubts         Doubt[]
@@ -1156,6 +1157,8 @@ model Video {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   doubts           Doubt[]
+  // many-to-many course links (additive; legacy courseId kept for backward compat)
+  courses          VideoCourse[]
   @@index([status])
   @@index([courseId])
   @@index([categoryId])
@@ -1219,6 +1222,17 @@ model LiveClassCourse {
   course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
   @@unique([liveClassId, courseId])
   @@index([liveClassId])
+  @@index([courseId])
+}
+
+model VideoCourse {
+  id        String  @id @default(cuid())
+  videoId   String
+  courseId  String
+  video     Video   @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  course    Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  @@unique([videoId, courseId])
+  @@index([videoId])
   @@index([courseId])
 }
 

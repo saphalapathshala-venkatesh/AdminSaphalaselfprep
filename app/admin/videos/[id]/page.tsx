@@ -60,8 +60,11 @@ export default function EditVideoPage() {
   const [topics, setTopics] = useState<TaxOption[]>([]);
   const [subtopics, setSubtopics] = useState<TaxOption[]>([]);
 
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
+  const [courseSearch, setCourseSearch] = useState("");
+
   const [form, setForm] = useState({
-    title: "", description: "", facultyId: "", courseId: "",
+    title: "", description: "", facultyId: "",
     categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "",
     accessType: "FREE", status: "DRAFT", provider: "MANUAL",
     providerVideoId: "", hlsUrl: "", playbackUrl: "", thumbnailUrl: "",
@@ -85,9 +88,14 @@ export default function EditVideoPage() {
     ]).then(([vj, fj, cj, taxj, examj]) => {
       const v = vj.data;
       if (v) {
+        // Populate multi-course selection from junction, fall back to legacy courseId
+        const junctionIds = Array.isArray(v.courses)
+          ? v.courses.map((vc: any) => vc.courseId || vc.course?.id).filter(Boolean)
+          : [];
+        setSelectedCourseIds(junctionIds.length > 0 ? junctionIds : (v.courseId ? [v.courseId] : []));
         setForm({
           title: v.title || "", description: v.description || "",
-          facultyId: v.facultyId || "", courseId: v.courseId || "",
+          facultyId: v.facultyId || "",
           categoryId: v.categoryId || "", examId: v.examId || "",
           subjectId: v.subjectId || "", topicId: v.topicId || "", subtopicId: v.subtopicId || "",
           accessType: v.accessType || "FREE", status: v.status || "DRAFT",
@@ -155,7 +163,7 @@ export default function EditVideoPage() {
       durationSeconds: parsedDuration,
       lessonOrder: parseInt(form.lessonOrder) || 0,
       facultyId: form.facultyId || null,
-      courseId: form.courseId || null,
+      courseIds: selectedCourseIds,
       categoryId: form.categoryId || null,
       examId: form.examId || null,
       unlockAt: form.unlockAt ? form.unlockAt + ":00+05:30" : null,
@@ -248,11 +256,36 @@ export default function EditVideoPage() {
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Course</label>
-              <select value={form.courseId} onChange={e => set("courseId", e.target.value)} style={inputStyle}>
-                <option value="">— Select Course —</option>
-                {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <label style={labelStyle}>
+                Courses
+                {selectedCourseIds.length > 0 && (
+                  <span style={{ marginLeft: 6, background: "#f5f3ff", color: PURPLE, borderRadius: "999px", padding: "1px 7px", fontSize: "0.7rem", fontWeight: 700, border: "1px solid #ede9fe" }}>
+                    {selectedCourseIds.length} selected
+                  </span>
+                )}
+              </label>
+              <input
+                placeholder="Search courses…"
+                value={courseSearch}
+                onChange={e => setCourseSearch(e.target.value)}
+                style={{ ...inputStyle, marginBottom: "0.375rem" }}
+              />
+              <div style={{ maxHeight: 160, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: "6px", background: "#fafafa" }}>
+                {courses.filter(c => c.name.toLowerCase().includes(courseSearch.toLowerCase())).length === 0 && (
+                  <div style={{ padding: "0.625rem 0.75rem", fontSize: "0.8rem", color: "#94a3b8" }}>No courses match</div>
+                )}
+                {courses.filter(c => c.name.toLowerCase().includes(courseSearch.toLowerCase())).map(c => (
+                  <label key={c.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.375rem 0.75rem", cursor: "pointer", borderBottom: "1px solid #f1f5f9", background: selectedCourseIds.includes(c.id) ? "#f5f3ff" : "transparent" }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedCourseIds.includes(c.id)}
+                      onChange={e => setSelectedCourseIds(prev => e.target.checked ? [...prev, c.id] : prev.filter(x => x !== c.id))}
+                      style={{ accentColor: PURPLE, width: 14, height: 14 }}
+                    />
+                    <span style={{ fontSize: "0.8125rem", color: "#374151" }}>{c.name}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
           <div style={rowStyle}>

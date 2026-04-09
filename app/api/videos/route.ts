@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
         include: {
           faculty: { select: { id: true, name: true } },
           course: { select: { id: true, name: true } },
+          courses: { include: { course: { select: { id: true, name: true } } } },
           createdBy: { select: { id: true, email: true } },
         },
       }),
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      title, description, facultyId, courseId, categoryId, examId, subjectId, topicId, subtopicId,
+      title, description, facultyId, courseId, courseIds, categoryId, examId, subjectId, topicId, subtopicId,
       accessType, status, lessonOrder, durationSeconds, thumbnailUrl,
       provider, providerVideoId, hlsUrl, playbackUrl,
       allowPreview, tags, unlockAt, xpEnabled, xpValue,
@@ -71,13 +72,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "XP value must be set when XP is enabled" }, { status: 400 });
     }
 
+    // Determine legacy courseId: prefer first of courseIds array, fall back to explicit courseId
+    const resolvedCourseIds: string[] = Array.isArray(courseIds) ? courseIds : (courseId ? [courseId] : []);
+    const legacyCourseId = resolvedCourseIds.length > 0 ? resolvedCourseIds[0] : (courseId || null);
+
     const video = await prisma.video.create({
       data: {
         tenantId: "default",
         title: title.trim(),
         description: description?.trim() || null,
         facultyId: facultyId || null,
-        courseId: courseId || null,
+        courseId: legacyCourseId,
         categoryId: categoryId || null,
         examId: examId || null,
         subjectId: subjectId || null,
@@ -102,8 +107,18 @@ export async function POST(req: NextRequest) {
       include: {
         faculty: { select: { id: true, name: true } },
         course: { select: { id: true, name: true } },
+        courses: { include: { course: { select: { id: true, name: true } } } },
       },
     });
+
+    // Create VideoCourse junction records for all selected courses
+    if (resolvedCourseIds.length > 0) {
+      await Promise.all(
+        resolvedCourseIds.map(cid =>
+          prisma.videoCourse.create({ data: { videoId: video.id, courseId: cid } }).catch(() => {})
+        )
+      );
+    }
 
     writeAuditLog({ actorId: user.id, action: "VIDEO_CREATE", entityType: "Video", entityId: video.id, after: { title: video.title, status: video.status } });
     return NextResponse.json({ data: video }, { status: 201 });

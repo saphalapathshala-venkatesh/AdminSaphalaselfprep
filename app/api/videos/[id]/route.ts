@@ -14,6 +14,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     include: {
       faculty: { select: { id: true, name: true, title: true } },
       course: { select: { id: true, name: true } },
+      courses: { include: { course: { select: { id: true, name: true } } } },
       createdBy: { select: { id: true, email: true } },
     },
   });
@@ -35,9 +36,18 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       accessType, status, lessonOrder, durationSeconds, thumbnailUrl,
       provider, providerVideoId, hlsUrl, playbackUrl,
       processingStatus, processingError, allowPreview, tags, publishedAt, unlockAt,
+      courseIds,
     } = body;
 
     const wasPublished = existing.status !== "PUBLISHED" && status === "PUBLISHED";
+
+    // Determine legacy courseId: prefer first of courseIds, fall back to explicit courseId, else keep existing
+    let legacyCourseId: string | null | undefined = existing.courseId;
+    if (Array.isArray(courseIds)) {
+      legacyCourseId = courseIds.length > 0 ? courseIds[0] : null;
+    } else if (courseId !== undefined) {
+      legacyCourseId = courseId || null;
+    }
 
     const updated = await prisma.video.update({
       where: { id: params.id },
@@ -45,7 +55,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         title: title?.trim() || existing.title,
         description: description !== undefined ? (description?.trim() || null) : existing.description,
         facultyId: facultyId !== undefined ? (facultyId || null) : existing.facultyId,
-        courseId: courseId !== undefined ? (courseId || null) : existing.courseId,
+        courseId: legacyCourseId,
         categoryId: categoryId !== undefined ? (categoryId || null) : existing.categoryId,
         examId: examId !== undefined ? (examId || null) : existing.examId,
         subjectId: subjectId !== undefined ? (subjectId || null) : existing.subjectId,
@@ -72,8 +82,28 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       include: {
         faculty: { select: { id: true, name: true } },
         course: { select: { id: true, name: true } },
+        courses: { include: { course: { select: { id: true, name: true } } } },
       },
     });
+
+    // Sync VideoCourse junction table when courseIds is provided
+    if (Array.isArray(courseIds)) {
+      const incoming = new Set(courseIds as string[]);
+      const existing = await prisma.videoCourse.findMany({ where: { videoId: params.id } });
+      const existingSet = new Set(existing.map(vc => vc.courseId));
+
+      const toAdd = Array.from(incoming).filter(cid => !existingSet.has(cid));
+      const toRemove = existing.filter(vc => !incoming.has(vc.courseId)).map(vc => vc.id);
+
+      await Promise.all([
+        ...toAdd.map(cid =>
+          prisma.videoCourse.create({ data: { videoId: params.id, courseId: cid } }).catch(() => {})
+        ),
+        toRemove.length > 0
+          ? prisma.videoCourse.deleteMany({ where: { id: { in: toRemove } } })
+          : Promise.resolve(),
+      ]);
+    }
 
     writeAuditLog({
       actorId: user.id, action: "VIDEO_UPDATE", entityType: "Video", entityId: params.id,
