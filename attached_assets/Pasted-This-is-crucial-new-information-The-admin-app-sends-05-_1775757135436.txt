@@ -1,0 +1,95 @@
+This is crucial new information. The admin app sends +05:30 suffix — meaning the DB may store true UTC, not naive IST. I need to check the actual API endpoints before making any decisions, since this changes everything:
+
+
+3 actions
+This is critical context. The admin app sends +05:30 suffix — meaning it should store true UTC. But the actual DB shows naive values. Let me verify this definitively:
+
+
+3 actions
+Now I have the definitive answer. Let me check the full workspace structure carefully:
+
+
+2 actions
+There's a root-level app/ directory — this is likely the admin app! Let me explore it:
+
+
+3 actions
+The workspace root app/ is just public pages, not the admin app. Now I have the key insight from the DB analysis:
+
+Stored 11:45:00 UTC → if TRUE UTC → 5:15 PM IST (admin typed 17:15 IST)
+Stored 11:45:00 UTC → if naive IST → 11:45 AM IST (admin typed 11:45 IST)
+The admin output is clear: "Admin types 10:30 → API receives 10:30:00+05:30 → DB stores 05:00:00 UTC" — TRUE UTC is stored.
+
+This means our nowIST() fix was based on a wrong assumption in the old code comment. I need to revert all unlock comparisons back to standard UTC, and revert display timezone back to Asia/Kolkata. The live class 5-min window + joinOpensAt label are still correct new features to keep.
+
+
+4 actions
+Now I'll revert all the IST_NOW_SQL / nowIST changes and restore the correct UTC-based comparisons. All changes in parallel:
+
+
+4 actions
+Now revert the unlock comparisons — liveClassDb, contentDb, testhubDb, and SQL files:
+
+
+4 actions
+Now revert contentDb.ts:
+
+
+6 actions
+Now revert testhubDb.ts, practiceDb.ts, dashboardData.ts, and CurriculumAccordion.tsx simultaneously:
+
+
+4 actions
+Now revert practiceDb.ts and dashboardData.ts SQL:
+
+
+2 actions
+Now revert the three display timezone fixes — from timeZone: "UTC" back to the correct "Asia/Kolkata" for true UTC dates:
+
+
+4 actions
+Now update the lib/formatIST.ts comment to accurately reflect how the admin app works:
+
+
+2 actions
+Now do a final verification — check that nowIST is no longer referenced anywhere and run TypeScript:
+
+
+3 actions
+Clean — only the comment reference remains. Now TypeScript check:
+
+
+2 actions
+TypeScript is clean. Restarting:
+
+
+5 actions
+Here's the complete picture of what was found and fixed:
+
+What the cross-check revealed:
+
+The admin app works correctly — it appends +05:30 to every datetime before sending to the API, so the database stores true UTC (admin types 17:15 IST → DB stores 11:45 UTC). The previous nowIST() changes were based on an old incorrect code comment and would have unlocked content 5.5 hours early. All of those have been fully reverted.
+
+What was kept (the genuinely correct new changes):
+
+Live class join window: 10 min → 5 minutes before start
+"Join opens at X:XX PM IST" label on both the card and detail page
+Date displays now use explicit Asia/Kolkata timezone everywhere (not browser-dependent)
+What the admin app analysis identified as admin-side issues (these are in the external admin app, outside this codebase):
+
+Issue	Where	Status
+Flashcard unlock preview hint uses browser timezone instead of IST	Admin app frontend	Cannot fix from here
+Edit forms for Live Classes, Videos, Ebooks, PDFs show raw UTC time instead of IST when reopening a saved record	Admin app frontend	Cannot fix from here
+The admin app already correctly handles Tests (it has a toISTDatetimeLocal() helper). The same pattern needs to be applied to all other product types in the admin app. If you can share that admin app's code, I can fix it there too.
+
+
+Checkpoint made
+1 minute ago
+
+Worked for 8 minutes
+
+Scroll to latest
+
+Make, test, iterate…
+
+
