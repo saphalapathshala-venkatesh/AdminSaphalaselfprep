@@ -6,6 +6,13 @@ import Link from "next/link";
 import AdminImageUploader from "@/components/admin/AdminImageUploader";
 
 const PURPLE = "#7c3aed";
+
+function toISTDatetimeLocal(utcStr: string): string {
+  const d = new Date(utcStr);
+  const istMs = d.getTime() + (5 * 60 + 30) * 60 * 1000;
+  return new Date(istMs).toISOString().slice(0, 16);
+}
+
 const inputStyle: React.CSSProperties = { width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "0.875rem", outline: "none", background: "#fff", boxSizing: "border-box" };
 const labelStyle: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "0.375rem" };
 const sectionStyle: React.CSSProperties = { background: "#fff", borderRadius: "12px", padding: "1.5rem", boxShadow: "0 1px 3px rgba(0,0,0,0.07)", marginBottom: "1.5rem" };
@@ -106,7 +113,7 @@ export default function EditVideoPage() {
           lessonOrder: v.lessonOrder != null ? String(v.lessonOrder) : "0",
           allowPreview: Boolean(v.allowPreview),
           tags: Array.isArray(v.tags) ? v.tags.join(", ") : "",
-          unlockAt: v.unlockAt ? v.unlockAt.slice(0, 16) : "",
+          unlockAt: v.unlockAt ? toISTDatetimeLocal(v.unlockAt) : "",
           xpEnabled: Boolean(v.xpEnabled),
           xpValue: v.xpValue != null ? String(v.xpValue) : "",
         });

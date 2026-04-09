@@ -1,13 +1,21 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+
 import { SUBJECT_COLOR_LIST, DEFAULT_SUBJECT_COLOR } from "@/lib/subjectColors";
 import { TITLE_TEMPLATES } from "@/lib/titleTemplates";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import AdminImageUploader from "@/components/admin/AdminImageUploader";
+
 import BlockEditor from "@/components/ui/BlockEditor";
 import { BlockDoc, isBlockDoc } from "@/lib/blocks/schema";
 import { htmlToBlocks, emptyDocWithParagraph, blocksToHtmlString } from "@/lib/blocks/defaults";
+
+function toISTDatetimeLocal(utcStr: string): string {
+  const d = new Date(utcStr);
+  const istMs = d.getTime() + (5 * 60 + 30) * 60 * 1000;
+  return new Date(istMs).toISOString().slice(0, 16);
+}
 
 const CARD_TYPES = [
   { value: "TITLE",          label: "Title Card",              desc: "Deck cover / opener" },
@@ -198,7 +206,7 @@ export default function FlashcardsPage() {
     titleTemplate: d.titleTemplate || "minimal_academic",
     titleImageUrl: d.titleImageUrl || "", subjectColor: d.subjectColor || "",
     xpEnabled: d.xpEnabled || false, xpValue: d.xpValue != null ? String(d.xpValue) : "",
-    unlockAt: (d as any).unlockAt ? (d as any).unlockAt.slice(0, 16) : "",
+    unlockAt: (d as any).unlockAt ? toISTDatetimeLocal((d as any).unlockAt) : "",
   });
 
   const selectDeck = (d: FlashcardDeck) => {
@@ -733,7 +741,7 @@ export default function FlashcardsPage() {
       <div style={{ marginBottom: "6px" }}>
         <label style={labelStyle}>Unlock At <span style={{ fontWeight: 400, color: "#94a3b8" }}>(optional — leave blank for immediate access)</span></label>
         <input type="datetime-local" style={inputStyle} value={form.unlockAt} onChange={(e) => setForm({ ...form, unlockAt: e.target.value })} />
-        {form.unlockAt && <p style={{ margin: "3px 0 0", fontSize: "0.72rem", color: "#7c3aed" }}>Students can access this deck from {new Date(form.unlockAt).toLocaleString()} onwards.</p>}
+        {form.unlockAt && <p style={{ margin: "3px 0 0", fontSize: "0.72rem", color: "#7c3aed" }}>Students can access this deck from {new Date(form.unlockAt + ":00+05:30").toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST onwards.</p>}
       </div>
     </div>
   );

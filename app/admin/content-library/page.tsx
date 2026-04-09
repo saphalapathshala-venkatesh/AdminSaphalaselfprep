@@ -1,9 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+
 import BlockEditor from "@/components/ui/BlockEditor";
 import { BlockDoc, isBlockDoc } from "@/lib/blocks/schema";
 import { htmlToBlocks, emptyDocWithParagraph } from "@/lib/blocks/defaults";
+
+function toISTDatetimeLocal(utcStr: string): string {
+  const d = new Date(utcStr);
+  const istMs = d.getTime() + (5 * 60 + 30) * 60 * 1000;
+  return new Date(istMs).toISOString().slice(0, 16);
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -208,7 +215,7 @@ export default function ContentLibraryPage() {
         isPublished: fullRecord.isPublished,
         xpEnabled: !!(fullRecord as any).xpEnabled,
         xpValue: (fullRecord as any).xpValue != null ? String((fullRecord as any).xpValue) : "0",
-        unlockAt: (fullRecord as any).unlockAt ? (fullRecord as any).unlockAt.slice(0, 16) : "",
+        unlockAt: (fullRecord as any).unlockAt ? toISTDatetimeLocal((fullRecord as any).unlockAt) : "",
       });
       if (catId) setSubjects(await loadTax("subject", catId));
       if (subId) setTopics(await loadTax("topic", subId));
@@ -384,7 +391,7 @@ export default function ContentLibraryPage() {
       topicId: pdf.topicId || "",
       subtopicId: pdf.subtopicId || "",
       isPublished: pdf.isPublished,
-      unlockAt: (pdf as any).unlockAt ? (pdf as any).unlockAt.slice(0, 16) : "",
+      unlockAt: (pdf as any).unlockAt ? toISTDatetimeLocal((pdf as any).unlockAt) : "",
     });
     if (pdf.categoryId) setSubjects(await loadTax("subject", pdf.categoryId));
     if (pdf.subjectId) setTopics(await loadTax("topic", pdf.subjectId));
