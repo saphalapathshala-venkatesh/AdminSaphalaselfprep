@@ -165,6 +165,7 @@ export async function POST(req: NextRequest) {
       rawSubject: string | null;
       rawTopic: string | null;
       rawSubtopic: string | null;
+      newItems: string[];
     }> = {};
 
     const allValidRows = validationResults
@@ -183,10 +184,11 @@ export async function POST(req: NextRequest) {
       let subjectId:  string | null = null;
       let topicId:    string | null = null;
       let subtopicId: string | null = null;
+      const newItems: string[] = [];
 
       try {
         if (rawCategory) {
-          // ── Category: find only
+          // ── Category: find only (never auto-created)
           const cat = await prisma.category.findFirst({
             where: { name: { equals: rawCategory, mode: "insensitive" } },
           });
@@ -195,30 +197,55 @@ export async function POST(req: NextRequest) {
             categoryId = cat.id;
 
             if (rawSubject) {
-              // ── Subject: global dedup via resolveOrCreateSubject
-              // Finds the subject globally, adds a CategorySubject link if needed,
-              // and only creates a new record when truly absent everywhere.
+              // ── Subject: global dedup — no duplicate records ever created
+              // Check existence before calling the helper so we can tell the
+              // review form whether this is a brand-new subject or a shared one.
+              const subjectExistsAnywhere = await prisma.subject.findFirst({
+                where: { name: { equals: rawSubject, mode: "insensitive" } },
+              });
+              const subjectExistsHere = subjectExistsAnywhere
+                ? await prisma.subject.findFirst({
+                    where: { categoryId: cat.id, name: { equals: rawSubject, mode: "insensitive" } },
+                  })
+                : null;
+
               subjectId = await resolveOrCreateSubject(cat.id, rawSubject);
 
-              if (rawTopic) {
+              if (!subjectExistsAnywhere) {
+                newItems.push(`New subject "${rawSubject}" created`);
+              } else if (!subjectExistsHere) {
+                newItems.push(`Subject "${rawSubject}" linked to ${rawCategory} (shared from ${subjectExistsAnywhere.categoryId === cat.id ? rawCategory : "another category"})`);
+              }
+
+              if (rawTopic && subjectId) {
                 // ── Topic: find under resolved subject; create if absent
                 const existingTop = await prisma.topic.findFirst({
-                  where: { subjectId: sub.id, name: { equals: rawTopic, mode: "insensitive" } },
+                  where: { subjectId, name: { equals: rawTopic, mode: "insensitive" } },
                 });
-                const top = existingTop ?? await prisma.topic.create({
-                  data: { name: rawTopic, subjectId: sub.id },
-                });
-                topicId = top.id;
+                if (existingTop) {
+                  topicId = existingTop.id;
+                } else {
+                  const newTop = await prisma.topic.create({
+                    data: { name: rawTopic, subjectId },
+                  });
+                  topicId = newTop.id;
+                  newItems.push(`New topic "${rawTopic}" added to ${rawSubject}`);
+                }
 
-                if (rawSubtopic) {
+                if (rawSubtopic && topicId) {
                   // ── Subtopic: find under resolved topic; create if absent
                   const existingSt = await prisma.subtopic.findFirst({
-                    where: { topicId: top.id, name: { equals: rawSubtopic, mode: "insensitive" } },
+                    where: { topicId, name: { equals: rawSubtopic, mode: "insensitive" } },
                   });
-                  const st = existingSt ?? await prisma.subtopic.create({
-                    data: { name: rawSubtopic, topicId: top.id },
-                  });
-                  subtopicId = st.id;
+                  if (existingSt) {
+                    subtopicId = existingSt.id;
+                  } else {
+                    const newSt = await prisma.subtopic.create({
+                      data: { name: rawSubtopic, topicId },
+                    });
+                    subtopicId = newSt.id;
+                    newItems.push(`New subtopic "${rawSubtopic}" added to ${rawTopic}`);
+                  }
                 }
               }
             }
@@ -231,6 +258,7 @@ export async function POST(req: NextRequest) {
       taxoResolved[rowNumber] = {
         categoryId, subjectId, topicId, subtopicId,
         rawCategory, rawSubject, rawTopic, rawSubtopic,
+        newItems,
       };
     }
 
