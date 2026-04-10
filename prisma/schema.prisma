@@ -641,6 +641,7 @@ model FlashcardDeck {
   subjectColor   String?
   xpEnabled      Boolean  @default(false)
   xpValue        Int      @default(0)
+  isFree         Boolean  @default(false)
   isPublished    Boolean  @default(false)
   // unlockAt: students cannot access this deck before this datetime (null = no unlock restriction)
   unlockAt       DateTime?
@@ -698,6 +699,7 @@ model ContentPage {
   body        String
   xpEnabled   Boolean @default(false)
   xpValue     Int     @default(0)
+  isFree      Boolean @default(false)
   isPublished Boolean @default(false)
   publishedAt DateTime?
   // unlockAt: students cannot access this e-book before this datetime (null = no unlock restriction)

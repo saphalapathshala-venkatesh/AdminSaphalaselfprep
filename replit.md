@@ -46,6 +46,7 @@ The console uses a consistent brand palette with purple as the primary CTA color
     - **Doubts Module**: Comprehensive module for managing student doubts, including status tracking, student context, and admin reply functionality.
     - **CourseLinkedContent System**: Allows linking existing standalone content (Test Series, PDF, E-Book, Video, Flashcard Deck, Live Class) to a course by reference.
     - **Course Pricing Ownership**: Course is the sole commercial/sellable entity, housing canonical pricing fields (`mrp`, `sellingPrice`, `isFree`) with utilities for formatting and validation.
+    - **Universal isFree Entitlement Flag**: Every content product (Video via `accessType`, Test, TestSeries, Quiz, FlashcardDeck, ContentPage/EBook, PdfAsset) carries an `isFree` boolean that the student app uses to gate access. Admin UI shows a Free/Paid toggle in every create/edit form and a colour-coded badge (green=Free, purple=Paid) in every list view. DB columns added additively; all API routes accept and persist the flag.
 
 ## External Dependencies
 - **Database**: PostgreSQL (managed via Neon)

@@ -376,7 +376,7 @@ export default function QuizPage() {
     title: "", instructions: "", mode: "TIMED", isTimed: true,
     durationSec: "", totalQuestions: "", marksPerQuestion: "", negativeMarksPerQuestion: "",
     allowPause: false, strictSectionMode: false, shuffleQuestions: false, shuffleOptions: false,
-    xpEnabled: false, xpValue: "0", categoryId: "", examId: "", unlockAt: "",
+    xpEnabled: false, xpValue: "0", categoryId: "", examId: "", unlockAt: "", isFree: false,
   };
   const [form, setForm] = useState(emptyForm);
   const [sections, setSections] = useState<SectionItem[]>([]);
@@ -442,6 +442,7 @@ export default function QuizPage() {
       categoryId: quiz.categoryId || "",
       examId: quiz.examId || "",
       unlockAt: quiz.unlockAt ? quiz.unlockAt.slice(0, 16) : "",
+      isFree: !!(quiz as any).isFree,
     });
 
     // Fetch full quiz detail
@@ -485,6 +486,7 @@ export default function QuizPage() {
       categoryId: form.categoryId || null,
       examId: form.examId || null,
       unlockAt: form.unlockAt ? form.unlockAt + ":00+05:30" : null,
+      isFree: form.isFree,
       isQuiz: true,
       sections: sections.map((s, i) => ({
         title: s.title || `Section ${i + 1}`,
@@ -698,7 +700,13 @@ export default function QuizPage() {
                         <td style={{ padding: "0.75rem", color: "#6b7280" }}>{q.mode}</td>
                         <td style={{ padding: "0.75rem", color: "#6b7280" }}>{q._count?.questions ?? "—"}</td>
                       </>}
-                      <td style={{ padding: "0.75rem" }}><span style={badgeStyle(q.isPublished)}>{q.isPublished ? "Published" : "Draft"}</span></td>
+                      <td style={{ padding: "0.75rem" }}>
+                        <span style={badgeStyle(q.isPublished)}>{q.isPublished ? "Published" : "Draft"}</span>
+                        {" "}
+                        <span style={{ display: "inline-block", padding: "2px 7px", borderRadius: "9999px", fontSize: "0.68rem", fontWeight: 600, background: (q as any).isFree ? "#dcfce7" : "#faf5ff", color: (q as any).isFree ? "#16a34a" : "#7c3aed", border: `1px solid ${(q as any).isFree ? "#bbf7d0" : "#e9d5ff"}` }}>
+                          {(q as any).isFree ? "Free" : "Paid"}
+                        </span>
+                      </td>
                       <td style={{ padding: "0.75rem", textAlign: "right" }}>
                         <div style={{ display: "flex", gap: "0.35rem", justifyContent: "flex-end" }}>
                           <button onClick={() => openEdit(q)} style={btn("#ede9fe", PURPLE, { fontSize: "0.75rem", padding: "0.3rem 0.6rem" })}>Edit</button>
@@ -841,6 +849,22 @@ export default function QuizPage() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Access Type */}
+              <div style={{ marginBottom: "1.5rem" }}>
+                <div style={{ fontWeight: 700, fontSize: "0.875rem", color: "#374151", marginBottom: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Access Type</div>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button type="button" onClick={() => setForm(f => ({ ...f, isFree: true }))}
+                    style={{ flex: 1, padding: "8px 12px", borderRadius: "6px", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", border: form.isFree ? "2px solid #16a34a" : "1px solid #d1d5db", background: form.isFree ? "#f0fdf4" : "#fff", color: form.isFree ? "#16a34a" : "#6b7280" }}>
+                    Free — All students
+                  </button>
+                  <button type="button" onClick={() => setForm(f => ({ ...f, isFree: false }))}
+                    style={{ flex: 1, padding: "8px 12px", borderRadius: "6px", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", border: !form.isFree ? "2px solid #7c3aed" : "1px solid #d1d5db", background: !form.isFree ? "#faf5ff" : "#fff", color: !form.isFree ? "#7c3aed" : "#6b7280" }}>
+                    Paid — Entitlement required
+                  </button>
+                </div>
+                <p style={{ margin: "4px 0 0", fontSize: "0.7rem", color: "#94a3b8" }}>{form.isFree ? "All students can attempt this quiz." : "Only students with the correct course entitlement can attempt this quiz."}</p>
               </div>
 
               {/* Sections (only for SECTIONAL mode or if quiz already has sections) */}

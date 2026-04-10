@@ -32,7 +32,7 @@ interface FlashcardDeck {
   id: string; title: string; subtitle: string | null; description: string | null;
   categoryId: string | null; subjectId: string | null; topicId: string | null;
   titleTemplate: string; titleImageUrl: string | null; subjectColor: string | null;
-  xpEnabled?: boolean; xpValue?: number; isPublished: boolean; createdAt: string;
+  xpEnabled?: boolean; xpValue?: number; isFree?: boolean; isPublished: boolean; createdAt: string;
   _count?: { cards: number };
 }
 interface FlashcardCard {
@@ -83,6 +83,7 @@ type DeckForm = {
   examId: string;
   titleTemplate: string; titleImageUrl: string; subjectColor: string;
   xpEnabled: boolean; xpValue: string;
+  isFree: boolean;
   unlockAt: string;
 };
 const emptyDeckForm = (): DeckForm => ({
@@ -91,6 +92,7 @@ const emptyDeckForm = (): DeckForm => ({
   examId: "",
   titleTemplate: "minimal_academic", titleImageUrl: "", subjectColor: "",
   xpEnabled: false, xpValue: "",
+  isFree: false,
   unlockAt: "",
 });
 
@@ -206,6 +208,7 @@ export default function FlashcardsPage() {
     titleTemplate: d.titleTemplate || "minimal_academic",
     titleImageUrl: d.titleImageUrl || "", subjectColor: d.subjectColor || "",
     xpEnabled: d.xpEnabled || false, xpValue: d.xpValue != null ? String(d.xpValue) : "",
+    isFree: d.isFree || false,
     unlockAt: (d as any).unlockAt ? toISTDatetimeLocal((d as any).unlockAt) : "",
   });
 
@@ -235,6 +238,7 @@ export default function FlashcardsPage() {
           subjectColor: newDeckForm.subjectColor || null,
           xpEnabled: newDeckForm.xpEnabled,
           xpValue: parseInt(newDeckForm.xpValue) || 0,
+          isFree: newDeckForm.isFree,
           unlockAt: newDeckForm.unlockAt ? newDeckForm.unlockAt + ":00+05:30" : null,
         }),
       });
@@ -264,6 +268,7 @@ export default function FlashcardsPage() {
           titleImageUrl: deckForm.titleImageUrl || null,
           subjectColor: deckForm.subjectColor || null,
           xpEnabled: deckForm.xpEnabled, xpValue: parseInt(deckForm.xpValue) || 0,
+          isFree: deckForm.isFree,
           unlockAt: deckForm.unlockAt ? deckForm.unlockAt + ":00+05:30" : null,
         }),
       });
@@ -738,6 +743,20 @@ export default function FlashcardsPage() {
           </div>
         )}
       </div>
+      <div style={{ marginBottom: "10px" }}>
+        <label style={labelStyle}>Access Type</label>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button type="button" onClick={() => setForm({ ...form, isFree: true })}
+            style={{ flex: 1, padding: "7px 10px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer", border: form.isFree ? "2px solid #16a34a" : "1px solid #d1d5db", background: form.isFree ? "#f0fdf4" : "#fff", color: form.isFree ? "#16a34a" : "#6b7280" }}>
+            Free — All students
+          </button>
+          <button type="button" onClick={() => setForm({ ...form, isFree: false })}
+            style={{ flex: 1, padding: "7px 10px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer", border: !form.isFree ? "2px solid #7c3aed" : "1px solid #d1d5db", background: !form.isFree ? "#faf5ff" : "#fff", color: !form.isFree ? "#7c3aed" : "#6b7280" }}>
+            Paid — Entitlement required
+          </button>
+        </div>
+        <p style={{ margin: "3px 0 0", fontSize: "0.7rem", color: "#94a3b8" }}>{form.isFree ? "All students can open this deck." : "Only students with the correct entitlement/purchase can open this deck."}</p>
+      </div>
       <div style={{ marginBottom: "6px" }}>
         <label style={labelStyle}>Unlock At <span style={{ fontWeight: 400, color: "#94a3b8" }}>(optional — leave blank for immediate access)</span></label>
         <input type="datetime-local" style={inputStyle} value={form.unlockAt} onChange={(e) => setForm({ ...form, unlockAt: e.target.value })} />
@@ -1043,7 +1062,10 @@ export default function FlashcardsPage() {
                 {d.subjectColor && <div style={{ width: "100%", height: "3px", borderRadius: "2px", background: d.subjectColor, marginBottom: "6px" }} />}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontWeight: 500, fontSize: "0.875rem", color: "#111" }}>{truncate(d.title, 28)}</span>
-                  <span style={badge(d.isPublished)}>{d.isPublished ? "Pub" : "Draft"}</span>
+                  <div style={{ display: "flex", gap: "3px" }}>
+                    <span style={{ display: "inline-block", padding: "1px 6px", borderRadius: "9999px", fontSize: "0.65rem", fontWeight: 700, background: d.isFree ? "#dcfce7" : "#faf5ff", color: d.isFree ? "#16a34a" : "#7c3aed", border: `1px solid ${d.isFree ? "#bbf7d0" : "#e9d5ff"}` }}>{d.isFree ? "Free" : "Paid"}</span>
+                    <span style={badge(d.isPublished)}>{d.isPublished ? "Pub" : "Draft"}</span>
+                  </div>
                 </div>
                 {d.subtitle && <p style={{ fontSize: "0.72rem", color: "#6b7280", margin: "2px 0 0" }}>{truncate(d.subtitle, 36)}</p>}
                 <span style={{ fontSize: "0.72rem", color: "#9ca3af" }}>{d._count?.cards || 0} cards</span>

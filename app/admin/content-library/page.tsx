@@ -27,6 +27,7 @@ interface ContentPage {
   title: string;
   body: string;
   subtopicId: string | null;
+  isFree: boolean;
   isPublished: boolean;
   publishedAt: string | null;
   updatedAt: string;
@@ -93,7 +94,7 @@ export default function ContentLibraryPage() {
   const [editingPage, setEditingPage] = useState<ContentPage | null>(null);
   const [pageForm, setPageForm] = useState({
     title: "", categoryId: "", subjectId: "", topicId: "", subtopicId: "",
-    examId: "", isPublished: false, xpEnabled: false, xpValue: "0", unlockAt: "",
+    examId: "", isPublished: false, isFree: false, xpEnabled: false, xpValue: "0", unlockAt: "",
   });
   // Multi-page state
   const [editorPages, setEditorPages] = useState<EditorPage[]>([makeEmptyPage(0)]);
@@ -213,6 +214,7 @@ export default function ContentLibraryPage() {
         subtopicId: fullRecord.subtopicId || "",
         examId: (fullRecord as any).examId || "",
         isPublished: fullRecord.isPublished,
+        isFree: !!(fullRecord as any).isFree,
         xpEnabled: !!(fullRecord as any).xpEnabled,
         xpValue: (fullRecord as any).xpValue != null ? String((fullRecord as any).xpValue) : "0",
         unlockAt: (fullRecord as any).unlockAt ? toISTDatetimeLocal((fullRecord as any).unlockAt) : "",
@@ -246,7 +248,7 @@ export default function ContentLibraryPage() {
       }
     } else {
       setEditingPage(null);
-      setPageForm({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "", isPublished: false, xpEnabled: false, xpValue: "0", unlockAt: "" });
+      setPageForm({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "", isPublished: false, isFree: false, xpEnabled: false, xpValue: "0", unlockAt: "" });
       setEditorPages([makeEmptyPage(0)]);
     }
     setCurrentPageIdx(0);
@@ -307,6 +309,7 @@ export default function ContentLibraryPage() {
         topicId: pageForm.topicId || null,
         subtopicId: pageForm.subtopicId || null,
         isPublished: pageForm.isPublished,
+        isFree: pageForm.isFree,
         xpEnabled: pageForm.xpEnabled,
         xpValue: parseInt(pageForm.xpValue) || 0,
         unlockAt: pageForm.unlockAt ? pageForm.unlockAt + ":00+05:30" : null,
@@ -566,6 +569,7 @@ export default function ContentLibraryPage() {
                 <tr style={{ borderBottom: "2px solid #e5e7eb", textAlign: "left" }}>
                   <th style={{ padding: "8px" }}>Title</th>
                   <th style={{ padding: "8px" }}>Subtopic</th>
+                  <th style={{ padding: "8px" }}>Type</th>
                   <th style={{ padding: "8px" }}>Status</th>
                   <th style={{ padding: "8px" }}>Updated</th>
                   <th style={{ padding: "8px", width: "140px" }}>Actions</th>
@@ -576,6 +580,11 @@ export default function ContentLibraryPage() {
                   <tr key={p.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
                     <td style={{ padding: "8px", fontWeight: 500 }}>{truncate(p.title, 50)}</td>
                     <td style={{ padding: "8px", color: "#6b7280" }}>{p.subtopic?.name || "-"}</td>
+                    <td style={{ padding: "8px" }}>
+                      <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: "9999px", fontSize: "0.72rem", fontWeight: 600, background: p.isFree ? "#dcfce7" : "#faf5ff", color: p.isFree ? "#16a34a" : "#7c3aed", border: `1px solid ${p.isFree ? "#bbf7d0" : "#e9d5ff"}` }}>
+                        {p.isFree ? "Free" : "Paid"}
+                      </span>
+                    </td>
                     <td style={{ padding: "8px" }}><span style={badgeStyle(p.isPublished)}>{p.isPublished ? "Published" : "Draft"}</span></td>
                     <td style={{ padding: "8px", color: "#6b7280" }}>{formatDate(p.updatedAt)}</td>
                     <td style={{ padding: "8px" }}>
@@ -803,6 +812,22 @@ export default function ContentLibraryPage() {
             <div style={{ marginBottom: "12px" }}>
               <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: "4px", display: "block" }}>Taxonomy (optional)</label>
               {renderTaxDropdowns(pageForm, "page", subjects, topics, subtopics)}
+            </div>
+
+            {/* ── Access Type ── */}
+            <div style={{ marginBottom: "12px" }}>
+              <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151", marginBottom: "6px", display: "block" }}>Access Type</label>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button type="button" onClick={() => setPageForm({ ...pageForm, isFree: true })}
+                  style={{ flex: 1, padding: "7px 10px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer", border: pageForm.isFree ? "2px solid #16a34a" : "1px solid #d1d5db", background: pageForm.isFree ? "#f0fdf4" : "#fff", color: pageForm.isFree ? "#16a34a" : "#6b7280" }}>
+                  Free — All students
+                </button>
+                <button type="button" onClick={() => setPageForm({ ...pageForm, isFree: false })}
+                  style={{ flex: 1, padding: "7px 10px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer", border: !pageForm.isFree ? "2px solid #7c3aed" : "1px solid #d1d5db", background: !pageForm.isFree ? "#faf5ff" : "#fff", color: !pageForm.isFree ? "#7c3aed" : "#6b7280" }}>
+                  Paid — Entitlement required
+                </button>
+              </div>
+              <p style={{ margin: "3px 0 0", fontSize: "0.7rem", color: "#94a3b8" }}>{pageForm.isFree ? "All students can read this E-Book." : "Only students with the correct entitlement/purchase can read this E-Book."}</p>
             </div>
 
             {/* ── Published ── */}
