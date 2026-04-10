@@ -198,6 +198,12 @@ type ReviewItem = {
   errors: string[];
   warnings: string[];
   selected: boolean;
+  rawTaxonomy?: {
+    rawCategory: string | null;
+    rawSubject: string | null;
+    rawTopic: string | null;
+    rawSubtopic: string | null;
+  } | null;
 };
 type TaxoNode = { id: string; name: string };
 
@@ -573,7 +579,7 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
         setParseErrors([d.error || "Upload failed — please check the file and try again."]);
         return;
       }
-      const apiRows: Array<{ rowNumber: number; rawData: any; isValid: boolean; errorField: string | null; errorMsg: string | null; resolvedTaxonomy?: { categoryId: string | null; subjectId: string | null; topicId: string | null; subtopicId: string | null } | null }> = d.data?.rows || [];
+      const apiRows: Array<{ rowNumber: number; rawData: any; isValid: boolean; errorField: string | null; errorMsg: string | null; resolvedTaxonomy?: { categoryId: string | null; subjectId: string | null; topicId: string | null; subtopicId: string | null; rawCategory: string | null; rawSubject: string | null; rawTopic: string | null; rawSubtopic: string | null } | null }> = d.data?.rows || [];
       if (apiRows.length === 0) {
         setParseErrors(["No questions found in the file. Make sure you are using the correct DOCX template."]);
         return;
@@ -630,6 +636,19 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
         const resolvedTopicId     = taxo?.topicId     || "";
         const resolvedSubtopicId  = taxo?.subtopicId  || "";
 
+        // Diagnostic: if the DOCX had taxonomy labels but they couldn't be
+        // resolved to DB IDs, tell the admin exactly what the parser saw so they
+        // can fix the DOCX or add the missing taxonomy in the Taxonomy admin.
+        const rawCat = taxo?.rawCategory || null;
+        const rawSub = taxo?.rawSubject  || null;
+        const rawTop = taxo?.rawTopic    || null;
+        const rawStopic = taxo?.rawSubtopic || null;
+        if (rawCat && !resolvedCategoryId) {
+          warnings.push(`Taxonomy not resolved — category "${rawCat}" not found in DB. Add it in Taxonomy admin first, then re-upload.`);
+        } else if (rawSub && !resolvedSubjectId) {
+          warnings.push(`Subject "${rawSub}" could not be resolved under category "${rawCat || "?"}".`);
+        }
+
         return {
           key: `docx_${row.rowNumber}_${idx}_${Date.now()}`,
           isEdited: false,
@@ -644,6 +663,7 @@ function AddQuestionsModal({ testId, sectionId, sectionIndex, sectionTitle, targ
           groupId: (raw._groupKey || raw.groupId || "").trim() || undefined,
           status: errors.length > 0 ? "error" : warnings.length > 0 ? "warning" : "clean",
           errors, warnings, selected: false,
+          rawTaxonomy: taxo ? { rawCategory: rawCat, rawSubject: rawSub, rawTopic: rawTop, rawSubtopic: rawStopic } : null,
         };
       });
       setReviewItems(items);

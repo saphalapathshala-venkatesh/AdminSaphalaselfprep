@@ -144,67 +144,88 @@ export async function POST(req: NextRequest) {
     });
 
     // ── Resolve taxonomy text → DB IDs for each valid row ────────────────────
-    // Uses find-or-create at every level so that taxonomy declared in the DOCX
-    // is always resolvable to real IDs — even when the Subject/Topic/Subtopic
-    // records do not yet exist in the database.  This mirrors what the commit
-    // route does and ensures the test-builder review form can pre-populate the
-    // Subject/Topic/Subtopic dropdowns correctly.
+    // Strategy:
+    //   • Category — find only (master data; never auto-created from an import)
+    //   • Subject  — find under matched category; create there if absent
+    //                (keeps categoryId/subjectId consistent for the review form)
+    //   • Topic    — find under resolved subject; create if absent
+    //   • Subtopic — find under resolved topic; create if absent
+    //
+    // Raw parsed text (rawCategory / rawSubject / rawTopic / rawSubtopic) is
+    // captured for EVERY valid row — not just those that have a category — so
+    // the review form can show a diagnostic hint for questions whose category
+    // name doesn't match any DB record (e.g. a misnamed "GS" category).
     const taxoResolved: Record<number, {
       categoryId: string | null;
       subjectId: string | null;
       topicId: string | null;
       subtopicId: string | null;
+      rawCategory: string | null;
+      rawSubject: string | null;
+      rawTopic: string | null;
+      rawSubtopic: string | null;
     }> = {};
 
-    const rowsWithTaxo = validationResults
+    const allValidRows = validationResults
       .map((vr, i) => ({ rowNumber: i + 1, nr: vr.normalizedRow }))
-      .filter(r => r.nr?.category);
+      .filter(r => r.nr !== null);
 
-    for (const { rowNumber, nr } of rowsWithTaxo) {
+    for (const { rowNumber, nr } of allValidRows) {
       if (!nr) continue;
+
+      const rawCategory = nr.category?.trim() || null;
+      const rawSubject  = (nr as any).subject?.trim()  || null;
+      const rawTopic    = (nr as any).topic?.trim()    || null;
+      const rawSubtopic = (nr as any).subtopic?.trim() || null;
+
       let categoryId: string | null = null;
-      let subjectId: string | null = null;
-      let topicId: string | null = null;
+      let subjectId:  string | null = null;
+      let topicId:    string | null = null;
       let subtopicId: string | null = null;
 
       try {
-        // ── Category: find only (categories are master data, never auto-created here)
-        const cat = await prisma.category.findFirst({
-          where: { name: { equals: nr.category!, mode: "insensitive" } },
-        });
+        if (rawCategory) {
+          // ── Category: find only
+          const cat = await prisma.category.findFirst({
+            where: { name: { equals: rawCategory, mode: "insensitive" } },
+          });
 
-        if (cat) {
-          categoryId = cat.id;
+          if (cat) {
+            categoryId = cat.id;
 
-          // ── Subject: find or create under this category
-          if (nr.subject) {
-            const existingSub = await prisma.subject.findFirst({
-              where: { categoryId: cat.id, name: { equals: nr.subject, mode: "insensitive" } },
-            });
-            const sub = existingSub ?? await prisma.subject.create({
-              data: { name: nr.subject, categoryId: cat.id },
-            });
-            subjectId = sub.id;
-
-            // ── Topic: find or create under this subject
-            if (nr.topic) {
-              const existingTop = await prisma.topic.findFirst({
-                where: { subjectId: sub.id, name: { equals: nr.topic, mode: "insensitive" } },
+            if (rawSubject) {
+              // ── Subject: find under matched category; create there if absent
+              // (Important: do NOT cross-category resolve — that would make
+              //  categoryId and subjectId point to different categories, breaking
+              //  the review form's cascaded dropdowns.)
+              const existingSub = await prisma.subject.findFirst({
+                where: { categoryId: cat.id, name: { equals: rawSubject, mode: "insensitive" } },
               });
-              const top = existingTop ?? await prisma.topic.create({
-                data: { name: nr.topic, subjectId: sub.id },
+              const sub = existingSub ?? await prisma.subject.create({
+                data: { name: rawSubject, categoryId: cat.id },
               });
-              topicId = top.id;
+              subjectId = sub.id;
 
-              // ── Subtopic: find or create under this topic
-              if (nr.subtopic) {
-                const existingSt = await prisma.subtopic.findFirst({
-                  where: { topicId: top.id, name: { equals: nr.subtopic, mode: "insensitive" } },
+              if (rawTopic) {
+                // ── Topic: find under resolved subject; create if absent
+                const existingTop = await prisma.topic.findFirst({
+                  where: { subjectId: sub.id, name: { equals: rawTopic, mode: "insensitive" } },
                 });
-                const st = existingSt ?? await prisma.subtopic.create({
-                  data: { name: nr.subtopic, topicId: top.id },
+                const top = existingTop ?? await prisma.topic.create({
+                  data: { name: rawTopic, subjectId: sub.id },
                 });
-                subtopicId = st.id;
+                topicId = top.id;
+
+                if (rawSubtopic) {
+                  // ── Subtopic: find under resolved topic; create if absent
+                  const existingSt = await prisma.subtopic.findFirst({
+                    where: { topicId: top.id, name: { equals: rawSubtopic, mode: "insensitive" } },
+                  });
+                  const st = existingSt ?? await prisma.subtopic.create({
+                    data: { name: rawSubtopic, topicId: top.id },
+                  });
+                  subtopicId = st.id;
+                }
               }
             }
           }
@@ -213,7 +234,10 @@ export async function POST(req: NextRequest) {
         console.warn("[preview] Taxonomy resolve/create failed for row", rowNumber, taxoErr);
       }
 
-      taxoResolved[rowNumber] = { categoryId, subjectId, topicId, subtopicId };
+      taxoResolved[rowNumber] = {
+        categoryId, subjectId, topicId, subtopicId,
+        rawCategory, rawSubject, rawTopic, rawSubtopic,
+      };
     }
 
     const enrichedRows = job.rows.map(row => ({
