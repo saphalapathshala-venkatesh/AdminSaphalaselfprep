@@ -76,31 +76,19 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const formData = await req.formData();
-    const file = formData.get("file") as File | null;
-    const title = (formData.get("title") as string | null)?.trim();
-    const categoryId = (formData.get("categoryId") as string | null) || null;
-    const examId = (formData.get("examId") as string | null) || null;
-    const subjectId = (formData.get("subjectId") as string | null) || null;
-    const topicId = (formData.get("topicId") as string | null) || null;
-    const subtopicId = (formData.get("subtopicId") as string | null) || null;
+    const body = await req.json();
+    const { title: rawTitle, fileUrl, fileSize, categoryId, examId, subjectId, topicId, subtopicId } = body;
+    const title = (rawTitle as string | undefined)?.trim();
 
     if (!title) return NextResponse.json({ error: "Title is required" }, { status: 400 });
-    if (!file) return NextResponse.json({ error: "PDF file is required" }, { status: 400 });
-    if (file.type !== "application/pdf") return NextResponse.json({ error: "Only PDF files are allowed" }, { status: 400 });
-    if (file.size > 20 * 1024 * 1024) return NextResponse.json({ error: "File exceeds 20MB limit" }, { status: 400 });
-
-    const fileData = Buffer.from(await file.arrayBuffer());
-
-    const host = req.headers.get("host") || "localhost:3000";
-    const proto = host.startsWith("localhost") ? "http" : "https";
+    if (!fileUrl) return NextResponse.json({ error: "fileUrl is required" }, { status: 400 });
+    if (fileSize && fileSize > 20 * 1024 * 1024) return NextResponse.json({ error: "File exceeds 20MB limit" }, { status: 400 });
 
     const asset = await prisma.pdfAsset.create({
       data: {
         title,
-        fileUrl: "",
-        fileData,
-        fileSize: file.size,
+        fileUrl,
+        fileSize: fileSize ?? null,
         mimeType: "application/pdf",
         categoryId: categoryId || null,
         examId: examId || null,
@@ -111,13 +99,6 @@ export async function POST(req: NextRequest) {
         isPublished: false,
         createdById: user.id,
       },
-      select: { id: true },
-    });
-
-    const fileUrl = `${proto}://${host}/api/pdf-serve/${asset.id}`;
-    const updated = await prisma.pdfAsset.update({
-      where: { id: asset.id },
-      data: { fileUrl },
       select: PDF_SELECT,
     });
 
@@ -126,10 +107,10 @@ export async function POST(req: NextRequest) {
       action: "PDFASSET_CREATE",
       entityType: "PdfAsset",
       entityId: asset.id,
-      after: { title: updated.title, fileUrl: updated.fileUrl, fileSize: updated.fileSize },
+      after: { title: asset.title, fileUrl: asset.fileUrl, fileSize: asset.fileSize },
     });
 
-    return NextResponse.json({ data: updated }, { status: 201 });
+    return NextResponse.json({ data: asset }, { status: 201 });
   } catch (err) {
     console.error("PDF assets POST error:", err);
     return NextResponse.json({ error: "Failed to save PDF" }, { status: 500 });

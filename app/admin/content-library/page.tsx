@@ -357,18 +357,43 @@ export default function ContentLibraryPage() {
     if (uploadFile.size > 20 * 1024 * 1024) { showToast("File exceeds 20MB limit", "error"); return; }
 
     setSaving(true);
-    setUploadProgress("Uploading PDF...");
     try {
-      const fd = new FormData();
-      fd.append("file", uploadFile);
-      fd.append("title", uploadForm.title);
-      if (uploadForm.categoryId) fd.append("categoryId", uploadForm.categoryId);
-      if (uploadForm.examId) fd.append("examId", uploadForm.examId);
-      if (uploadForm.subjectId) fd.append("subjectId", uploadForm.subjectId);
-      if (uploadForm.topicId) fd.append("topicId", uploadForm.topicId);
-      if (uploadForm.subtopicId) fd.append("subtopicId", uploadForm.subtopicId);
+      // Step 1 — get a presigned PUT URL from our API (no file data sent to server)
+      setUploadProgress("Preparing upload...");
+      const urlRes = await fetch("/api/pdf-assets/request-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ size: uploadFile.size }),
+      });
+      const urlJson = await urlRes.json();
+      if (!urlRes.ok) { showToast(urlJson.error || "Could not prepare upload", "error"); return; }
+      const { uploadUrl, publicUrl } = urlJson;
 
-      const res = await fetch("/api/pdf-assets", { method: "POST", body: fd });
+      // Step 2 — PUT the file bytes directly to GCS (bypasses our server entirely)
+      setUploadProgress("Uploading PDF to storage...");
+      const putRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/pdf" },
+        body: uploadFile,
+      });
+      if (!putRes.ok) { showToast("Storage upload failed — please try again", "error"); return; }
+
+      // Step 3 — save the metadata record (JSON only, no file bytes)
+      setUploadProgress("Saving record...");
+      const res = await fetch("/api/pdf-assets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: uploadForm.title,
+          fileUrl: publicUrl,
+          fileSize: uploadFile.size,
+          categoryId: uploadForm.categoryId || null,
+          examId: uploadForm.examId || null,
+          subjectId: uploadForm.subjectId || null,
+          topicId: uploadForm.topicId || null,
+          subtopicId: uploadForm.subtopicId || null,
+        }),
+      });
       const json = await res.json();
       if (!res.ok) { showToast(json.error || "Upload failed", "error"); return; }
 
