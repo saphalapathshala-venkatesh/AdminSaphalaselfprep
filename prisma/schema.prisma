@@ -740,6 +740,7 @@ model PdfAsset {
   subjectId      String?
   topicId        String?
   subtopicId     String?
+  isFree         Boolean @default(true)
   isDownloadable Boolean @default(true)
   isPublished    Boolean @default(false)
   publishedAt    DateTime?

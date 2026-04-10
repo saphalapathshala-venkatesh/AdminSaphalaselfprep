@@ -47,6 +47,7 @@ interface PdfAsset {
   subjectId: string | null;
   topicId: string | null;
   subtopicId: string | null;
+  isFree: boolean;
   isPublished: boolean;
   publishedAt: string | null;
   updatedAt: string;
@@ -100,9 +101,9 @@ export default function ContentLibraryPage() {
 
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [editingPdf, setEditingPdf] = useState<PdfAsset | null>(null);
-  const [pdfForm, setPdfForm] = useState({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "", isPublished: false, unlockAt: "" });
+  const [pdfForm, setPdfForm] = useState({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "", isFree: true, isPublished: false, unlockAt: "" });
   const [showUploadForm, setShowUploadForm] = useState(false);
-  const [uploadForm, setUploadForm] = useState({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "" });
+  const [uploadForm, setUploadForm] = useState({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "", isFree: true });
   const [pdfUrl, setPdfUrl] = useState("");
 
   const [categories, setCategories] = useState<TaxItem[]>([]);
@@ -362,6 +363,7 @@ export default function ContentLibraryPage() {
         body: JSON.stringify({
           title: uploadForm.title.trim(),
           fileUrl: trimmedUrl,
+          isFree: uploadForm.isFree,
           categoryId: uploadForm.categoryId || null,
           examId: uploadForm.examId || null,
           subjectId: uploadForm.subjectId || null,
@@ -374,7 +376,7 @@ export default function ContentLibraryPage() {
 
       showToast("PDF added successfully", "success");
       setShowUploadForm(false);
-      setUploadForm({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "" });
+      setUploadForm({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "", isFree: true });
       setPdfUrl("");
       loadPdfs();
     } catch (e: any) { showToast(e?.message || "Failed to save PDF", "error"); }
@@ -390,6 +392,7 @@ export default function ContentLibraryPage() {
       subjectId: pdf.subjectId || "",
       topicId: pdf.topicId || "",
       subtopicId: pdf.subtopicId || "",
+      isFree: pdf.isFree,
       isPublished: pdf.isPublished,
       unlockAt: (pdf as any).unlockAt ? toISTDatetimeLocal((pdf as any).unlockAt) : "",
     });
@@ -412,6 +415,7 @@ export default function ContentLibraryPage() {
           subjectId: pdfForm.subjectId || null,
           topicId: pdfForm.topicId || null,
           subtopicId: pdfForm.subtopicId || null,
+          isFree: pdfForm.isFree,
           isPublished: pdfForm.isPublished,
           unlockAt: pdfForm.unlockAt ? pdfForm.unlockAt + ":00+05:30" : null,
         }),
@@ -611,7 +615,7 @@ export default function ContentLibraryPage() {
             <div style={{ flex: 1 }} />
             <button style={btnPrimary} onClick={() => {
               setShowUploadForm(true);
-              setUploadForm({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "" });
+              setUploadForm({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "", isFree: true });
               setPdfUrl(""); setUpSubjects([]); setUpTopics([]); setUpSubtopics([]);
             }}>+ Add PDF</button>
           </div>
@@ -627,6 +631,7 @@ export default function ContentLibraryPage() {
                   <th style={{ padding: "8px" }}>Title</th>
                   <th style={{ padding: "8px" }}>File</th>
                   <th style={{ padding: "8px" }}>Size</th>
+                  <th style={{ padding: "8px" }}>Type</th>
                   <th style={{ padding: "8px" }}>Status</th>
                   <th style={{ padding: "8px" }}>Updated</th>
                   <th style={{ padding: "8px", width: "140px" }}>Actions</th>
@@ -640,6 +645,11 @@ export default function ContentLibraryPage() {
                       <a href={pdf.fileUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb", textDecoration: "none", fontSize: "0.8rem" }}>Open PDF</a>
                     </td>
                     <td style={{ padding: "8px", color: "#6b7280" }}>{formatSize(pdf.fileSize)}</td>
+                    <td style={{ padding: "8px" }}>
+                      <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: "9999px", fontSize: "0.72rem", fontWeight: 600, background: pdf.isFree ? "#dcfce7" : "#faf5ff", color: pdf.isFree ? "#16a34a" : "#7c3aed", border: `1px solid ${pdf.isFree ? "#bbf7d0" : "#e9d5ff"}` }}>
+                        {pdf.isFree ? "Free" : "Paid"}
+                      </span>
+                    </td>
                     <td style={{ padding: "8px" }}><span style={badgeStyle(pdf.isPublished)}>{pdf.isPublished ? "Published" : "Draft"}</span></td>
                     <td style={{ padding: "8px", color: "#6b7280" }}>{formatDate(pdf.updatedAt)}</td>
                     <td style={{ padding: "8px" }}>
@@ -854,6 +864,18 @@ export default function ContentLibraryPage() {
               />
               {pdfUrl.trim() && <p style={{ margin: "4px 0 0", fontSize: "0.72rem", color: "#7c3aed" }}>URL looks good — make sure it is publicly accessible.</p>}
             </div>
+            <div style={{ marginBottom: "12px" }}>
+              <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "6px" }}>Access Type *</label>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button type="button" onClick={() => setUploadForm({ ...uploadForm, isFree: true })} style={{ flex: 1, padding: "8px 12px", borderRadius: "6px", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", border: uploadForm.isFree ? "2px solid #16a34a" : "1px solid #d1d5db", background: uploadForm.isFree ? "#f0fdf4" : "#fff", color: uploadForm.isFree ? "#16a34a" : "#6b7280" }}>
+                  Free
+                </button>
+                <button type="button" onClick={() => setUploadForm({ ...uploadForm, isFree: false })} style={{ flex: 1, padding: "8px 12px", borderRadius: "6px", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", border: !uploadForm.isFree ? "2px solid #7c3aed" : "1px solid #d1d5db", background: !uploadForm.isFree ? "#faf5ff" : "#fff", color: !uploadForm.isFree ? "#7c3aed" : "#6b7280" }}>
+                  Paid
+                </button>
+              </div>
+              <p style={{ margin: "4px 0 0", fontSize: "0.7rem", color: "#94a3b8" }}>{uploadForm.isFree ? "All students can access this PDF." : "Only students with the correct entitlement/purchase can access this PDF."}</p>
+            </div>
             {renderTaxDropdowns(uploadForm, "upload", upSubjects, upTopics, upSubtopics)}
             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", marginTop: "8px" }}>
               <button style={btnSecondary} onClick={() => { setShowUploadForm(false); setPdfUrl(""); }} disabled={saving}>Cancel</button>
@@ -873,6 +895,18 @@ export default function ContentLibraryPage() {
               <input style={inputStyle} value={pdfForm.title} onChange={(e) => setPdfForm({ ...pdfForm, title: e.target.value })} />
             </div>
             {renderTaxDropdowns(pdfForm, "pdfEdit", subjects, topics, subtopics)}
+            <div style={{ marginBottom: "12px" }}>
+              <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "6px" }}>Access Type</label>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button type="button" onClick={() => setPdfForm({ ...pdfForm, isFree: true })} style={{ flex: 1, padding: "8px 12px", borderRadius: "6px", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", border: pdfForm.isFree ? "2px solid #16a34a" : "1px solid #d1d5db", background: pdfForm.isFree ? "#f0fdf4" : "#fff", color: pdfForm.isFree ? "#16a34a" : "#6b7280" }}>
+                  Free
+                </button>
+                <button type="button" onClick={() => setPdfForm({ ...pdfForm, isFree: false })} style={{ flex: 1, padding: "8px 12px", borderRadius: "6px", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer", border: !pdfForm.isFree ? "2px solid #7c3aed" : "1px solid #d1d5db", background: !pdfForm.isFree ? "#faf5ff" : "#fff", color: !pdfForm.isFree ? "#7c3aed" : "#6b7280" }}>
+                  Paid
+                </button>
+              </div>
+              <p style={{ margin: "4px 0 0", fontSize: "0.7rem", color: "#94a3b8" }}>{pdfForm.isFree ? "All students can access this PDF." : "Only students with the correct entitlement/purchase can access this PDF."}</p>
+            </div>
             <div style={{ marginBottom: "12px" }}>
               <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
                 <input type="checkbox" checked={pdfForm.isPublished} onChange={(e) => setPdfForm({ ...pdfForm, isPublished: e.target.checked })} />

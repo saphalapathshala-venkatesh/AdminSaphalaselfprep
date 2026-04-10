@@ -16,6 +16,7 @@ const PDF_SELECT = {
   subjectId: true,
   topicId: true,
   subtopicId: true,
+  isFree: true,
   isDownloadable: true,
   isPublished: true,
   publishedAt: true,
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title: rawTitle, fileUrl, fileSize, categoryId, examId, subjectId, topicId, subtopicId } = body;
+    const { title: rawTitle, fileUrl, fileSize, categoryId, examId, subjectId, topicId, subtopicId, isFree } = body;
     const title = (rawTitle as string | undefined)?.trim();
 
     if (!title) return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -95,6 +96,7 @@ export async function POST(req: NextRequest) {
         subjectId: subjectId || null,
         topicId: topicId || null,
         subtopicId: subtopicId || null,
+        isFree: isFree !== undefined ? Boolean(isFree) : true,
         isDownloadable: true,
         isPublished: false,
         createdById: user.id,
