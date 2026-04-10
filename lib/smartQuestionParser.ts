@@ -106,15 +106,34 @@ export function normalizeImportedQuestionText(text: string): string {
     out = out.replace(re, "$1\n$2");
   }
 
-  // Insert \n before each known field label when preceded by a non-newline char.
-  // Process in longest-first order to prevent "Explanation:" from matching
-  // the tail of "Explanation Secondary:".
-  for (const [label] of FIELD_MARKERS_ORDERED) {
-    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    // Case-insensitive; matches any non-newline char immediately before the label
-    const re = new RegExp(`([^\\n])(${escaped})`, "gi");
-    out = out.replace(re, "$1\n$2");
-  }
+  // Insert \n before each known field label when it appears mid-line.
+  //
+  // IMPORTANT: use a SINGLE combined alternation regex rather than individual
+  // per-label passes.  The per-label loop had a critical bug: when the "Topic:"
+  // pass ran after the "Subtopic:" pass had already split that line, the regex
+  // `([^\n])(Topic:)` would match the "b" in "\nSubtopic: X" and corrupt it to
+  // "\nSub\nTopic: X", causing the subtopic value to be stored as topic instead.
+  //
+  // With a single alternation regex the engine tries each alternative left-to-right
+  // at every position and stops on the first match.  Because FIELD_MARKERS_ORDERED
+  // is already longest-first, "Subtopic:" (9 chars) is always tried before
+  // "Topic:" (6 chars) at the same position — so when "Subtopic:" appears
+  // mid-line (e.g. "AlgebraSubtopic:"), it is matched as a whole unit and the
+  // engine advances past it without ever trying "Topic:" inside.
+  const allLabels = FIELD_MARKERS_ORDERED
+    .map(([label]) => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
+  const labelRe = new RegExp(`([^\\n])(${allLabels})`, "gi");
+  out = out.replace(labelRe, "$1\n$2");
+
+  // Repair pass — handles the edge case where "Subtopic:" was already at the
+  // START of its own line before normalization ran (e.g. a well-formatted DOCX).
+  // In that case the character before "S" in "\nSubtopic:" is a newline, so the
+  // combined regex above never fires the "Subtopic:" alternative.  But the engine
+  // DOES find a match at position 2 inside the word: group1="b", group2="topic:",
+  // producing the spurious split "\nSub\ntopic: X".  This single substitution
+  // rejoin any such fragment regardless of capitalisation.
+  out = out.replace(/(^|\n)Sub\n(topic:)/gi, "$1Subtopic:");
 
   return out.trim();
 }
