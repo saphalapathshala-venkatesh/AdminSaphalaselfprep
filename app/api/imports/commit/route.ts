@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { validateRow, type RawRow } from "@/lib/importValidator";
+import { resolveOrCreateSubject } from "@/lib/taxonomy";
 import { uploadBase64ImageToStorage } from "@/lib/objectStorage";
 import { writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
@@ -151,12 +152,7 @@ export async function POST(req: NextRequest) {
             patchCategoryId = cat.id;
 
             if (nr.subject) {
-              const existingSub = await prisma.subject.findFirst({
-                where: { categoryId: cat.id, name: { equals: nr.subject, mode: "insensitive" } },
-              });
-              patchSubjectId = existingSub
-                ? existingSub.id
-                : (await prisma.subject.create({ data: { name: nr.subject, categoryId: cat.id } })).id;
+              patchSubjectId = await resolveOrCreateSubject(cat.id, nr.subject);
 
               if (nr.topic && patchSubjectId) {
                 const existingTop = await prisma.topic.findFirst({
@@ -244,17 +240,7 @@ export async function POST(req: NextRequest) {
           categoryId = cat.id;
 
           if (nr.subject) {
-            const existingSub = await prisma.subject.findFirst({
-              where: { categoryId: cat.id, name: { equals: nr.subject, mode: "insensitive" } },
-            });
-            if (existingSub) {
-              subjectId = existingSub.id;
-            } else {
-              const newSub = await prisma.subject.create({
-                data: { name: nr.subject, categoryId: cat.id },
-              });
-              subjectId = newSub.id;
-            }
+            subjectId = await resolveOrCreateSubject(cat.id, nr.subject);
 
             if (nr.topic && subjectId) {
               const existingTop = await prisma.topic.findFirst({

@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { validateRow, parseDocxHtml, normalizeColumnNames, type RawRow } from "@/lib/importValidator";
+import { resolveOrCreateSubject } from "@/lib/taxonomy";
 import { smartParseDocxText } from "@/lib/smartQuestionParser";
 import Papa from "papaparse";
 import mammoth from "mammoth";
@@ -194,17 +195,10 @@ export async function POST(req: NextRequest) {
             categoryId = cat.id;
 
             if (rawSubject) {
-              // ── Subject: find under matched category; create there if absent
-              // (Important: do NOT cross-category resolve — that would make
-              //  categoryId and subjectId point to different categories, breaking
-              //  the review form's cascaded dropdowns.)
-              const existingSub = await prisma.subject.findFirst({
-                where: { categoryId: cat.id, name: { equals: rawSubject, mode: "insensitive" } },
-              });
-              const sub = existingSub ?? await prisma.subject.create({
-                data: { name: rawSubject, categoryId: cat.id },
-              });
-              subjectId = sub.id;
+              // ── Subject: global dedup via resolveOrCreateSubject
+              // Finds the subject globally, adds a CategorySubject link if needed,
+              // and only creates a new record when truly absent everywhere.
+              subjectId = await resolveOrCreateSubject(cat.id, rawSubject);
 
               if (rawTopic) {
                 // ── Topic: find under resolved subject; create if absent
