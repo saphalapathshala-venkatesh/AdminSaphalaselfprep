@@ -144,9 +144,17 @@ export async function POST(req: NextRequest) {
     });
 
     // ── Resolve taxonomy text → DB IDs for each valid row ────────────────────
-    // This lets consumers (e.g. the test-builder DOCX upload) store the IDs
-    // directly without a separate round-trip.
-    const taxoResolved: Record<number, { categoryId: string | null; subjectId: string | null; topicId: string | null; subtopicId: string | null }> = {};
+    // Uses find-or-create at every level so that taxonomy declared in the DOCX
+    // is always resolvable to real IDs — even when the Subject/Topic/Subtopic
+    // records do not yet exist in the database.  This mirrors what the commit
+    // route does and ensures the test-builder review form can pre-populate the
+    // Subject/Topic/Subtopic dropdowns correctly.
+    const taxoResolved: Record<number, {
+      categoryId: string | null;
+      subjectId: string | null;
+      topicId: string | null;
+      subtopicId: string | null;
+    }> = {};
 
     const rowsWithTaxo = validationResults
       .map((vr, i) => ({ rowNumber: i + 1, nr: vr.normalizedRow }))
@@ -160,27 +168,50 @@ export async function POST(req: NextRequest) {
       let subtopicId: string | null = null;
 
       try {
-        const cat = await prisma.category.findFirst({ where: { name: { equals: nr.category!, mode: "insensitive" } } });
+        // ── Category: find only (categories are master data, never auto-created here)
+        const cat = await prisma.category.findFirst({
+          where: { name: { equals: nr.category!, mode: "insensitive" } },
+        });
+
         if (cat) {
           categoryId = cat.id;
+
+          // ── Subject: find or create under this category
           if (nr.subject) {
-            const sub = await prisma.subject.findFirst({ where: { categoryId: cat.id, name: { equals: nr.subject!, mode: "insensitive" } } });
-            if (sub) {
-              subjectId = sub.id;
-              if (nr.topic) {
-                const top = await prisma.topic.findFirst({ where: { subjectId: sub.id, name: { equals: nr.topic!, mode: "insensitive" } } });
-                if (top) {
-                  topicId = top.id;
-                  if (nr.subtopic) {
-                    const st = await prisma.subtopic.findFirst({ where: { topicId: top.id, name: { equals: nr.subtopic!, mode: "insensitive" } } });
-                    if (st) subtopicId = st.id;
-                  }
-                }
+            const existingSub = await prisma.subject.findFirst({
+              where: { categoryId: cat.id, name: { equals: nr.subject, mode: "insensitive" } },
+            });
+            const sub = existingSub ?? await prisma.subject.create({
+              data: { name: nr.subject, categoryId: cat.id },
+            });
+            subjectId = sub.id;
+
+            // ── Topic: find or create under this subject
+            if (nr.topic) {
+              const existingTop = await prisma.topic.findFirst({
+                where: { subjectId: sub.id, name: { equals: nr.topic, mode: "insensitive" } },
+              });
+              const top = existingTop ?? await prisma.topic.create({
+                data: { name: nr.topic, subjectId: sub.id },
+              });
+              topicId = top.id;
+
+              // ── Subtopic: find or create under this topic
+              if (nr.subtopic) {
+                const existingSt = await prisma.subtopic.findFirst({
+                  where: { topicId: top.id, name: { equals: nr.subtopic, mode: "insensitive" } },
+                });
+                const st = existingSt ?? await prisma.subtopic.create({
+                  data: { name: nr.subtopic, topicId: top.id },
+                });
+                subtopicId = st.id;
               }
             }
           }
         }
-      } catch { /* non-fatal — row just won't have resolved IDs */ }
+      } catch (taxoErr) {
+        console.warn("[preview] Taxonomy resolve/create failed for row", rowNumber, taxoErr);
+      }
 
       taxoResolved[rowNumber] = { categoryId, subjectId, topicId, subtopicId };
     }
