@@ -101,10 +101,9 @@ export default function ContentLibraryPage() {
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [editingPdf, setEditingPdf] = useState<PdfAsset | null>(null);
   const [pdfForm, setPdfForm] = useState({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "", isPublished: false, unlockAt: "" });
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadForm, setUploadForm] = useState({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "" });
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [pdfUrl, setPdfUrl] = useState("");
 
   const [categories, setCategories] = useState<TaxItem[]>([]);
   const [exams, setExams] = useState<{ id: string; name: string; categoryId: string }[]>([]);
@@ -348,45 +347,21 @@ export default function ContentLibraryPage() {
     } catch { showToast("Failed to delete", "error"); }
   };
 
-  const [uploadProgress, setUploadProgress] = useState<string>("");
 
   const handleUploadPdf = async () => {
     if (!uploadForm.title.trim()) { showToast("Title is required", "error"); return; }
-    if (!uploadFile) { showToast("Please select a PDF file", "error"); return; }
-    if (uploadFile.type !== "application/pdf") { showToast("Only PDF files are allowed", "error"); return; }
-    if (uploadFile.size > 20 * 1024 * 1024) { showToast("File exceeds 20MB limit", "error"); return; }
+    const trimmedUrl = pdfUrl.trim();
+    if (!trimmedUrl) { showToast("Please paste a PDF URL", "error"); return; }
+    try { new URL(trimmedUrl); } catch { showToast("Please enter a valid URL", "error"); return; }
 
     setSaving(true);
     try {
-      // Step 1 — get a presigned PUT URL from our API (no file data sent to server)
-      setUploadProgress("Preparing upload...");
-      const urlRes = await fetch("/api/pdf-assets/request-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ size: uploadFile.size }),
-      });
-      const urlJson = await urlRes.json();
-      if (!urlRes.ok) { showToast(urlJson.error || "Could not prepare upload", "error"); return; }
-      const { uploadUrl, publicUrl } = urlJson;
-
-      // Step 2 — PUT the file bytes directly to GCS (bypasses our server entirely)
-      setUploadProgress("Uploading PDF to storage...");
-      const putRes = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": "application/pdf" },
-        body: uploadFile,
-      });
-      if (!putRes.ok) { showToast("Storage upload failed — please try again", "error"); return; }
-
-      // Step 3 — save the metadata record (JSON only, no file bytes)
-      setUploadProgress("Saving record...");
       const res = await fetch("/api/pdf-assets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: uploadForm.title,
-          fileUrl: publicUrl,
-          fileSize: uploadFile.size,
+          title: uploadForm.title.trim(),
+          fileUrl: trimmedUrl,
           categoryId: uploadForm.categoryId || null,
           examId: uploadForm.examId || null,
           subjectId: uploadForm.subjectId || null,
@@ -395,15 +370,15 @@ export default function ContentLibraryPage() {
         }),
       });
       const json = await res.json();
-      if (!res.ok) { showToast(json.error || "Upload failed", "error"); return; }
+      if (!res.ok) { showToast(json.error || "Failed to save PDF", "error"); return; }
 
-      showToast("PDF uploaded", "success");
+      showToast("PDF added successfully", "success");
       setShowUploadForm(false);
       setUploadForm({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "" });
-      setUploadFile(null);
+      setPdfUrl("");
       loadPdfs();
-    } catch (e: any) { showToast(e?.message || "Failed to upload", "error"); }
-    finally { setSaving(false); setUploadProgress(""); }
+    } catch (e: any) { showToast(e?.message || "Failed to save PDF", "error"); }
+    finally { setSaving(false); }
   };
 
   const openPdfEditor = async (pdf: PdfAsset & { examId?: string | null }) => {
@@ -637,8 +612,8 @@ export default function ContentLibraryPage() {
             <button style={btnPrimary} onClick={() => {
               setShowUploadForm(true);
               setUploadForm({ title: "", categoryId: "", examId: "", subjectId: "", topicId: "", subtopicId: "" });
-              setUploadFile(null); setUpSubjects([]); setUpTopics([]); setUpSubtopics([]);
-            }}>+ Upload PDF</button>
+              setPdfUrl(""); setUpSubjects([]); setUpTopics([]); setUpSubtopics([]);
+            }}>+ Add PDF</button>
           </div>
 
           {loadingPdfs ? (
@@ -863,22 +838,26 @@ export default function ContentLibraryPage() {
       {showUploadForm && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
           <div style={{ background: "#fff", borderRadius: "12px", padding: "24px", width: "560px", maxHeight: "90vh", overflowY: "auto" }}>
-            <h3 style={{ fontSize: "1.1rem", fontWeight: 600, margin: "0 0 16px" }}>Upload PDF</h3>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 600, margin: "0 0 16px" }}>Add PDF</h3>
             <div style={{ marginBottom: "12px" }}>
               <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151" }}>Title *</label>
-              <input style={inputStyle} value={uploadForm.title} onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })} />
+              <input style={inputStyle} value={uploadForm.title} onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })} placeholder="Enter PDF title" />
             </div>
             <div style={{ marginBottom: "12px" }}>
-              <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "4px" }}>PDF File *</label>
-              <input type="file" accept="application/pdf" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} />
+              <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151", display: "block", marginBottom: "4px" }}>PDF URL *</label>
+              <input
+                style={inputStyle}
+                type="url"
+                value={pdfUrl}
+                onChange={(e) => setPdfUrl(e.target.value)}
+                placeholder="Paste the PDF link here (e.g. https://example.com/file.pdf)"
+              />
+              {pdfUrl.trim() && <p style={{ margin: "4px 0 0", fontSize: "0.72rem", color: "#7c3aed" }}>URL looks good — make sure it is publicly accessible.</p>}
             </div>
             {renderTaxDropdowns(uploadForm, "upload", upSubjects, upTopics, upSubtopics)}
-            {uploadProgress && (
-              <p style={{ fontSize: "0.78rem", color: "#7c3aed", marginBottom: "8px" }}>{uploadProgress}</p>
-            )}
             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", marginTop: "8px" }}>
-              <button style={btnSecondary} onClick={() => setShowUploadForm(false)} disabled={saving}>Cancel</button>
-              <button style={btnPrimary} onClick={handleUploadPdf} disabled={saving}>{saving ? (uploadProgress || "Uploading...") : "Upload PDF"}</button>
+              <button style={btnSecondary} onClick={() => { setShowUploadForm(false); setPdfUrl(""); }} disabled={saving}>Cancel</button>
+              <button style={btnPrimary} onClick={handleUploadPdf} disabled={saving}>{saving ? "Saving..." : "Add PDF"}</button>
             </div>
           </div>
         </div>
